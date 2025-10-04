@@ -1,71 +1,209 @@
-import axios from "axios"
+/**
+ * Modern API Client for NMC Project
+ * Clean, secure, and maintainable API communication
+ */
+
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios"
 import { createClient } from "@supabase/supabase-js"
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-
-const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api",
-})
-
-api.interceptors.request.use(async (config) => {
-  let token = localStorage.getItem("access_token")
-  const refresh_token = localStorage.getItem("refresh_token")
-
-  console.log("[v0] API request to:", config.url)
-  console.log("[v0] Token exists:", !!token)
-
-  if (token) {
-    // Decode token to inspect payload (without verification)
-    try {
-      const base64Url = token.split(".")[1]
-      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/")
-      const payload = JSON.parse(window.atob(base64))
-      console.log("[v0] Token payload:", {
-        email: payload.email,
-        exp: new Date(payload.exp * 1000).toISOString(),
-        iat: new Date(payload.iat * 1000).toISOString(),
-        iss: payload.iss,
-        sub: payload.sub,
-      })
-      console.log("[v0] Token expired?", payload.exp * 1000 < Date.now())
-    } catch (e) {
-      console.error("[v0] Failed to decode token:", e)
-    }
-  }
-
-  // Refresh token if expired
-  if (!token && refresh_token) {
-    console.log("[v0] Attempting token refresh")
-    const { data, error } = await supabase.auth.refreshSession({ refresh_token })
-    if (error) {
-      console.error("[v0] Token refresh failed:", error.message)
-      localStorage.removeItem("access_token")
-      localStorage.removeItem("refresh_token")
-    } else if (data.session) {
-      token = data.session.access_token
-      localStorage.setItem("access_token", token)
-      localStorage.setItem("refresh_token", data.session.refresh_token)
-      console.log("[v0] Token refreshed successfully")
-    }
-  }
-
-  if (token) {
-    config.headers["Authorization"] = `Bearer ${token}`
-    console.log("[v0] Authorization header set")
-  }
-  return config
-})
-
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    console.error("[v0] API Error:", {
-      url: error.config?.url,
-      status: error.response?.status,
-      data: error.response?.data,
-    })
-    return Promise.reject(error)
-  },
+// Supabase client for token management
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+// API configuration
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"
+
+// Create axios instance
+const api: AxiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000, // 10 seconds
+  headers: {
+    "Content-Type": "application/json",
+  },
+})
+
+// Token management utilities
+const TokenManager = {
+  getAccessToken: (): string | null => {
+    if (typeof window === "undefined") return null
+    return localStorage.getItem("access_token")
+  },
+  
+  getRefreshToken: (): string | null => {
+    if (typeof window === "undefined") return null
+    return localStorage.getItem("refresh_token")
+  },
+  
+  setTokens: (accessToken: string, refreshToken: string): void => {
+    if (typeof window === "undefined") return
+    localStorage.setItem("access_token", accessToken)
+    localStorage.setItem("refresh_token", refreshToken)
+  },
+  
+  clearTokens: (): void => {
+    if (typeof window === "undefined") return
+    localStorage.removeItem("access_token")
+    localStorage.removeItem("refresh_token")
+  },
+  
+  isTokenExpired: (token: string): boolean => {
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]))
+      const currentTime = Math.floor(Date.now() / 1000)
+      return payload.exp < currentTime
+    } catch {
+      return true
+    }
+  },
+}
+
+// Request interceptor
+api.interceptors.request.use(
+  async (config: AxiosRequestConfig) => {
+    const token = TokenManager.getAccessToken()
+    
+    if (token) {
+      // Check if token is expired
+      if (TokenManager.isTokenExpired(token)) {
+        console.log("[API] Token expired, attempting refresh...")
+        
+        const refreshToken = TokenManager.getRefreshToken()
+        if (refreshToken) {
+          try {
+            const { data, error } = await supabase.auth.refreshSession({
+              refresh_token: refreshToken,
+            })
+            
+    if (error) {
+              console.error("[API] Token refresh failed:", error)
+              TokenManager.clearTokens()
+              return config
+            }
+            
+            if (data.session) {
+              TokenManager.setTokens(data.session.access_token, data.session.refresh_token)
+              config.headers = {
+                ...config.headers,
+                Authorization: `Bearer ${data.session.access_token}`,
+              }
+              console.log("[API] Token refreshed successfully")
+            }
+          } catch (error) {
+            console.error("[API] Token refresh error:", error)
+            TokenManager.clearTokens()
+          }
+        }
+      } else {
+        // Token is valid, add to request
+        config.headers = {
+          ...config.headers,
+          Authorization: `Bearer ${token}`,
+        }
+      }
+    }
+    
+    console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`)
+    return config
+  },
+  (error) => {
+    console.error("[API] Request error:", error)
+    return Promise.reject(error)
+  }
+)
+
+// Response interceptor
+api.interceptors.response.use(
+  (response: AxiosResponse) => {
+    console.log(`[API] ${response.status} ${response.config.url}`)
+    return response
+  },
+  (error) => {
+    console.error("[API] Response error:", {
+      url: error.config?.url,
+      status: error.response?.status,
+      message: error.message,
+      data: error.response?.data,
+    })
+    
+    // Handle specific error cases
+    if (error.response?.status === 401) {
+      console.log("[API] Unauthorized, clearing tokens")
+      TokenManager.clearTokens()
+      // Optionally redirect to login
+      if (typeof window !== "undefined") {
+        window.location.href = "/auth/login"
+      }
+    }
+    
+    return Promise.reject(error)
+  }
+)
+
+// API methods with proper typing
+export const ApiClient = {
+  // User endpoints
+  getCurrentUser: () => api.get("/users/me/"),
+  getUserProfile: () => api.get("/users/profile/"),
+  
+  // Admin endpoints
+  getUsers: (params?: any) => api.get("/users/", { params }),
+  getUser: (id: number) => api.get(`/users/${id}/`),
+  createUser: (data: any) => api.post("/users/", data),
+  updateUser: (id: number, data: any) => api.patch(`/users/${id}/`, data),
+  deleteUser: (id: number) => api.delete(`/users/${id}/`),
+  
+  // Organization endpoints
+  getOrgUnits: () => api.get("/org/tree/"),
+  getOrgUnit: (id: number) => api.get(`/org/units/${id}/`),
+  createOrgUnit: (data: any) => api.post("/org/units/", data),
+  updateOrgUnit: (id: number, data: any) => api.patch(`/org/units/${id}/`, data),
+  deleteOrgUnit: (id: number) => api.delete(`/org/units/${id}/`),
+  
+  // Metadata endpoints
+  getReportTypes: () => api.get("/metadata/report-types/"),
+  getReportType: (id: number) => api.get(`/metadata/report-types/${id}/`),
+  createReportType: (data: any) => api.post("/metadata/report-types/", data),
+  updateReportType: (id: number, data: any) => api.patch(`/metadata/report-types/${id}/`, data),
+  deleteReportType: (id: number) => api.delete(`/metadata/report-types/${id}/`),
+  
+  getReportPeriods: () => api.get("/metadata/report-periods/"),
+  getReportPeriod: (id: number) => api.get(`/metadata/report-periods/${id}/`),
+  createReportPeriod: (data: any) => api.post("/metadata/report-periods/", data),
+  updateReportPeriod: (id: number, data: any) => api.patch(`/metadata/report-periods/${id}/`, data),
+  deleteReportPeriod: (id: number) => api.delete(`/metadata/report-periods/${id}/`),
+  
+  // Reporting endpoints
+  getReports: (params?: any) => api.get("/reporting/reports/", { params }),
+  getReport: (id: number) => api.get(`/reporting/reports/${id}/`),
+  createReport: (data: any) => api.post("/reporting/reports/", data),
+  updateReport: (id: number, data: any) => api.patch(`/reporting/reports/${id}/`, data),
+  deleteReport: (id: number) => api.delete(`/reporting/reports/${id}/`),
+  exportReport: (id: number, format: string = "pdf") => api.get(`/reporting/reports/${id}/export/`, { 
+    params: { format },
+    responseType: "blob"
+  }),
+  
+  // Data entry endpoint
+  submitDataEntry: (data: any) => api.post("/reporting/data-entry/", data),
+  
+  // Analytics endpoints
+  getAnalytics: (params?: any) => api.get("/analytics/", { params }),
+  getAnalyticsSummary: () => api.get("/analytics/summary/"),
+  getAnalyticsReports: (params?: any) => api.get("/analytics/reports/", { params }),
+  getAnalyticsUsers: (params?: any) => api.get("/analytics/users/", { params }),
+  getAnalyticsOrgUnits: (params?: any) => api.get("/analytics/org-units/", { params }),
+  
+  // Export endpoints
+  exportData: (type: string, format: string = "csv", params?: any) => api.get(`/exports/${type}/`, {
+    params: { format, ...params },
+    responseType: "blob"
+  }),
+}
+
+// Export the configured axios instance
 export default api
+
+// Export types for external use
+export type { AxiosRequestConfig, AxiosResponse }

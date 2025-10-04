@@ -5,18 +5,18 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  const { djangoUser: user, loading, isAuthenticated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (!loading) {
-      if (user) {
+      if (isAuthenticated && user) {
         router.replace("/dashboard");
       } else {
         router.replace("/auth/login");
       }
     }
-  }, [user, loading, router]);
+  }, [isAuthenticated, user, loading, router]);
 
   return (
     <div className="flex h-screen items-center justify-center">
