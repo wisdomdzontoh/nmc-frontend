@@ -17,11 +17,7 @@ export default function DashboardPage() {
   // Fetch user info
   useEffect(() => {
     if (!loading && user) {
-      const accessToken = localStorage.getItem("access_token");
-      if (!accessToken) return;
-      api.get("/users/me/", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      })
+      api.get("/users/me/")
         .then((res) => setMe(res.data))
         .catch((err) => setMe(null));
     }

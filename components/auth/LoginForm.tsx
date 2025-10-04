@@ -102,10 +102,7 @@ export default function LoginForm() {
 
         {/* Footer */}
         <div className="text-center text-sm text-muted-foreground">
-          Don't have an account?{" "}
-          <Link href="/auth/register" className="text-foreground font-medium hover:underline">
-            Contact Admin
-          </Link>
+          Don't have an account? Contact your system administrator.
         </div>
       </div>
     </AuthLayout>

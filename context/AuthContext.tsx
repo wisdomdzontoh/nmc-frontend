@@ -53,9 +53,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log("[v0] Token length:", token.length)
       console.log("[v0] Token starts with:", token.substring(0, 20) + "...")
 
-      const { data } = await api.get("/users/me/", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      // Store token in localStorage first so the API interceptor can use it
+      localStorage.setItem("access_token", token)
+      
+      const { data } = await api.get("/users/me/")
 
       console.log("[v0] Django user fetched successfully:", data)
       setDjangoUser(data)
