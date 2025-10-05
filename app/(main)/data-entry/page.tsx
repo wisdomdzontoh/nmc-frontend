@@ -125,6 +125,72 @@ export default function DataEntryPage() {
     return m
   }, [dataset?.data_elements])
 
+  // --- NEW EFFECT: Fetch existing report data when all three are selected ---
+  React.useEffect(() => {
+    const fetchExistingReport = async () => {
+      if (!dataset?.id || !org?.id || !period?.startDate) return;
+
+      try {
+        setSaving(true);
+        const res = await api.get("/reporting/data-entry/", {
+          params: {
+            report_type: dataset.id,
+            org_unit: org.id,
+            reporting_period: period.startDate,
+          },
+        });
+
+        const report = res.data;
+        if (!report?.values || !Array.isArray(report.values)) return;
+
+        // fill values
+        if (layout) {
+          // map using data_element.code (layout-based)
+          const byCode: Record<string, number | string | null> = {};
+          for (const v of report.values) {
+            byCode[v.data_element_code] = v.value;
+            if (v.remark) byCode[`remark.${v.data_element_code}`] = v.remark;
+          }
+          setValuesByCode(byCode);
+        } else {
+          // map using data_element.id (default form)
+          const byId: Record<string, number | null> = {};
+          for (const v of report.values) {
+            byId[String(v.data_element)] = v.value;
+          }
+          setValuesById(byId);
+        }
+
+        toast.info("Existing report loaded for this selection.");
+      } catch (err: any) {
+        if (err?.response?.status === 404) {
+          // no report yet - clear form
+          setValuesByCode({});
+          setValuesById({});
+          return;
+        }
+        console.error("Error loading report:", err);
+        toast.error("Failed to load existing report data.");
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    fetchExistingReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataset?.id, org?.id, period?.startDate, layout]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin mr-2 text-blue-600" />
+        <span className="text-gray-600">Loading data entry…</span>
+      </div>
+    )
+  }
+
+  const showForm = !!dataset && !!org && !!period
+
   const submit = async () => {
     if (!dataset || !org || !period) return
 
@@ -175,16 +241,6 @@ export default function DataEntryPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin mr-2 text-blue-600" />
-        <span className="text-gray-600">Loading data entry…</span>
-      </div>
-    )
-  }
-
-  const showForm = !!dataset && !!org && !!period
 
   return (
     <div className="flex flex-col h-full bg-gray-50">

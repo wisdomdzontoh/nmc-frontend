@@ -2,7 +2,7 @@
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -11,8 +11,18 @@ export default function MainLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { djangoUser: user, loading, isAuthenticated } = useAuth();
+  const { djangoUser: user, supabaseUser, loading, isAuthenticated } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!loading && isAuthenticated && user && supabaseUser) {
+      const needsPassword = supabaseUser.user_metadata?.password_set === false;
+      if (needsPassword && pathname !== "/auth/welcome") {
+        router.replace("/auth/welcome");
+      }
+    }
+  }, [isAuthenticated, user, supabaseUser, loading, router, pathname]);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -37,6 +47,12 @@ export default function MainLayout({
         <p className="text-muted-foreground">Redirecting to login...</p>
       </div>
     );
+  }
+
+  // Only allow access if password_set is true or not present, or if on /auth/welcome
+  const needsPassword = supabaseUser?.user_metadata?.password_set === false;
+  if (needsPassword && pathname !== "/auth/welcome") {
+    return null;
   }
 
   return <DashboardLayout>{children}</DashboardLayout>;

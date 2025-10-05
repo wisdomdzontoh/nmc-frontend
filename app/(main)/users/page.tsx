@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -316,6 +317,7 @@ const UsersPage: React.FC = () => {
     last_name: string
     org_unit: number | null
     org_unit_name?: string | null
+    is_staff: boolean
   }>({
     email: "",
     username: "",
@@ -323,6 +325,7 @@ const UsersPage: React.FC = () => {
     last_name: "",
     org_unit: null,
     org_unit_name: null,
+    is_staff: false,
   })
 
   // org-unit modal
@@ -439,6 +442,7 @@ async function handleCreate() {
       last_name: "",
       org_unit: null,
       org_unit_name: null,
+      is_staff: false,
     })
   } catch (err: any) {
     setError("Failed to create user. " + (err?.message || ""))
@@ -559,6 +563,25 @@ async function handleCreate() {
                 </Button>
               </div>
             </div>
+
+            {/* Staff Role (only show to staff/superusers) */}
+            {canManageUsers && (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="is_staff"
+                  checked={createData.is_staff}
+                  onCheckedChange={(checked) =>
+                    setCreateData((p) => ({ ...p, is_staff: !!checked }))
+                  }
+                />
+                <label
+                  htmlFor="is_staff"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Grant staff access
+                </label>
+              </div>
+            )}
           </div>
 
           <div className="border-t bg-white">

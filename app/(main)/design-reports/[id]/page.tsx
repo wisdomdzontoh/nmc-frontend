@@ -2,10 +2,14 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { useAuth } from "@/context/AuthContext"
+import type { DjangoUser } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Loader2 } from "lucide-react"
 import ExcelLikeTable from "@/components/report-designer/ExcelLikeTable"
 import CellFormatToolbar from "@/components/report-designer/CellFormatToolbar"
 import FormulaBar from "@/components/report-designer/FormulaBar"
@@ -50,6 +54,26 @@ function getCellReference(rowIndex: number, colIndex: number): string {
 export default function ReportDesignerPage() {
   const params = useParams<{ id?: string }>()
   const router = useRouter()
+  const { djangoUser } = useAuth() as { djangoUser: DjangoUser | null }
+
+  // Check if user is staff or superuser
+  const isSuperuser = (djangoUser as any)?.is_superuser
+  const isStaff = (djangoUser as any)?.is_staff
+
+  // Show error if user is not staff or superuser
+  if (!isSuperuser && !isStaff) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto text-center">
+        <h1 className="text-2xl font-bold mb-2">Report Designer</h1>
+        <Alert>
+          <AlertDescription>
+            Report design is only available to staff and administrators. Contact your administrator if you need access.
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
   const isNew = !params?.id || params.id === "new"
 
   const [layoutId, setLayoutId] = useState<number | undefined>()
