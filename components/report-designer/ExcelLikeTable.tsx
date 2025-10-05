@@ -4,19 +4,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { useDesignerStore } from "@/stores/reportDesignerStore"
 import type { CellDef, TableSection } from "@/types/report-layout"
-import {
-  Database,
-  Calculator,
-  Type,
-  Copy,
-  Trash2,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  Bold,
-  Plus,
-  Minus,
-} from "lucide-react"
+import { Database, Calculator, Copy, Trash2, AlignLeft, AlignCenter, AlignRight, Bold, Plus, Minus } from "lucide-react"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -25,8 +13,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { useRef, useEffect } from "react";
 
 type ExcelLikeTableProps = {
   table: TableSection
@@ -35,6 +22,16 @@ type ExcelLikeTableProps = {
   onCopy?: () => void
   onPaste?: () => void
   onDelete?: () => void
+}
+
+function getColumnLabel(index: number): string {
+  let label = ""
+  let num = index
+  while (num >= 0) {
+    label = String.fromCharCode(65 + (num % 26)) + label
+    num = Math.floor(num / 26) - 1
+  }
+  return label
 }
 
 export default function ExcelLikeTable({
@@ -56,6 +53,19 @@ export default function ExcelLikeTable({
   const [resizeStartX, setResizeStartX] = React.useState(0)
   const [resizeStartWidth, setResizeStartWidth] = React.useState(0)
   const inputRef = React.useRef<HTMLInputElement>(null)
+
+  // --- New: Scroll and highlight logic ---
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [highlightCol, setHighlightCol] = React.useState<number | null>(null);
+
+  // Helper to scroll to a column
+  const scrollToColumn = (colIndex: number) => {
+    if (!scrollRef.current) return;
+    const th = scrollRef.current.querySelector(`th[data-col-index="${colIndex}"]`);
+    if (th && th instanceof HTMLElement) {
+      th.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }
+  };
 
   const isSelected = (rowIndex: number, colIndex: number) => {
     return (
@@ -98,7 +108,13 @@ export default function ExcelLikeTable({
     if (isHeader) {
       updateHeaderCell(rowIndex, colIndex, { label: editValue })
     } else {
-      updateCell(rowIndex, colIndex, { text: editValue, bind: undefined, compute: undefined })
+      if (editValue.startsWith("=")) {
+        updateCell(rowIndex, colIndex, { compute: editValue.slice(1), text: undefined, bind: undefined })
+      } else if (editValue.includes(".") && !editValue.includes(" ")) {
+        updateCell(rowIndex, colIndex, { bind: editValue, text: undefined, compute: undefined })
+      } else {
+        updateCell(rowIndex, colIndex, { text: editValue, bind: undefined, compute: undefined })
+      }
     }
     setEditingCell(null)
   }
@@ -145,7 +161,7 @@ export default function ExcelLikeTable({
   }
 
   const deleteRow = (rowIndex: number) => {
-    if (table.rows.length <= 1) return // Keep at least one row
+    if (table.rows.length <= 1) return
     const rows = table.rows.filter((_, i) => i !== rowIndex)
     onChange({ ...table, rows })
   }
@@ -156,13 +172,18 @@ export default function ExcelLikeTable({
     }))
     const header = table.header
       ? {
-          rows: table.header.rows.map((r) => [...r.slice(0, colIndex), { label: "Column" }, ...r.slice(colIndex)]),
+          rows: table.header.rows.map((r) => [...r.slice(0, colIndex), { label: "" }, ...r.slice(colIndex)]),
         }
       : undefined
-    const columnWidths = table.columnWidths
-      ? [...table.columnWidths.slice(0, colIndex), 120, ...table.columnWidths.slice(colIndex)]
-      : undefined
+
+    const currentWidths = table.columnWidths || Array(table.rows[0]?.cells.length || 0).fill(150)
+    const columnWidths = [...currentWidths.slice(0, colIndex), 150, ...currentWidths.slice(colIndex)]
+
     onChange({ ...table, rows, header, columnWidths })
+    setTimeout(() => {
+      scrollToColumn(colIndex);
+      setHighlightCol(colIndex);
+    }, 50);
   }
 
   const addColumnRight = (colIndex: number) => {
@@ -171,21 +192,22 @@ export default function ExcelLikeTable({
     }))
     const header = table.header
       ? {
-          rows: table.header.rows.map((r) => [
-            ...r.slice(0, colIndex + 1),
-            { label: "Column" },
-            ...r.slice(colIndex + 1),
-          ]),
+          rows: table.header.rows.map((r) => [...r.slice(0, colIndex + 1), { label: "" }, ...r.slice(colIndex + 1)]),
         }
       : undefined
-    const columnWidths = table.columnWidths
-      ? [...table.columnWidths.slice(0, colIndex + 1), 120, ...table.columnWidths.slice(colIndex + 1)]
-      : undefined
+
+    const currentWidths = table.columnWidths || Array(table.rows[0]?.cells.length || 0).fill(150)
+    const columnWidths = [...currentWidths.slice(0, colIndex + 1), 150, ...currentWidths.slice(colIndex + 1)]
+
     onChange({ ...table, rows, header, columnWidths })
+    setTimeout(() => {
+      scrollToColumn(colIndex + 1);
+      setHighlightCol(colIndex + 1);
+    }, 50);
   }
 
   const deleteColumn = (colIndex: number) => {
-    if (table.rows[0]?.cells.length <= 1) return // Keep at least one column
+    if (table.rows[0]?.cells.length <= 1) return
     const rows = table.rows.map((r) => ({
       cells: r.cells.filter((_, i) => i !== colIndex),
     }))
@@ -228,6 +250,14 @@ export default function ExcelLikeTable({
     }
   }, [resizingCol, resizeStartX, resizeStartWidth])
 
+  // Remove highlight after a short delay
+  useEffect(() => {
+    if (highlightCol !== null) {
+      const timeout = setTimeout(() => setHighlightCol(null), 1200);
+      return () => clearTimeout(timeout);
+    }
+  }, [highlightCol]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!selectedCell || selectedCell.sectionIndex !== sectionIndex) return
 
@@ -235,7 +265,6 @@ export default function ExcelLikeTable({
     const rowCount = table.rows.length
     const colCount = table.rows[0]?.cells.length || 0
 
-    // Navigation
     if (e.key === "ArrowUp" && rowIndex > 0) {
       e.preventDefault()
       setSelectedCell({ sectionIndex, rowIndex: rowIndex - 1, colIndex })
@@ -248,24 +277,16 @@ export default function ExcelLikeTable({
     } else if (e.key === "ArrowRight" && colIndex < colCount - 1) {
       e.preventDefault()
       setSelectedCell({ sectionIndex, rowIndex, colIndex: colIndex + 1 })
-    }
-    // Enter to edit
-    else if (e.key === "Enter" && !editingCell) {
+    } else if (e.key === "Enter" && !editingCell) {
       e.preventDefault()
       handleCellDoubleClick(rowIndex, colIndex)
-    }
-    // Delete to clear
-    else if ((e.key === "Delete" || e.key === "Backspace") && !editingCell) {
+    } else if ((e.key === "Delete" || e.key === "Backspace") && !editingCell) {
       e.preventDefault()
       updateCell(rowIndex, colIndex, { text: "", bind: undefined, compute: undefined })
-    }
-    // Copy
-    else if (e.ctrlKey && e.key === "c" && !editingCell) {
+    } else if (e.ctrlKey && e.key === "c" && !editingCell) {
       e.preventDefault()
       onCopy?.()
-    }
-    // Paste
-    else if (e.ctrlKey && e.key === "v" && !editingCell) {
+    } else if (e.ctrlKey && e.key === "v" && !editingCell) {
       e.preventDefault()
       onPaste?.()
     }
@@ -274,13 +295,12 @@ export default function ExcelLikeTable({
   const getCellIcon = (cell: CellDef) => {
     if (cell.bind) return <Database className="h-3 w-3 text-blue-600" />
     if (cell.compute) return <Calculator className="h-3 w-3 text-purple-600" />
-    if (cell.text) return <Type className="h-3 w-3 text-gray-400" />
     return null
   }
 
   const getCellDisplay = (cell: CellDef) => {
     if (cell.bind) return cell.bind
-    if (cell.compute) return cell.compute
+    if (cell.compute) return `=${cell.compute}`
     return cell.text || ""
   }
 
@@ -295,131 +315,176 @@ export default function ExcelLikeTable({
 
   const colCount = table.rows[0]?.cells.length || 0
 
+  const handleDrop = (e: React.DragEvent, rowIndex: number, colIndex: number) => {
+    e.preventDefault()
+    try {
+      const data = e.dataTransfer.getData("application/json")
+      if (data) {
+        const element = JSON.parse(data)
+        updateCell(rowIndex, colIndex, { bind: element.code, text: undefined, compute: undefined })
+      }
+    } catch (err) {
+      console.error("Failed to parse dropped data", err)
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "copy"
+  }
+
   return (
-    <TooltipProvider>
-      <div className="border border-gray-300 rounded overflow-hidden" onKeyDown={handleKeyDown} tabIndex={0}>
-        <div className="bg-gray-50 border-b px-2 py-1 flex items-center gap-1 text-xs">
-          <span className="text-gray-600 font-medium">Table Controls:</span>
-          {selectedCell?.sectionIndex === sectionIndex && (
-            <>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 px-2"
-                    onClick={() => addRowAbove(selectedCell.rowIndex)}
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Row Above
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Add row above selected cell</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 px-2"
-                    onClick={() => addRowBelow(selectedCell.rowIndex)}
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Row Below
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Add row below selected cell</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 px-2"
-                    onClick={() => deleteRow(selectedCell.rowIndex)}
-                    disabled={table.rows.length <= 1}
-                  >
-                    <Minus className="h-3 w-3 mr-1" />
-                    Delete Row
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Delete selected row</TooltipContent>
-              </Tooltip>
-              <div className="h-4 w-px bg-gray-300 mx-1" />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 px-2"
-                    onClick={() => addColumnLeft(selectedCell.colIndex)}
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Col Left
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Add column to the left</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 px-2"
-                    onClick={() => addColumnRight(selectedCell.colIndex)}
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Col Right
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Add column to the right</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 px-2"
-                    onClick={() => deleteColumn(selectedCell.colIndex)}
-                    disabled={colCount <= 1}
-                  >
-                    <Minus className="h-3 w-3 mr-1" />
-                    Delete Col
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Delete selected column</TooltipContent>
-              </Tooltip>
-            </>
-          )}
-        </div>
+    <div
+      className="border border-gray-300 rounded-lg overflow-hidden shadow-sm"
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+    >
+      <div className="overflow-x-auto" ref={scrollRef}>
+        <table className="w-full border-collapse">
+          <colgroup>
+            <col style={{ width: "40px" }} />
+            {Array.from({ length: colCount }).map((_, i) => (
+              <col
+                key={i}
+                style={{
+                  width: `${
+                    typeof table.columnWidths?.[i] === "number" && table.columnWidths[i] > 0
+                      ? table.columnWidths[i]
+                      : 150
+                  }px`
+                }}
+              />
+            ))}
+          </colgroup>
 
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            {table.columnWidths?.length && (
-              <colgroup>
-                {table.columnWidths.map((w, i) => (
-                  <col key={i} style={{ width: `${w}px` }} />
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border border-gray-300 w-10 h-8 bg-gray-200" />
+              {Array.from({ length: colCount }).map((_, i) => (
+                <ContextMenu key={i}>
+                  <ContextMenuTrigger asChild>
+                    <th
+                      data-col-index={i}
+                      className={cn(
+                        "border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 bg-gray-100 relative group cursor-pointer",
+                        highlightCol === i && "bg-yellow-200 transition-colors"
+                      )}
+                    >
+                      {getColumnLabel(i)}
+                      {i < colCount - 1 && (
+                        <div
+                          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onMouseDown={(e) => handleResizeStart(e, i)}
+                        />
+                      )}
+                    </th>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent>
+                    <ContextMenuItem onClick={() => addColumnLeft(i)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Insert Column Left
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => addColumnRight(i)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Insert Column Right
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem onClick={() => deleteColumn(i)} disabled={colCount <= 1}>
+                      <Minus className="h-4 w-4 mr-2" />
+                      Delete Column
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
+              ))}
+            </tr>
+
+            {/* Header rows */}
+            {table.header?.rows?.map((row, ri) => (
+              <tr key={`h-${ri}`} className="bg-amber-50">
+                <td className="border border-gray-300 px-2 py-1 text-xs text-gray-500 text-center font-medium bg-gray-100">
+                  H{ri + 1}
+                </td>
+                {row.map((cell, ci) => (
+                  <th
+                    key={`h-${ri}-${ci}`}
+                    colSpan={cell.colSpan || 1}
+                    rowSpan={cell.rowSpan || 1}
+                    onDoubleClick={() => handleCellDoubleClick(ri, ci, true)}
+                    className={cn(
+                      "border border-gray-300 px-2 py-2 text-xs font-semibold cursor-pointer hover:bg-amber-100 transition-colors",
+                      cell.align === "center" && "text-center",
+                      cell.align === "right" && "text-right",
+                    )}
+                  >
+                    {isEditing(ri, ci, true) ? (
+                      <Input
+                        ref={inputRef}
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={handleEditComplete}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault()
+                            handleEditComplete()
+                          } else if (e.key === "Escape") {
+                            setEditingCell(null)
+                          }
+                        }}
+                        className="h-6 px-1 text-xs font-semibold"
+                      />
+                    ) : (
+                      cell.label
+                    )}
+                  </th>
                 ))}
-              </colgroup>
-            )}
+              </tr>
+            ))}
+          </thead>
 
-            {table.header?.rows?.length && (
-              <thead className="bg-gray-100">
-                {table.header.rows.map((row, ri) => (
-                  <tr key={`h-${ri}`}>
-                    {row.map((cell, ci) => (
-                      <th
-                        key={`h-${ri}-${ci}`}
-                        colSpan={cell.colSpan || 1}
-                        rowSpan={cell.rowSpan || 1}
+          {/* Body */}
+          <tbody>
+            {table.rows.map((row, ri) => (
+              <tr key={`r-${ri}`}>
+                <ContextMenu>
+                  <ContextMenuTrigger asChild>
+                    <td className="bg-gray-100 border border-gray-300 px-2 py-1 text-xs text-gray-700 text-center font-medium w-10 cursor-pointer hover:bg-gray-200 transition-colors">
+                      {ri + 1}
+                    </td>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent>
+                    <ContextMenuItem onClick={() => addRowAbove(ri)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Insert Row Above
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => addRowBelow(ri)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Insert Row Below
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem onClick={() => deleteRow(ri)} disabled={table.rows.length <= 1}>
+                      <Minus className="h-4 w-4 mr-2" />
+                      Delete Row
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
+                {row.cells.map((cell, ci) => (
+                  <ContextMenu key={`c-${ri}-${ci}`}>
+                    <ContextMenuTrigger asChild>
+                      <td
+                        onClick={() => handleCellClick(ri, ci)}
+                        onDoubleClick={() => handleCellDoubleClick(ri, ci)}
+                        onDrop={(e) => handleDrop(e, ri, ci)}
+                        onDragOver={handleDragOver}
                         className={cn(
-                          "border border-gray-300 px-2 py-2 text-xs font-semibold relative group cursor-pointer",
-                          cell.align === "center" && "text-center",
-                          cell.align === "right" && "text-right",
+                          "border border-gray-300 px-2 py-2 text-sm cursor-pointer relative group transition-colors",
+                          isSelected(ri, ci) && "ring-2 ring-blue-500 ring-inset bg-blue-50",
+                          !isSelected(ri, ci) && "hover:bg-gray-50",
+                          cell.bind && "bg-blue-50/50",
+                          cell.compute && "bg-purple-50/50",
                         )}
-                        onDoubleClick={() => handleCellDoubleClick(ri, ci, true)}
+                        style={getCellStyle(cell)}
                       >
-                        {isEditing(ri, ci, true) ? (
+                        {isEditing(ri, ci) ? (
                           <Input
                             ref={inputRef}
                             value={editValue}
@@ -433,138 +498,74 @@ export default function ExcelLikeTable({
                                 setEditingCell(null)
                               }
                             }}
-                            className="h-6 px-1 text-xs font-semibold"
+                            className="h-6 px-1 text-sm"
                           />
                         ) : (
-                          <>
-                            {cell.label}
-                            {ci < row.length - 1 && (
-                              <div
-                                className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                onMouseDown={(e) => handleResizeStart(e, ci)}
-                              />
-                            )}
-                          </>
+                          <div className="flex items-center gap-1.5">
+                            {getCellIcon(cell)}
+                            <span className="flex-1">{getCellDisplay(cell)}</span>
+                          </div>
                         )}
-                      </th>
-                    ))}
-                  </tr>
+                      </td>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent>
+                      <ContextMenuItem onClick={() => handleCellDoubleClick(ri, ci)}>Edit Cell</ContextMenuItem>
+                      <ContextMenuItem onClick={onCopy}>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={onPaste} disabled={!copiedCell}>
+                        Paste
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem onClick={() => addRowAbove(ri)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Insert Row Above
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => addRowBelow(ri)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Insert Row Below
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem onClick={() => addColumnLeft(ci)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Insert Column Left
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => addColumnRight(ci)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Insert Column Right
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem onClick={() => updateCell(ri, ci, { align: "left" })}>
+                        <AlignLeft className="h-4 w-4 mr-2" />
+                        Align Left
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => updateCell(ri, ci, { align: "center" })}>
+                        <AlignCenter className="h-4 w-4 mr-2" />
+                        Align Center
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => updateCell(ri, ci, { align: "right" })}>
+                        <AlignRight className="h-4 w-4 mr-2" />
+                        Align Right
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem onClick={() => updateCell(ri, ci, { bold: !cell.bold })}>
+                        <Bold className="h-4 w-4 mr-2" />
+                        Toggle Bold
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem onClick={onDelete}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Clear Cell
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
                 ))}
-              </thead>
-            )}
-
-            {/* Body */}
-            <tbody>
-              {table.rows.map((row, ri) => (
-                <tr key={`r-${ri}`}>
-                  <td className="bg-gray-50 border border-gray-300 px-2 py-1 text-xs text-gray-500 text-center font-medium w-8">
-                    {ri + 1}
-                  </td>
-                  {row.cells.map((cell, ci) => (
-                    <ContextMenu key={`c-${ri}-${ci}`}>
-                      <ContextMenuTrigger asChild>
-                        <td
-                          onClick={() => handleCellClick(ri, ci)}
-                          onDoubleClick={() => handleCellDoubleClick(ri, ci)}
-                          className={cn(
-                            "border border-gray-300 px-2 py-2 text-sm cursor-pointer relative group",
-                            isSelected(ri, ci) && "ring-2 ring-blue-500 ring-inset",
-                            cell.bind && "bg-blue-50",
-                            cell.compute && "bg-purple-50",
-                          )}
-                          style={getCellStyle(cell)}
-                        >
-                          {isEditing(ri, ci) ? (
-                            <Input
-                              ref={inputRef}
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={handleEditComplete}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault()
-                                  handleEditComplete()
-                                } else if (e.key === "Escape") {
-                                  setEditingCell(null)
-                                }
-                              }}
-                              className="h-6 px-1 text-sm"
-                            />
-                          ) : (
-                            <div className="flex items-center gap-1">
-                              {getCellIcon(cell)}
-                              <span className="flex-1">{getCellDisplay(cell)}</span>
-                            </div>
-                          )}
-                        </td>
-                      </ContextMenuTrigger>
-                      <ContextMenuContent>
-                        <ContextMenuItem onClick={() => handleCellDoubleClick(ri, ci)}>Edit Cell</ContextMenuItem>
-                        <ContextMenuItem onClick={onCopy}>
-                          <Copy className="h-4 w-4 mr-2" />
-                          Copy
-                        </ContextMenuItem>
-                        <ContextMenuItem onClick={onPaste} disabled={!copiedCell}>
-                          Paste
-                        </ContextMenuItem>
-                        <ContextMenuSeparator />
-                        <ContextMenuItem onClick={() => addRowAbove(ri)}>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Insert Row Above
-                        </ContextMenuItem>
-                        <ContextMenuItem onClick={() => addRowBelow(ri)}>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Insert Row Below
-                        </ContextMenuItem>
-                        <ContextMenuItem onClick={() => deleteRow(ri)} disabled={table.rows.length <= 1}>
-                          <Minus className="h-4 w-4 mr-2" />
-                          Delete Row
-                        </ContextMenuItem>
-                        <ContextMenuSeparator />
-                        <ContextMenuItem onClick={() => addColumnLeft(ci)}>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Insert Column Left
-                        </ContextMenuItem>
-                        <ContextMenuItem onClick={() => addColumnRight(ci)}>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Insert Column Right
-                        </ContextMenuItem>
-                        <ContextMenuItem onClick={() => deleteColumn(ci)} disabled={colCount <= 1}>
-                          <Minus className="h-4 w-4 mr-2" />
-                          Delete Column
-                        </ContextMenuItem>
-                        <ContextMenuSeparator />
-                        <ContextMenuItem onClick={() => updateCell(ri, ci, { align: "left" })}>
-                          <AlignLeft className="h-4 w-4 mr-2" />
-                          Align Left
-                        </ContextMenuItem>
-                        <ContextMenuItem onClick={() => updateCell(ri, ci, { align: "center" })}>
-                          <AlignCenter className="h-4 w-4 mr-2" />
-                          Align Center
-                        </ContextMenuItem>
-                        <ContextMenuItem onClick={() => updateCell(ri, ci, { align: "right" })}>
-                          <AlignRight className="h-4 w-4 mr-2" />
-                          Align Right
-                        </ContextMenuItem>
-                        <ContextMenuSeparator />
-                        <ContextMenuItem onClick={() => updateCell(ri, ci, { bold: !cell.bold })}>
-                          <Bold className="h-4 w-4 mr-2" />
-                          Toggle Bold
-                        </ContextMenuItem>
-                        <ContextMenuSeparator />
-                        <ContextMenuItem onClick={onDelete}>
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Clear Cell
-                        </ContextMenuItem>
-                      </ContextMenuContent>
-                    </ContextMenu>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-    </TooltipProvider>
+    </div>
   )
 }

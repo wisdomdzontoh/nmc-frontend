@@ -105,7 +105,7 @@ function evalCompute(
 
 export default function Renderer({ layout, data, remarks = {}, formatNumber }: RendererProps) {
   return (
-    <div className="bg-white border rounded overflow-hidden">
+    <div className="bg-card border rounded overflow-hidden">
       {layout.title ? <div className="px-3 py-2 text-sm font-semibold border-b">{layout.title}</div> : null}
 
       <div className="p-3 space-y-4">
@@ -113,7 +113,7 @@ export default function Renderer({ layout, data, remarks = {}, formatNumber }: R
           if (sec.type === "heading") {
             const s = sec as HeadingSection
             return (
-              <div key={idx} className="uppercase text-[12px] font-semibold bg-gray-50 border px-2 py-1">
+              <div key={idx} className="uppercase text-[12px] font-semibold bg-muted border px-2 py-1">
                 {s.text}
               </div>
             )
@@ -122,20 +122,28 @@ export default function Renderer({ layout, data, remarks = {}, formatNumber }: R
           const t = sec as TableSection
 
           return (
-            <div key={t.id} className="border border-gray-300 overflow-x-auto">
+            <div key={t.id} className="border border-border overflow-x-auto">
               <table className="w-full border-collapse">
                 {/* Column widths (if provided) */}
-                {t.columnWidths?.length ? (
-                  <colgroup>
-                    {t.columnWidths.map((w, i) => (
-                      <col key={i} style={{ width: `${w}px` }} />
-                    ))}
-                  </colgroup>
-                ) : null}
+                {(() => {
+                  // Determine the number of columns
+                  const colCount = t.header?.rows?.[0]?.length || t.rows?.[0]?.cells?.length || 0;
+                  // Use provided widths, but fill missing with default (150px)
+                  const widths = Array.from({ length: colCount }, (_, i) =>
+                    typeof t.columnWidths?.[i] === "number" && t.columnWidths[i] > 0 ? t.columnWidths[i] : 150
+                  );
+                  return colCount ? (
+                    <colgroup>
+                      {widths.map((w, i) => (
+                        <col key={i} style={{ width: `${w}px` }} />
+                      ))}
+                    </colgroup>
+                  ) : null;
+                })()}
 
                 {/* Header */}
                 {t.header?.rows?.length ? (
-                  <thead className="bg-amber-50">
+                  <thead className="bg-accent/20">
                     {t.header.rows.map((r, ri) => (
                       <tr key={`h-${ri}`}>
                         {r.map((c, ci) => (
@@ -144,7 +152,7 @@ export default function Renderer({ layout, data, remarks = {}, formatNumber }: R
                             colSpan={c.colSpan || 1}
                             rowSpan={c.rowSpan || 1}
                             className={cn(
-                              "border border-gray-300 px-2 py-2 text-left text-[12px] font-semibold",
+                              "border border-border px-2 py-2 text-left text-[12px] font-semibold",
                               c.align === "center" && "text-center",
                               c.align === "right" && "text-right",
                             )}
@@ -196,7 +204,7 @@ export default function Renderer({ layout, data, remarks = {}, formatNumber }: R
                               colSpan={c.colSpan || 1}
                               rowSpan={c.rowSpan || 1}
                               className={cn(
-                                "border border-gray-300 px-2 py-2 align-top text-[13px]",
+                                "border border-border px-2 py-2 align-top text-[13px]",
                                 c.align === "center" && "text-center",
                                 c.align === "right" && "text-right",
                               )}

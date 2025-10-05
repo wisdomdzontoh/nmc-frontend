@@ -79,21 +79,18 @@ function CellInput({
     );
   }
   return (
-    <div className="flex items-center gap-2">
-      <Database className="h-4 w-4 text-blue-500 flex-shrink-0" />
-      <Input
-        type="number"
-        step="0.01"
-        value={numberValue ?? ""}
-        readOnly={readOnly}
-        onChange={(e) => {
-          const raw = e.target.value.trim();
-          onChange(code, raw === "" ? null : Number(raw));
-        }}
-        className="text-right h-9"
-        placeholder="0"
-      />
-    </div>
+    <Input
+      type="number"
+      step="0.01"
+      value={numberValue ?? ""}
+      readOnly={readOnly}
+      onChange={(e) => {
+        const raw = e.target.value.trim();
+        onChange(code, raw === "" ? null : Number(raw));
+      }}
+      className="text-right h-12 text-lg font-semibold px-4 border-2 border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white"
+      placeholder="0"
+    />
   );
 }
 
@@ -115,7 +112,7 @@ function TableArray({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse">
+      <table className="w-full border-collapse min-w-[700px]">
         {Array.isArray(colWidths) && colWidths.length > 0 ? (
           <colgroup>
             {colWidths.map((w: number, i: number) => (
@@ -134,7 +131,7 @@ function TableArray({
                     colSpan={hc.colSpan || 1}
                     rowSpan={hc.rowSpan || 1}
                     className={cn(
-                      "border border-gray-300 px-2 py-2 text-left text-[12px] font-semibold",
+                      "border border-gray-300 px-2 py-2 text-left text-[14px] font-bold bg-blue-50",
                       hc.align === "center" && "text-center",
                       hc.align === "right" && "text-right"
                     )}
@@ -149,7 +146,7 @@ function TableArray({
 
         <tbody>
           {body.map((row: any, ri: number) => (
-            <tr key={`tr-${ri}`} className="hover:bg-gray-50/50">
+            <tr key={`tr-${ri}`} className="hover:bg-blue-50/20">
               {(row.cells || []).map((c: any, ci: number) => {
                 let content: React.ReactNode = c.text ?? "";
                 let extraClass = "";
@@ -171,14 +168,16 @@ function TableArray({
                 } else if (c.compute) {
                   const computed = evalFormula(String(c.compute), values);
                   content = (
-                    <div className="flex items-center gap-2 text-purple-700">
-                      <Calculator className="h-4 w-4" />
-                      <span className="font-mono font-medium">
+                    <div className="flex items-center gap-2 text-purple-700 text-lg font-semibold">
+                      <Calculator className="h-5 w-5" />
+                      <span className="font-mono font-semibold">
                         {computed !== null ? computed : "—"}
                       </span>
                     </div>
                   );
                   extraClass = "bg-purple-50/30";
+                } else if (typeof c.text === "string" && c.text.trim() !== "") {
+                  content = <span className="text-lg font-semibold">{c.text}</span>;
                 }
 
                 return (
@@ -187,7 +186,7 @@ function TableArray({
                     colSpan={c.colSpan || 1}
                     rowSpan={c.rowSpan || 1}
                     className={cn(
-                      "border border-gray-300 px-3 py-2 align-top text-[13px]",
+                      "border border-gray-300 px-3 py-3 align-top min-w-[120px]",
                       c.bold && "font-semibold",
                       c.align === "center" && "text-center",
                       c.align === "right" && "text-right",
@@ -224,10 +223,10 @@ function GridTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse">
+      <table className="w-full border-collapse min-w-[700px]">
         <tbody>
           {Array.from({ length: rows }, (_, ri) => (
-            <tr key={`r-${ri}`} className="hover:bg-gray-50/50">
+            <tr key={`r-${ri}`} className="hover:bg-blue-50/20">
               {Array.from({ length: cols }, (_, ci) => {
                 const key = `${ri}-${ci}`;
                 const cell = cells[key];
@@ -236,14 +235,14 @@ function GridTable({
                   return (
                     <td
                       key={key}
-                      className="border border-gray-300 px-3 py-2 min-w-[100px] h-10"
+                      className="border border-gray-300 px-3 py-3 min-w-[120px] h-12"
                     />
                   );
                 }
 
                 const isHeader = ri === 0;
                 let content: React.ReactNode = cell.content ?? "";
-                let extraClass = isHeader ? "bg-amber-50 font-semibold text-sm" : "";
+                let extraClass = isHeader ? "bg-amber-50 font-semibold text-base" : "";
 
                 if (cell.type === "bound" && cell.dataElement) {
                   const code = String(cell.dataElement);
@@ -262,21 +261,23 @@ function GridTable({
                 } else if (cell.type === "formula" && cell.formula) {
                   const computed = evalFormula(String(cell.formula), values);
                   content = (
-                    <div className="flex items-center gap-2 text-purple-700">
-                      <Calculator className="h-4 w-4" />
-                      <span className="font-mono font-medium">
+                    <div className="flex items-center gap-2 text-purple-700 text-lg font-semibold">
+                      <Calculator className="h-5 w-5" />
+                      <span className="font-mono font-semibold">
                         {computed !== null ? computed : "—"}
                       </span>
                     </div>
                   );
                   extraClass = "bg-purple-50/30";
+                } else if (typeof cell.content === "string" && cell.content.trim() !== "") {
+                  content = <span className="text-lg font-semibold">{cell.content}</span>;
                 }
 
                 return (
                   <td
                     key={key}
                     className={cn(
-                      "border border-gray-300 px-3 py-2 min-w-[100px]",
+                      "border border-gray-300 px-3 py-3 min-w-[120px]",
                       cell.bold && "font-semibold",
                       cell.alignment === "center" && "text-center",
                       cell.alignment === "right" && "text-right",
@@ -328,7 +329,7 @@ export default function LayoutEntryForm({
                 (!section.level || section.level === 3) && "text-sm"
               )}
             >
-              {section.content}
+              {section.text}
             </div>
           );
         }

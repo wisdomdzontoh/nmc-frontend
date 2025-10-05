@@ -20,17 +20,17 @@ export default function DesignReportsList() {
           <Link
             key={l.id}
             href={`/design-reports/${l.id}`}
-            className="flex items-center justify-between px-3 py-2 hover:bg-gray-50"
+            className="flex items-center justify-between px-3 py-2 hover:bg-muted"
           >
             <div>
               <div className="font-medium">
-                {l.name} <span className="text-xs text-gray-500">({l.code})</span>
+                {l.name} <span className="text-xs text-muted-foreground">({l.code})</span>
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-muted-foreground">
                 status: {l.status} • v{l.version}
               </div>
             </div>
-            <div className="text-sm text-blue-600">Edit</div>
+            <div className="text-sm text-primary">Edit</div>
           </Link>
         ))}
       </div>

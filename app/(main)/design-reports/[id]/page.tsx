@@ -8,19 +8,44 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ExcelLikeTable from "@/components/report-designer/ExcelLikeTable"
 import CellFormatToolbar from "@/components/report-designer/CellFormatToolbar"
+import FormulaBar from "@/components/report-designer/FormulaBar"
 import DataElementPalette, { type DataElement } from "@/components/report-designer/DataElementPalette"
 import Renderer from "@/components/report-designer/Renderer"
 import api from "@/lib/api"
 import { createLayout, updateLayout, publishLayout } from "@/lib/reportLayouts"
 import type { LayoutSchema, HeadingSection, TableSection, CellDef } from "@/types/report-layout"
 import { useDesignerStore } from "@/stores/reportDesignerStore"
-import { Undo2, Redo2, Save, Upload, TableIcon, HeadingIcon, Eye, Code, Trash2 } from "lucide-react"
+import {
+  Undo2,
+  Redo2,
+  Save,
+  Upload,
+  TableIcon,
+  Heading1,
+  Eye,
+  Code,
+  Trash2,
+  FileSpreadsheet,
+  ChevronLeft,
+  PanelLeftClose,
+  PanelRightClose,
+} from "lucide-react"
 import { toast } from "sonner"
 import { Toaster } from "@/components/ui/sonner"
 
 type ReportType = { id: number; name: string; code: string; data_elements?: DataElement[] }
 
 const DEFAULT_SCHEMA: LayoutSchema = { title: "", sections: [] }
+
+function getCellReference(rowIndex: number, colIndex: number): string {
+  let col = ""
+  let num = colIndex
+  while (num >= 0) {
+    col = String.fromCharCode(65 + (num % 26)) + col
+    num = Math.floor(num / 26) - 1
+  }
+  return `${col}${rowIndex + 1}`
+}
 
 export default function ReportDesignerPage() {
   const params = useParams<{ id?: string }>()
@@ -35,11 +60,12 @@ export default function ReportDesignerPage() {
   const [reportTypes, setReportTypes] = useState<ReportType[]>([])
   const [rtElements, setRtElements] = useState<DataElement[]>([])
   const [activeTab, setActiveTab] = useState("design")
+  const [leftPanelOpen, setLeftPanelOpen] = useState(true)
+  const [rightPanelOpen, setRightPanelOpen] = useState(true)
 
   const { selectedCell, setSelectedCell, copiedCell, setCopiedCell, pushHistory, undo, redo, canUndo, canRedo } =
     useDesignerStore()
 
-  // Load data
   useEffect(() => {
     ;(async () => {
       const rts = await api.get("/metadata/report-types/").then((r) => r.data)
@@ -58,7 +84,6 @@ export default function ReportDesignerPage() {
     })()
   }, [isNew, params?.id])
 
-  // Fetch data elements
   useEffect(() => {
     if (!reportTypeId) {
       setRtElements([])
@@ -72,13 +97,11 @@ export default function ReportDesignerPage() {
     }
   }, [reportTypeId, reportTypes])
 
-  // Update schema with history
   const updateSchema = (newSchema: LayoutSchema) => {
     setSchema(newSchema)
     pushHistory(newSchema)
   }
 
-  // Undo/Redo handlers
   const handleUndo = () => {
     const prevSchema = undo()
     if (prevSchema) setSchema(prevSchema)
@@ -89,11 +112,10 @@ export default function ReportDesignerPage() {
     if (nextSchema) setSchema(nextSchema)
   }
 
-  // Add sections
   const addHeading = () => {
     updateSchema({
       ...schema,
-      sections: [...schema.sections, { type: "heading", text: "SECTION TITLE", level: 2 } as HeadingSection],
+      sections: [...schema.sections, { type: "heading", text: "SECTION TITLE" } as HeadingSection],
     })
   }
 
@@ -101,30 +123,31 @@ export default function ReportDesignerPage() {
     const t: TableSection = {
       type: "table",
       id: `tbl_${Date.now()}`,
-      columnWidths: [64, 420, 220, 220],
+      columnWidths: [200, 200, 200, 200],
       header: {
-        rows: [[{ label: "NO." }, { label: "MEASURE" }, { label: "VALUE / INDICATOR" }, { label: "REMARK" }]],
+        rows: [[{ label: "Column A" }, { label: "Column B" }, { label: "Column C" }, { label: "Column D" }]],
       },
-      rows: [{ cells: [{ text: "1" }, { text: "Item" }, { text: "" }, { text: "" }] }],
+      rows: [
+        { cells: [{ text: "" }, { text: "" }, { text: "" }, { text: "" }] },
+        { cells: [{ text: "" }, { text: "" }, { text: "" }, { text: "" }] },
+        { cells: [{ text: "" }, { text: "" }, { text: "" }, { text: "" }] },
+      ],
     }
     updateSchema({ ...schema, sections: [...schema.sections, t] })
   }
 
-  // Update section
   const updateSectionAt = (index: number, next: any) => {
     const copy = [...schema.sections]
     copy[index] = next
     updateSchema({ ...schema, sections: copy })
   }
 
-  // Delete section
   const deleteSection = (index: number) => {
     const copy = schema.sections.filter((_, i) => i !== index)
     updateSchema({ ...schema, sections: copy })
     setSelectedCell(null)
   }
 
-  // Get selected cell
   const getSelectedCell = (): CellDef | null => {
     if (!selectedCell) return null
     const sec = schema.sections[selectedCell.sectionIndex] as TableSection
@@ -132,7 +155,6 @@ export default function ReportDesignerPage() {
     return sec.rows[selectedCell.rowIndex]?.cells[selectedCell.colIndex] ?? null
   }
 
-  // Update selected cell
   const updateSelectedCell = (patch: Partial<CellDef>) => {
     if (!selectedCell) return
     const sec = schema.sections[selectedCell.sectionIndex] as TableSection
@@ -148,12 +170,10 @@ export default function ReportDesignerPage() {
     updateSectionAt(selectedCell.sectionIndex, { ...sec, rows })
   }
 
-  // Clear selected cell
   const clearSelectedCell = () => {
     updateSelectedCell({ text: "", bind: undefined, compute: undefined })
   }
 
-  // Copy/Paste
   const handleCopy = () => {
     const cell = getSelectedCell()
     if (cell) {
@@ -169,17 +189,15 @@ export default function ReportDesignerPage() {
     }
   }
 
-  // Bind data element
   const handleBindElement = (el: DataElement) => {
     if (!selectedCell) {
-      toast.error("No cell selected", { description: "Select a cell first" })
+      toast.error("No cell selected", { description: "Select a cell first, then click + to bind" })
       return
     }
     updateSelectedCell({ bind: el.code, text: undefined, compute: undefined })
     toast.success("Data element bound", { description: `Bound ${el.code} to cell` })
   }
 
-  // Save/Publish
   const handleSave = async () => {
     const payload = { name, code, report_type: reportTypeId || null, schema }
     try {
@@ -207,7 +225,6 @@ export default function ReportDesignerPage() {
     }
   }
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === "z") {
@@ -226,120 +243,187 @@ export default function ReportDesignerPage() {
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [schema, name, code, reportTypeId, layoutId])
 
+  const cellReference = selectedCell ? getCellReference(selectedCell.rowIndex, selectedCell.colIndex) : ""
+
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       <Toaster />
 
-      {/* Top toolbar */}
-      <div className="bg-white border-b px-4 py-3 flex items-center gap-3">
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Layout name" className="w-64" />
-        <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Layout code" className="w-48" />
-        <Select
-          value={reportTypeId ? String(reportTypeId) : ""}
-          onValueChange={(v) => {
-            setReportTypeId(Number(v))
-            setSelectedCell(null)
-          }}
-        >
-          <SelectTrigger className="w-64">
-            <SelectValue placeholder="Select report type" />
-          </SelectTrigger>
-          <SelectContent>
-            {reportTypes.map((rt) => (
-              <SelectItem key={rt.id} value={String(rt.id)}>
-                {rt.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="bg-white border-b">
+        <div className="px-4 py-3 flex items-center gap-3 border-b">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => router.push("/design-reports")}
+            className="mr-2"
+            title="Back to Reports"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
 
-        <div className="flex-1" />
+          <FileSpreadsheet className="h-5 w-5 text-gray-600" />
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Report Layout Name"
+            className="w-80 font-medium"
+          />
+          <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Code" className="w-40" />
+          <Select
+            value={reportTypeId ? String(reportTypeId) : ""}
+            onValueChange={(v) => {
+              setReportTypeId(Number(v))
+              setSelectedCell(null)
+            }}
+          >
+            <SelectTrigger className="w-64">
+              <SelectValue placeholder="Select report type" />
+            </SelectTrigger>
+            <SelectContent>
+              {reportTypes.map((rt) => (
+                <SelectItem key={rt.id} value={String(rt.id)}>
+                  {rt.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Button size="sm" variant="outline" onClick={handleUndo} disabled={!canUndo()}>
-          <Undo2 className="h-4 w-4" />
-        </Button>
-        <Button size="sm" variant="outline" onClick={handleRedo} disabled={!canRedo()}>
-          <Redo2 className="h-4 w-4" />
-        </Button>
+          <div className="flex-1" />
 
-        <div className="h-6 w-px bg-gray-300" />
+          <Button size="sm" variant="outline" onClick={handleUndo} disabled={!canUndo()} title="Undo (Ctrl+Z)">
+            <Undo2 className="h-4 w-4" />
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleRedo} disabled={!canRedo()} title="Redo (Ctrl+Y)">
+            <Redo2 className="h-4 w-4" />
+          </Button>
 
-        <Button size="sm" variant="outline" onClick={handleSave}>
-          <Save className="h-4 w-4 mr-2" />
-          Save
-        </Button>
-        <Button size="sm" onClick={handlePublish} disabled={!layoutId}>
-          <Upload className="h-4 w-4 mr-2" />
-          Publish
-        </Button>
+          <div className="h-6 w-px bg-gray-300" />
+
+          <Button size="sm" variant="outline" onClick={handleSave} title="Save (Ctrl+S)">
+            <Save className="h-4 w-4 mr-2" />
+            Save
+          </Button>
+          <Button size="sm" onClick={handlePublish} disabled={!layoutId}>
+            <Upload className="h-4 w-4 mr-2" />
+            Publish
+          </Button>
+        </div>
+
+        <FormulaBar cell={getSelectedCell()} cellReference={cellReference} onUpdate={updateSelectedCell} />
       </div>
 
-      {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left sidebar - Palette */}
-        <div className="w-64 bg-white border-r p-4 space-y-3">
-          <div className="text-sm font-semibold mb-3">Add Elements</div>
-          <Button variant="outline" className="w-full justify-start bg-transparent" onClick={addHeading}>
-            <HeadingIcon className="h-4 w-4 mr-2" />
-            Heading
-          </Button>
-          <Button variant="outline" className="w-full justify-start bg-transparent" onClick={addTable}>
-            <TableIcon className="h-4 w-4 mr-2" />
-            Table
-          </Button>
+        {leftPanelOpen && (
+          <div className="w-56 bg-white border-r flex flex-col">
+            <div className="p-4 border-b">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-semibold text-gray-700">Insert</div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setLeftPanelOpen(false)}
+                  className="h-6 w-6 p-0"
+                  title="Collapse panel"
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <Button variant="outline" className="w-full justify-start h-9 bg-transparent" onClick={addHeading}>
+                  <Heading1 className="h-4 w-4 mr-2" />
+                  Heading
+                </Button>
+                <Button variant="outline" className="w-full justify-start h-9 bg-transparent" onClick={addTable}>
+                  <TableIcon className="h-4 w-4 mr-2" />
+                  Table
+                </Button>
+              </div>
+            </div>
 
-          <div className="pt-4 border-t">
-            <div className="text-sm font-semibold mb-3">Keyboard Shortcuts</div>
-            <div className="space-y-1 text-xs text-gray-600">
-              <div>
-                <kbd className="px-1 py-0.5 bg-gray-100 rounded">Ctrl+Z</kbd> Undo
-              </div>
-              <div>
-                <kbd className="px-1 py-0.5 bg-gray-100 rounded">Ctrl+Y</kbd> Redo
-              </div>
-              <div>
-                <kbd className="px-1 py-0.5 bg-gray-100 rounded">Ctrl+C</kbd> Copy
-              </div>
-              <div>
-                <kbd className="px-1 py-0.5 bg-gray-100 rounded">Ctrl+V</kbd> Paste
-              </div>
-              <div>
-                <kbd className="px-1 py-0.5 bg-gray-100 rounded">Ctrl+S</kbd> Save
-              </div>
-              <div>
-                <kbd className="px-1 py-0.5 bg-gray-100 rounded">Enter</kbd> Edit cell
-              </div>
-              <div>
-                <kbd className="px-1 py-0.5 bg-gray-100 rounded">Del</kbd> Clear cell
-              </div>
-              <div>
-                <kbd className="px-1 py-0.5 bg-gray-100 rounded">↑↓←→</kbd> Navigate
+            <div className="flex-1 overflow-auto p-4">
+              <div className="text-sm font-semibold mb-3 text-gray-700">Shortcuts</div>
+              <div className="space-y-2 text-xs text-gray-600">
+                <div className="flex items-center justify-between">
+                  <span>Undo</span>
+                  <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-mono">Ctrl+Z</kbd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Redo</span>
+                  <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-mono">Ctrl+Y</kbd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Copy</span>
+                  <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-mono">Ctrl+C</kbd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Paste</span>
+                  <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-mono">Ctrl+V</kbd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Save</span>
+                  <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-mono">Ctrl+S</kbd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Edit cell</span>
+                  <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-mono">Enter</kbd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Clear</span>
+                  <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-mono">Del</kbd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Navigate</span>
+                  <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-mono">↑↓←→</kbd>
+                </div>
+                <div className="pt-2 mt-2 border-t border-gray-200">
+                  <div className="text-xs text-gray-500">
+                    <strong>Tip:</strong> Right-click on row numbers or column headers to insert/delete rows and columns
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Center - Canvas */}
+        {!leftPanelOpen && (
+          <div className="w-10 bg-white border-r flex items-start justify-center pt-4">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setLeftPanelOpen(true)}
+              className="h-8 w-8 p-0"
+              title="Expand panel"
+            >
+              <PanelLeftClose className="h-4 w-4 rotate-180" />
+            </Button>
+          </div>
+        )}
+
         <div className="flex-1 flex flex-col overflow-hidden">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-            <TabsList className="mx-4 mt-4 w-fit">
-              <TabsTrigger value="design">
-                <Code className="h-4 w-4 mr-2" />
-                Design
-              </TabsTrigger>
-              <TabsTrigger value="preview">
-                <Eye className="h-4 w-4 mr-2" />
-                Preview
-              </TabsTrigger>
-            </TabsList>
+            <div className="bg-white border-b px-4">
+              <TabsList className="h-10">
+                <TabsTrigger value="design" className="gap-2">
+                  <Code className="h-4 w-4" />
+                  Design
+                </TabsTrigger>
+                <TabsTrigger value="preview" className="gap-2">
+                  <Eye className="h-4 w-4" />
+                  Preview
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-            <TabsContent value="design" className="flex-1 overflow-auto p-4 mt-0">
-              <div className="max-w-5xl mx-auto space-y-4">
+            <TabsContent value="design" className="flex-1 overflow-auto p-6 mt-0">
+              <div className="max-w-6xl mx-auto space-y-6">
                 {schema.sections.map((sec, idx) => {
                   if (sec.type === "heading") {
                     const h = sec as HeadingSection
                     return (
-                      <div key={idx} className="bg-white rounded-lg p-4 border group relative">
+                      <div
+                        key={idx}
+                        className="bg-white rounded-lg p-4 border-2 border-gray-200 group relative shadow-sm"
+                      >
                         <Input
                           value={h.text}
                           onChange={(e) => {
@@ -347,12 +431,13 @@ export default function ReportDesignerPage() {
                             copy[idx] = { ...h, text: e.target.value }
                             updateSchema({ ...schema, sections: copy })
                           }}
-                          className="text-lg font-semibold"
+                          className="text-lg font-semibold border-0 focus-visible:ring-0 px-0"
+                          placeholder="Enter heading text..."
                         />
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
                           onClick={() => deleteSection(idx)}
                         >
                           <Trash2 className="h-4 w-4 text-red-600" />
@@ -363,11 +448,14 @@ export default function ReportDesignerPage() {
 
                   const t = sec as TableSection
                   return (
-                    <div key={t.id} className="bg-white rounded-lg border overflow-hidden group relative">
+                    <div
+                      key={t.id}
+                      className="bg-white rounded-lg border-2 border-gray-200 overflow-hidden group relative shadow-sm"
+                    >
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0 bg-white shadow-sm"
                         onClick={() => deleteSection(idx)}
                       >
                         <Trash2 className="h-4 w-4 text-red-600" />
@@ -392,30 +480,66 @@ export default function ReportDesignerPage() {
                 })}
 
                 {schema.sections.length === 0 && (
-                  <div className="text-center py-12 text-gray-500">
-                    <TableIcon className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                    <p>No elements yet. Add a heading or table to get started.</p>
+                  <div className="text-center py-20 text-gray-500">
+                    <TableIcon className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                    <p className="text-lg font-medium mb-2">No elements yet</p>
+                    <p className="text-sm">Add a heading or table from the left sidebar to get started</p>
                   </div>
                 )}
               </div>
             </TabsContent>
 
-            <TabsContent value="preview" className="flex-1 overflow-auto p-4 mt-0">
-              <div className="max-w-5xl mx-auto">
+            <TabsContent value="preview" className="flex-1 overflow-auto p-6 mt-0 bg-gray-100">
+              <div className="max-w-6xl mx-auto">
                 <Renderer layout={schema} data={{}} />
               </div>
             </TabsContent>
           </Tabs>
         </div>
 
-        {/* Right sidebar - Data Elements */}
-        <div className="w-80 bg-white border-l">
-          {reportTypeId ? (
-            <DataElementPalette elements={rtElements} onBind={handleBindElement} />
-          ) : (
-            <div className="p-4 text-sm text-gray-500 text-center">Select a report type to view data elements</div>
-          )}
-        </div>
+        {rightPanelOpen && (
+          <div className="w-80 bg-white border-l flex flex-col">
+            <div className="p-4 border-b">
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-sm font-semibold text-gray-700">Data Elements</h3>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setRightPanelOpen(false)}
+                  className="h-6 w-6 p-0"
+                  title="Collapse panel"
+                >
+                  <PanelRightClose className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">Drag to cells or select cell and click +</p>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              {reportTypeId ? (
+                <DataElementPalette elements={rtElements} onBind={handleBindElement} />
+              ) : (
+                <div className="p-6 text-sm text-gray-500 text-center">
+                  <div className="mb-3 text-gray-400">📊</div>
+                  Select a report type above to view available data elements
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {!rightPanelOpen && (
+          <div className="w-10 bg-white border-l flex items-start justify-center pt-4">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setRightPanelOpen(true)}
+              className="h-8 w-8 p-0"
+              title="Expand panel"
+            >
+              <PanelRightClose className="h-4 w-4 rotate-180" />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )

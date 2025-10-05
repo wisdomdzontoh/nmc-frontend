@@ -1,28 +1,31 @@
 /**
- * Organization Unit Selection Modal - DHIMS 2 Style
- * Allows users to select their assigned org unit and its children
+ * Organization Unit Selection Modal — Single Select
+ * - Always centered
+ * - Full-screen on mobile, dialog on desktop
+ * - Sticky header/footer, scrollable body
+ * - Single-selection (radio-like behavior)
  */
 
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog"
-import { 
-  Building2, 
-  ChevronRight, 
-  ChevronDown, 
+import {
+  Building2,
+  ChevronRight,
+  ChevronDown,
   Search,
-  Loader2
+  Loader2,
 } from "lucide-react"
 import api from "@/lib/api"
 
@@ -39,7 +42,7 @@ interface OrgUnit {
 interface OrgUnitSelectionModalProps {
   isOpen: boolean
   onClose: () => void
-  onSelect: (selectedUnits: OrgUnit[]) => void
+  onSelect: (selectedUnits: OrgUnit[]) => void // returns [one] or []
   userOrgUnit?: number
 }
 
@@ -47,267 +50,235 @@ const OrgUnitSelectionModal: React.FC<OrgUnitSelectionModalProps> = ({
   isOpen,
   onClose,
   onSelect,
-  userOrgUnit
+  userOrgUnit,
 }) => {
   const [orgUnits, setOrgUnits] = useState<OrgUnit[]>([])
-  const [filteredUnits, setFilteredUnits] = useState<OrgUnit[]>([])
-  const [selectedUnits, setSelectedUnits] = useState<Set<number>>(new Set())
-  const [expandedUnits, setExpandedUnits] = useState<Set<number>>(new Set())
-  const [searchTerm, setSearchTerm] = useState("")
+  const [filtered, setFiltered] = useState<OrgUnit[]>([])
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(false)
-  const [userSubUnits, setUserSubUnits] = useState(false)
-  const [userSubX2Units, setUserSubX2Units] = useState(false)
+  const [pickMyUnit, setPickMyUnit] = useState(false)
 
-  // Load organization units
   useEffect(() => {
-    if (isOpen) {
-      loadOrgUnits()
-    }
-  }, [isOpen])
+    if (!isOpen) return
+    ;(async () => {
+      try {
+        setLoading(true)
+        const res = await api.get("/org/tree/")
+        const tree = res.data || []
+        setOrgUnits(tree)
+        setFiltered(tree)
+        // auto-expand user's org unit branch if provided
+        if (userOrgUnit) {
+          setExpanded((prev) => new Set(prev).add(userOrgUnit))
+        }
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [isOpen, userOrgUnit])
 
-  // Filter units based on search
+  // filter tree while keeping hierarchy for matches
   useEffect(() => {
-    if (searchTerm) {
-      const filtered = orgUnits.filter(unit =>
-        unit.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      setFilteredUnits(filtered)
-    } else {
-      setFilteredUnits(orgUnits)
-    }
-  }, [searchTerm, orgUnits])
+    if (!search) return setFiltered(orgUnits)
+    const q = search.toLowerCase()
+    const matches = (nodes: OrgUnit[]): OrgUnit[] =>
+      nodes
+        .map((n) => ({
+          ...n,
+          children: n.children ? matches(n.children) : [],
+        }))
+        .filter(
+          (n) =>
+            n.name.toLowerCase().includes(q) ||
+            (n.children && n.children.length > 0)
+        )
+    const out = matches(orgUnits)
+    setFiltered(out)
 
-  const loadOrgUnits = async () => {
-    try {
-      setLoading(true)
-      const response = await api.get("/org/tree/")
-      setOrgUnits(response.data)
-      setFilteredUnits(response.data)
-      
-      // Auto-expand user's org unit and its children
-      if (userOrgUnit) {
-        setExpandedUnits(prev => new Set([...prev, userOrgUnit]))
-        setSelectedUnits(prev => new Set([...prev, userOrgUnit]))
-      }
-    } catch (error) {
-      console.error("Failed to load organization units:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const toggleExpanded = (unitId: number) => {
-    setExpandedUnits(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(unitId)) {
-        newSet.delete(unitId)
-      } else {
-        newSet.add(unitId)
-      }
-      return newSet
-    })
-  }
-
-  const toggleSelection = (unitId: number) => {
-    setSelectedUnits(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(unitId)) {
-        newSet.delete(unitId)
-      } else {
-        newSet.add(unitId)
-      }
-      return newSet
-    })
-  }
-
-  const handleUserSubUnitsChange = (checked: boolean) => {
-    setUserSubUnits(checked)
-    if (checked && userOrgUnit) {
-      // Auto-select user's org unit and its direct children
-      const userUnit = orgUnits.find(unit => unit.id === userOrgUnit)
-      if (userUnit) {
-        setSelectedUnits(prev => {
-          const newSet = new Set(prev)
-          newSet.add(userOrgUnit)
-          // Add direct children
-          userUnit.children?.forEach(child => {
-            newSet.add(child.id)
-          })
-          return newSet
-        })
-      }
-    }
-  }
-
-  const handleUserSubX2UnitsChange = (checked: boolean) => {
-    setUserSubX2Units(checked)
-    if (checked && userOrgUnit) {
-      // Auto-select user's org unit and its children up to 2 levels
-      const userUnit = orgUnits.find(unit => unit.id === userOrgUnit)
-      if (userUnit) {
-        setSelectedUnits(prev => {
-          const newSet = new Set(prev)
-          newSet.add(userOrgUnit)
-          
-          const addChildren = (unit: OrgUnit, level: number = 0) => {
-            if (level < 2) {
-              unit.children?.forEach(child => {
-                newSet.add(child.id)
-                addChildren(child, level + 1)
-              })
-            }
+    // expand all parents of matches for visibility
+    const expandAll = (nodes: OrgUnit[]) => {
+      const toExpand = new Set<number>()
+      const walk = (arr: OrgUnit[], parents: number[]) => {
+        for (const n of arr) {
+          if ((n.children && n.children.length) || n.name.toLowerCase().includes(q)) {
+            parents.forEach((p) => toExpand.add(p))
           }
-          
-          addChildren(userUnit)
-          return newSet
-        })
+          if (n.children) walk(n.children, [...parents, n.id])
+        }
       }
+      walk(out, [])
+      setExpanded(toExpand)
     }
+    expandAll(out)
+  }, [search, orgUnits])
+
+  const toggleExpand = (id: number) =>
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+
+  const selectOnly = (id: number) => {
+    // radio-like; click again to clear
+    setSelectedId((prev) => (prev === id ? null : id))
+    // turning off quick-pick if manual change conflicts
+    if (pickMyUnit && userOrgUnit && id !== userOrgUnit) setPickMyUnit(false)
   }
 
-  const handleUpdate = () => {
-    const selected = orgUnits.filter(unit => selectedUnits.has(unit.id))
-    onSelect(selected)
-    onClose()
+  const applyMyUnit = (checked: boolean) => {
+    setPickMyUnit(checked)
+    if (!userOrgUnit) return
+    setSelectedId(checked ? userOrgUnit : null)
   }
 
-  const renderOrgUnitTree = (units: OrgUnit[], level: number = 0) => {
-    return units.map((unit) => (
-      <div key={unit.id} className="select-none">
-        <div 
-          className="flex items-center py-2 px-2 hover:bg-gray-50 rounded"
-          style={{ paddingLeft: `${level * 20 + 8}px` }}
-        >
-          {unit.children && unit.children.length > 0 && (
-            <button
-              onClick={() => toggleExpanded(unit.id)}
-              className="mr-2 p-1 hover:bg-gray-200 rounded"
-            >
-              {expandedUnits.has(unit.id) ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </button>
-          )}
-          
-          {(!unit.children || unit.children.length === 0) && (
-            <div className="w-6 mr-2" />
-          )}
-          
-          <Checkbox
-            checked={selectedUnits.has(unit.id)}
-            onCheckedChange={() => toggleSelection(unit.id)}
-            className="mr-3"
-          />
-          
-          <Building2 className="h-4 w-4 mr-2 text-gray-500" />
-          <span className="text-sm">{unit.name}</span>
-        </div>
-        
-        {expandedUnits.has(unit.id) && unit.children && (
-          <div>
-            {renderOrgUnitTree(unit.children, level + 1)}
+  const findById = (nodes: OrgUnit[], id: number): OrgUnit | undefined => {
+    for (const n of nodes) {
+      if (n.id === id) return n
+      const hit = n.children && findById(n.children, id)
+      if (hit) return hit
+    }
+    return undefined
+  }
+
+  const renderTree = (nodes: OrgUnit[], level = 0) =>
+    nodes.map((n) => {
+      const hasKids = !!(n.children && n.children.length)
+      const isOpen = expanded.has(n.id)
+      const isChecked = selectedId === n.id
+      return (
+        <div key={n.id} className="select-none">
+          <div
+            className="flex items-center py-2 px-2 hover:bg-gray-50"
+            style={{ paddingLeft: `${level * 20 + 8}px` }}
+          >
+            {hasKids ? (
+              <button
+                type="button"
+                onClick={() => toggleExpand(n.id)}
+                className="mr-2 p-1 hover:bg-gray-200 rounded"
+                aria-label={isOpen ? "Collapse" : "Expand"}
+              >
+                {isOpen ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </button>
+            ) : (
+              <div className="w-6 mr-2" />
+            )}
+
+            {/* Using Checkbox component but enforcing radio behavior */}
+            <Checkbox
+              checked={isChecked}
+              onCheckedChange={() => selectOnly(n.id)}
+              className="mr-3 rounded-full"
+              aria-checked={isChecked}
+              role="radio"
+              aria-label={`Select ${n.name}`}
+            />
+
+            <Building2 className="h-4 w-4 mr-2 text-gray-500" />
+            <span className="text-sm">{n.name}</span>
           </div>
-        )}
-      </div>
-    ))
+
+          {isOpen && hasKids && <div>{renderTree(n.children!, level + 1)}</div>}
+        </div>
+      )
+    })
+
+  const handleApply = () => {
+    if (!selectedId) {
+      onSelect([])
+      onClose()
+      return
+    }
+    const selectedUnit = findById(orgUnits, selectedId)
+    onSelect(selectedUnit ? [selectedUnit] : [])
+    onClose()
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center">
-            <Building2 className="mr-2 h-5 w-5" />
-            Organisation unit
-          </DialogTitle>
-          <DialogDescription>
-            Select the organization units for data entry
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent
+        className="
+          z-[60] p-0 sm:max-w-3xl w-[100vw] sm:w-[min(92vw,900px)]
+          h-[100vh] sm:h-auto sm:max-h-[85vh]
+          overflow-hidden rounded-none sm:rounded-lg
+        "
+      >
+        {/* Sticky header */}
+        <div className="sticky top-0 z-10 bg-white border-b">
+          <DialogHeader className="p-4">
+            <DialogTitle className="flex items-center">
+              <Building2 className="mr-2 h-5 w-5" />
+              Organisation unit
+            </DialogTitle>
+            <DialogDescription>
+              Select exactly one organisation unit
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-        <div className="flex-1 overflow-hidden">
-          {/* Selection Options */}
-          <div className="space-y-3 mb-4 p-4 bg-gray-50 rounded">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="user-org-unit"
-                checked={selectedUnits.has(userOrgUnit || 0)}
-                onCheckedChange={(checked) => {
-                  if (checked && userOrgUnit) {
-                    setSelectedUnits(prev => new Set([...prev, userOrgUnit]))
-                  } else if (userOrgUnit) {
-                    setSelectedUnits(prev => {
-                      const newSet = new Set(prev)
-                      newSet.delete(userOrgUnit)
-                      return newSet
-                    })
-                  }
-                }}
-              />
-              <label htmlFor="user-org-unit" className="text-sm font-medium">
-                User organisation unit
-              </label>
+        {/* Body */}
+        <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
+          {/* Left: quick pick + search */}
+          <aside className="sm:w-64 border-b sm:border-b-0 sm:border-r bg-gray-50 p-4 space-y-3 overflow-auto">
+            <div className="text-xs font-semibold text-gray-600 mb-1">
+              Quick pick
             </div>
-            
-            <div className="flex items-center space-x-2">
+            <label className="flex items-center space-x-2">
               <Checkbox
-                id="user-sub-units"
-                checked={userSubUnits}
-                onCheckedChange={handleUserSubUnitsChange}
+                checked={pickMyUnit}
+                onCheckedChange={(c) => applyMyUnit(Boolean(c))}
               />
-              <label htmlFor="user-sub-units" className="text-sm font-medium">
-                User sub-units
-              </label>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="user-sub-x2-units"
-                checked={userSubX2Units}
-                onCheckedChange={handleUserSubX2UnitsChange}
-              />
-              <label htmlFor="user-sub-x2-units" className="text-sm font-medium">
-                User sub-x2-units
-              </label>
-            </div>
-          </div>
+              <span className="text-sm">My organisation unit</span>
+            </label>
 
-          {/* Search */}
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Filter organisation units..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+            <div className="pt-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Filter organisation units…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+          </aside>
 
-          {/* Organization Units Tree */}
-          <div className="border rounded-lg overflow-y-auto max-h-96">
+          {/* Right: tree */}
+          <section className="flex-1 overflow-auto">
             {loading ? (
-              <div className="flex items-center justify-center py-8">
+              <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                <span>Loading organization units...</span>
+                <span>Loading organization units…</span>
               </div>
             ) : (
               <div className="p-2">
-                {renderOrgUnitTree(filteredUnits)}
+                {(filtered.length > 0 ? filtered : orgUnits).map((root) =>
+                  renderTree([root])
+                )}
               </div>
             )}
-          </div>
+          </section>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Hide
-          </Button>
-          <Button onClick={handleUpdate}>
-            Update
-          </Button>
-        </DialogFooter>
+        {/* Sticky footer */}
+        <div className="sticky bottom-0 z-10 bg-white border-t">
+          <DialogFooter className="p-3 sm:p-4">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button onClick={handleApply} disabled={!selectedId}>
+              Done
+            </Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   )

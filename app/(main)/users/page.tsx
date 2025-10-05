@@ -1,56 +1,72 @@
 /**
  * Users Management Page
- * Complete user management interface for administrators
+ * - Refetch list after create (so the new user appears with normalized fields)
+ * - Data table using shadcn Table + TanStack React-Table
  */
 
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/context/AuthContext"
+import type { DjangoUser } from "@/context/AuthContext"
 import { ApiClient } from "@/lib/api"
+import { createClient } from "@supabase/supabase-js"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog"
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select"
-import { 
-  Users, 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
-  User,
-  Mail,
-  Building2,
-  Calendar,
-  Shield,
-  Loader2,
-  MoreHorizontal
-} from "lucide-react"
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu"
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 
-interface User {
+import {
+  Plus,
+  Search,
+  Loader2,
+  Building2,
+  Mail,
+  Calendar,
+  User as UserIcon,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react"
+
+import OrgUnitSelectionModal from "@/components/modals/OrgUnitSelectionModal"
+
+// TanStack Table
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  SortingState,
+  useReactTable,
+} from "@tanstack/react-table"
+
+interface OrgTreeNode {
+  id: number
+  name: string
+  type?: string
+  children?: OrgTreeNode[]
+}
+
+interface UserRow {
   id: number
   username: string
   email: string
@@ -66,386 +82,519 @@ interface User {
   last_login: string | null
 }
 
-interface CreateUserData {
-  email: string
-  username: string
-  first_name: string
-  last_name: string
-  org_unit: number | null
-  password?: string
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+/* ----------------------------- helpers ----------------------------- */
+
+function collectAllIds(nodes: OrgTreeNode[]): number[] {
+  let ids: number[] = []
+  for (const n of nodes) {
+    ids.push(n.id)
+    if (n.children) ids = ids.concat(collectAllIds(n.children))
+  }
+  return ids
 }
 
-interface OrgUnit {
-  id: number
-  name: string
-  description?: string
+// REPLACE your getDescendantOrgIds with this exact version
+function getDescendantOrgIds(tree: OrgTreeNode[], rootId: number): number[] {
+  // find the node first, then collect ids only from that subtree
+  const findNode = (nodes: OrgTreeNode[], id: number): OrgTreeNode | null => {
+    for (const n of nodes) {
+      if (n.id === id) return n
+      if (n.children) {
+        const hit = findNode(n.children, id)
+        if (hit) return hit
+      }
+    }
+    return null
+  }
+
+  const collect = (node: OrgTreeNode | null): number[] => {
+    if (!node) return []
+    let ids = [node.id]
+    if (node.children) {
+      for (const c of node.children) ids = ids.concat(collect(c))
+    }
+    return ids
+  }
+
+  return collect(findNode(tree, rootId))
 }
+
+/* --------------------------- data table UI -------------------------- */
+
+function RoleBadges({ user }: { user: UserRow }) {
+  if (user.is_superuser) return <Badge variant="destructive">Superuser</Badge>
+  if (user.is_staff) return <Badge>Staff</Badge>
+  return <Badge variant="secondary">User</Badge>
+}
+
+const columns: ColumnDef<UserRow>[] = [
+  {
+    accessorKey: "full_name",
+    header: ({ column }) => (
+      <HeaderCell column={column} title="Name" />
+    ),
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+          <UserIcon className="h-4 w-4 text-gray-600" />
+        </div>
+        <div className="font-medium">{row.original.full_name || `${row.original.first_name} ${row.original.last_name}`}</div>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "email",
+    header: ({ column }) => <HeaderCell column={column} title="Email" />,
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2 text-sm text-gray-700">
+        <Mail className="h-4 w-4 text-gray-500" />
+        {row.original.email}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "org_unit_name",
+    header: ({ column }) => <HeaderCell column={column} title="Organization Unit" />,
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2 text-sm text-gray-700">
+        <Building2 className="h-4 w-4 text-gray-500" />
+        {row.original.org_unit_name || "—"}
+      </div>
+    ),
+  },
+  {
+    id: "role",
+    header: "Role",
+    cell: ({ row }) => <RoleBadges user={row.original} />,
+    sortingFn: (a, b) => {
+      const va = a.original.is_superuser ? 2 : a.original.is_staff ? 1 : 0
+      const vb = b.original.is_superuser ? 2 : b.original.is_staff ? 1 : 0
+      return va - vb
+    },
+  },
+  {
+    accessorKey: "is_active",
+    header: ({ column }) => <HeaderCell column={column} title="Status" />,
+    cell: ({ row }) =>
+      row.original.is_active ? <Badge>Active</Badge> : <Badge variant="secondary">Inactive</Badge>,
+    sortingFn: "basic",
+  },
+  {
+    accessorKey: "date_joined",
+    header: ({ column }) => <HeaderCell column={column} title="Joined" />,
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2 text-sm text-gray-700">
+        <Calendar className="h-4 w-4 text-gray-500" />
+        {new Date(row.original.date_joined).toLocaleDateString()}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "last_login",
+    header: ({ column }) => <HeaderCell column={column} title="Last login" />,
+    cell: ({ row }) => (
+      <div className="text-sm text-gray-700">
+        {row.original.last_login ? new Date(row.original.last_login).toLocaleDateString() : "—"}
+      </div>
+    ),
+  },
+]
+
+function HeaderCell({ column, title }: { column: any; title: string }) {
+  const isSorted = column.getIsSorted()
+  return (
+    <button
+      className="flex items-center gap-1 select-none"
+      onClick={() => column.toggleSorting(isSorted === "asc")}
+    >
+      <span className="text-xs uppercase tracking-wide text-gray-600">{title}</span>
+      {isSorted === "asc" && <ChevronUp className="h-3.5 w-3.5 text-gray-500" />}
+      {isSorted === "desc" && <ChevronDown className="h-3.5 w-3.5 text-gray-500" />}
+    </button>
+  )
+}
+
+function UsersDataTable({ data, search, onSearch }: {
+  data: UserRow[]
+  search: string
+  onSearch: (v: string) => void
+}) {
+  const [sorting, setSorting] = useState<SortingState>([{ id: "full_name", desc: false }])
+
+  const table = useReactTable({
+    data,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  })
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle>Users</CardTitle>
+        <CardDescription>Search, sort and explore users</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="mb-3 relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Search users by name, email, or username…"
+            value={search}
+            onChange={(e) => onSearch(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((hg) => (
+                <TableRow key={hg.id}>
+                  {hg.headers.map((header) => (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder ? null : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                    No users found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <TableCaption className="pt-4">Showing {table.getRowModel().rows.length} user(s)</TableCaption>
+      </CardContent>
+    </Card>
+  )
+}
+
+/* ------------------------------ main page ------------------------------ */
 
 const UsersPage: React.FC = () => {
-  const { djangoUser } = useAuth()
-  const [users, setUsers] = useState<User[]>([])
-  const [orgUnits, setOrgUnits] = useState<OrgUnit[]>([])
+  const { djangoUser } = useAuth() as { djangoUser: DjangoUser | null }
+
+  const [users, setUsers] = useState<UserRow[]>([])
+  const [orgTree, setOrgTree] = useState<OrgTreeNode[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
-  const [roleFilter, setRoleFilter] = useState("all")
-  const [statusFilter, setStatusFilter] = useState("all")
-  
-  // Create User Dialog
+
+  // create dialog
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [createData, setCreateData] = useState<CreateUserData>({
+  const [createData, setCreateData] = useState<{
+    email: string
+    username: string
+    first_name: string
+    last_name: string
+    org_unit: number | null
+    org_unit_name?: string | null
+  }>({
     email: "",
     username: "",
     first_name: "",
     last_name: "",
-    org_unit: null
+    org_unit: null,
+    org_unit_name: null,
   })
 
-  // Load data
+  // org-unit modal
+  const [orgModalOpen, setOrgModalOpen] = useState(false)
+
+  // initial load
   useEffect(() => {
-    const loadData = async () => {
+    const load = async () => {
+      setLoading(true)
       try {
-        setLoading(true)
-        setError(null)
-        const [usersRes, orgUnitsRes] = await Promise.all([
+        const [usersRes, orgTreeRes] = await Promise.all([
           ApiClient.getUsers(),
-          ApiClient.getOrgUnits()
+          ApiClient.getOrgUnits(),
         ])
         setUsers(usersRes.data.results || usersRes.data)
-        setOrgUnits(orgUnitsRes.data)
+        setOrgTree(orgTreeRes.data || [])
       } catch (err: any) {
-        console.error("Failed to load users data:", err)
-        setError("Failed to load users data. Please try again.")
+        if (err?.response?.status === 403) {
+          setError("You do not have permission to view or manage users. Contact your administrator if you need access.")
+          setUsers([])
+          setOrgTree([])
+        } else {
+          setError("Failed to load users or org units.")
+        }
       } finally {
         setLoading(false)
       }
     }
-
-    loadData()
+    load()
   }, [])
 
-  // Handle create user
-  const handleCreate = async () => {
-    if (!createData.email.trim()) {
-      setError("Email is required")
-      return
+  const isSuperuser = (djangoUser as any)?.is_superuser
+  const isStaff = (djangoUser as any)?.is_staff
+  const myOrgId = djangoUser?.org_unit ?? null
+  
+  // If superuser OR staff without an assigned org → see everyone.
+  // Else if staff with an org → see that org + descendants.
+  // Else (no staff) → see only yourself.
+  const scopeAll = Boolean(isSuperuser || (isStaff && !myOrgId))
+  
+  const allowedOrgIds = useMemo(() => {
+    if (scopeAll) return collectAllIds(orgTree)             // whole tree
+    if (myOrgId) return getDescendantOrgIds(orgTree, myOrgId) // my subtree
+    return []                                               // no org assigned and not superuser
+  }, [orgTree, scopeAll, myOrgId])
+  
+  const visibleUsers = useMemo(() => {
+    const q = searchTerm.toLowerCase()
+  
+    const inScope = (u: UserRow) => {
+      if (scopeAll) return true
+      if (!isStaff) return u.id === (djangoUser as any)?.id // non-staff: only self
+      // staff w/ org: users whose org is inside my subtree
+      return u.org_unit != null && allowedOrgIds.includes(u.org_unit)
     }
+  
+    return (users || [])
+      .filter(inScope)
+      .filter((u) =>
+        (u.email || "").toLowerCase().includes(q) ||
+        (u.username || "").toLowerCase().includes(q) ||
+        (u.full_name || "").toLowerCase().includes(q)
+      )
+  }, [users, searchTerm, scopeAll, isStaff, djangoUser, allowedOrgIds])
+  
 
+  const canManageUsers = isSuperuser || (djangoUser as any)?.is_staff
+
+  async function refetchUsers() {
+    const res = await ApiClient.getUsers()
+    setUsers(res.data.results || res.data)
+  }
+
+// create user and refresh list to ensure normalized fields are present
+async function handleCreate() {
+  if (!createData.email.trim() || !createData.org_unit) {
+    setError("Email and organization unit are required")
+    return
+  }
+
+  try {
+    setIsSubmitting(true)
+    setError(null)
+
+    // 1) Create user in Django
+    await ApiClient.createUser(createData)
+
+    // 2) Refresh list so the new user shows up with server-computed fields
+    await refetchUsers()
+
+    // 3) Fire the Supabase invite via server route (service role) — non-blocking for UX
     try {
-      setIsSubmitting(true)
-      setError(null)
-      
-      const response = await ApiClient.createUser(createData)
-      setUsers(prev => [response.data, ...prev])
-      setIsCreateDialogOpen(false)
-      setCreateData({ email: "", username: "", first_name: "", last_name: "", org_unit: null })
-    } catch (err: any) {
-      console.error("Failed to create user:", err)
-      setError("Failed to create user. Please try again.")
-    } finally {
-      setIsSubmitting(false)
+      await fetch("/api/users/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: createData.email,
+          // redirectTo is optional; add if you have a callback route:
+          // redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+        }),
+      })
+      // You can check response.ok and show a toast if desired.
+    } catch (inviteErr) {
+      // Don't fail the whole flow if email sending has an issue.
+      console.error("Invite failed:", inviteErr)
     }
+
+    // 4) Reset form & close dialog
+    setIsCreateDialogOpen(false)
+    setCreateData({
+      email: "",
+      username: "",
+      first_name: "",
+      last_name: "",
+      org_unit: null,
+      org_unit_name: null,
+    })
+  } catch (err: any) {
+    setError("Failed to create user. " + (err?.message || ""))
+  } finally {
+    setIsSubmitting(false)
   }
+}
 
-  // Filter users
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = 
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.full_name.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesRole = roleFilter === "all" || 
-      (roleFilter === "admin" && user.is_staff) ||
-      (roleFilter === "superuser" && user.is_superuser) ||
-      (roleFilter === "user" && !user.is_staff && !user.is_superuser)
-    
-    const matchesStatus = statusFilter === "all" || 
-      (statusFilter === "active" && user.is_active) ||
-      (statusFilter === "inactive" && !user.is_active)
-
-    return matchesSearch && matchesRole && matchesStatus
-  })
-
-  // Get role badge variant
-  const getRoleBadgeVariant = (user: User) => {
-    if (user.is_superuser) return "destructive"
-    if (user.is_staff) return "default"
-    return "secondary"
-  }
-
-  // Get role text
-  const getRoleText = (user: User) => {
-    if (user.is_superuser) return "Superuser"
-    if (user.is_staff) return "Staff"
-    return "User"
-  }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading users...</p>
-        </div>
+        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+        <p className="text-muted-foreground">Loading users...</p>
+      </div>
+    )
+  }
+
+  if (error === "You do not have permission to view or manage users. Contact your administrator if you need access.") {
+    return (
+      <div className="p-6 max-w-2xl mx-auto text-center">
+        <h1 className="text-2xl font-bold mb-2">User Management</h1>
+        <p className="text-gray-600 mb-4">{error}</p>
+      </div>
+    )
+  }
+
+  if (!isSuperuser && !djangoUser?.org_unit) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto text-center">
+        <h1 className="text-2xl font-bold mb-2">User Management</h1>
+        <p className="text-gray-600 mb-4">You are not assigned to any organization unit. User management is disabled.</p>
       </div>
     )
   }
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
-    <div>
+        <div>
           <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-          <p className="text-muted-foreground">
-            Manage system users and their permissions
-          </p>
+          <p className="text-muted-foreground">Manage users within your organization hierarchy</p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-        <Button>
-              <Plus className="mr-2 h-4 w-4" />
-          Add User
-        </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
+        {canManageUsers && (
+          <Button onClick={() => setIsCreateDialogOpen(true)} disabled={allowedOrgIds.length === 0}>
+            <Plus className="mr-2 h-4 w-4" /> Add User
+          </Button>
+        )}
+      </div>
+
+      {/* Users table */}
+      <UsersDataTable data={visibleUsers} search={searchTerm} onSearch={setSearchTerm} />
+
+      {/* CREATE USER DIALOG */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent
+          className="z-[50] p-0 sm:max-w-xl max-h-[85vh] flex flex-col overflow-hidden"
+        >
+          <div className="border-b bg-white">
+            <DialogHeader className="p-4">
               <DialogTitle>Create New User</DialogTitle>
               <DialogDescription>
-                Add a new user to the system. They will receive login credentials.
+                Add a new user to your organization. They’ll receive a verification email.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+          </div>
+
+          <div className="p-4 space-y-4 flex-1 overflow-auto">
+            <div>
+              <label className="text-sm font-medium">Email *</label>
+              <Input
+                type="email"
+                value={createData.email}
+                onChange={(e) => setCreateData((p) => ({ ...p, email: e.target.value }))}
+                placeholder="Enter email address"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Username</label>
+              <Input
+                value={createData.username}
+                onChange={(e) => setCreateData((p) => ({ ...p, username: e.target.value }))}
+                placeholder="Enter username (optional)"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium">Email *</label>
+                <label className="text-sm font-medium">First Name</label>
                 <Input
-                  type="email"
-                  value={createData.email}
-                  onChange={(e) => setCreateData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="Enter email address"
+                  value={createData.first_name}
+                  onChange={(e) => setCreateData((p) => ({ ...p, first_name: e.target.value }))}
+                  placeholder="Enter first name"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Username</label>
+                <label className="text-sm font-medium">Last Name</label>
                 <Input
-                  value={createData.username}
-                  onChange={(e) => setCreateData(prev => ({ ...prev, username: e.target.value }))}
-                  placeholder="Enter username (optional)"
+                  value={createData.last_name}
+                  onChange={(e) => setCreateData((p) => ({ ...p, last_name: e.target.value }))}
+                  placeholder="Enter last name"
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">First Name</label>
-                  <Input
-                    value={createData.first_name}
-                    onChange={(e) => setCreateData(prev => ({ ...prev, first_name: e.target.value }))}
-                    placeholder="Enter first name"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Last Name</label>
-                  <Input
-                    value={createData.last_name}
-                    onChange={(e) => setCreateData(prev => ({ ...prev, last_name: e.target.value }))}
-                    placeholder="Enter last name"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Organization Unit</label>
-                <Select
-                  value={createData.org_unit?.toString() || ""}
-                  onValueChange={(value) => setCreateData(prev => ({ 
-                    ...prev, 
-                    org_unit: value ? parseInt(value) : null 
-                  }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select organization unit" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">No organization unit</SelectItem>
-                    {orgUnits.map((unit) => (
-                      <SelectItem key={unit.id} value={unit.id.toString()}>
-                        {unit.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
-            <DialogFooter>
+
+            {/* Org Unit (page-level modal trigger) */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Organization Unit *</label>
+              <div className="flex items-center justify-between rounded border p-3 bg-gray-50">
+                <div className="text-sm text-gray-700">
+                  {createData.org_unit
+                    ? createData.org_unit_name || `Unit ID #${createData.org_unit}`
+                    : "No organisation selected"}
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setOrgModalOpen(true)}>
+                  Choose organisation unit
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t bg-white">
+            <DialogFooter className="p-3 sm:p-4">
               <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleCreate} disabled={isSubmitting}>
+              <Button onClick={handleCreate} disabled={isSubmitting || !createData.org_unit}>
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...
                   </>
                 ) : (
                   "Create User"
                 )}
               </Button>
             </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Error Alert */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Search and Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Search and Filter Users</CardTitle>
-          <CardDescription>
-            Find users by name, email, or role
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search users..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Roles</SelectItem>
-                <SelectItem value="superuser">Superuser</SelectItem>
-                <SelectItem value="admin">Staff</SelectItem>
-                <SelectItem value="user">User</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" onClick={() => {
-              setSearchTerm("")
-              setRoleFilter("all")
-              setStatusFilter("all")
-            }}>
-              Clear Filters
-            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
 
-      {/* Users List */}
-      <div className="space-y-4">
-        {filteredUsers.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-12">
-              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No users found
-              </h3>
-              <p className="text-gray-500 mb-4">
-                {searchTerm || roleFilter !== "all" || statusFilter !== "all" 
-                  ? "Try adjusting your search or filter criteria." 
-                  : "Get started by adding your first user."}
-              </p>
-              {!searchTerm && roleFilter === "all" && statusFilter === "all" && (
-                <Button onClick={() => setIsCreateDialogOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add User
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ) : (
-          filteredUsers.map((user) => (
-            <Card key={user.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-4">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-                      <User className="h-6 w-6 text-gray-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg font-semibold">{user.full_name}</h3>
-                        <Badge variant={getRoleBadgeVariant(user)}>
-                          {getRoleText(user)}
-                        </Badge>
-                        <Badge variant={user.is_active ? "default" : "secondary"}>
-                          {user.is_active ? "Active" : "Inactive"}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                        <div className="flex items-center">
-                          <Mail className="h-4 w-4 mr-2" />
-                          {user.email}
-                        </div>
-                        <div className="flex items-center">
-                          <Building2 className="h-4 w-4 mr-2" />
-                          {user.org_unit_name || "No organization"}
-                        </div>
-                        <div className="flex items-center">
-                          <Calendar className="h-4 w-4 mr-2" />
-                          Joined {new Date(user.date_joined).toLocaleDateString()}
-                        </div>
-                      </div>
-                      {user.last_login && (
-                        <div className="text-sm text-gray-500 mt-2">
-                          Last login: {new Date(user.last_login).toLocaleDateString()}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Shield className="mr-2 h-4 w-4" />
-                          Manage Permissions
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit Profile
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete User
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+      {/* ORG UNIT SELECTION MODAL */}
+      <OrgUnitSelectionModal
+        isOpen={orgModalOpen}
+        onClose={() => setOrgModalOpen(false)}
+        userOrgUnit={djangoUser?.org_unit || undefined}
+        onSelect={(units) => {
+          const picked = units[0]
+          setCreateData((prev) => ({
+            ...prev,
+            org_unit: picked ? picked.id : null,
+            org_unit_name: picked ? picked.name : null,
+          }))
+          setOrgModalOpen(false)
+        }}
+      />
     </div>
   )
 }

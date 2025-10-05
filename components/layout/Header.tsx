@@ -76,7 +76,7 @@ export default function Header() {
             <span className="text-blue-900 font-bold text-sm">NMC</span>
           </div>
           <h1 className="text-sm sm:text-base font-semibold tracking-tight">
-            NMC System — Data Entry
+            Nursing and Midwifery Council - Ghana
           </h1>
         </div>
 

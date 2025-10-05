@@ -38,32 +38,36 @@ const PRESET_COLORS = [
 export default function CellFormatToolbar({ cell, onUpdate, onClear }: CellFormatToolbarProps) {
   if (!cell) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 border-b bg-gray-50 text-sm text-gray-500">
-        Select a cell to format
+      <div className="flex items-center gap-2 px-4 py-2 border-b bg-muted text-sm text-muted-foreground">
+        <span className="text-xs">Select a cell to format or double-click to edit</span>
       </div>
     )
   }
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2 border-b bg-white">
-      <div className="text-xs font-medium text-gray-600 mr-2">Format:</div>
+    <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-background">
+      <div className="text-xs font-semibold text-foreground mr-2">Format:</div>
 
+      {/* Text formatting */}
       <Button
         size="sm"
         variant={cell.bold ? "default" : "outline"}
         onClick={() => onUpdate({ bold: !cell.bold })}
         className="h-8 w-8 p-0"
+        title="Bold (Ctrl+B)"
       >
         <Bold className="h-4 w-4" />
       </Button>
 
-      <div className="h-6 w-px bg-gray-300" />
+      <div className="h-6 w-px bg-border" />
 
+      {/* Alignment */}
       <Button
         size="sm"
         variant={cell.align === "left" ? "default" : "outline"}
         onClick={() => onUpdate({ align: "left" })}
         className="h-8 w-8 p-0"
+        title="Align Left"
       >
         <AlignLeft className="h-4 w-4" />
       </Button>
@@ -73,6 +77,7 @@ export default function CellFormatToolbar({ cell, onUpdate, onClear }: CellForma
         variant={cell.align === "center" ? "default" : "outline"}
         onClick={() => onUpdate({ align: "center" })}
         className="h-8 w-8 p-0"
+        title="Align Center"
       >
         <AlignCenter className="h-4 w-4" />
       </Button>
@@ -82,29 +87,32 @@ export default function CellFormatToolbar({ cell, onUpdate, onClear }: CellForma
         variant={cell.align === "right" ? "default" : "outline"}
         onClick={() => onUpdate({ align: "right" })}
         className="h-8 w-8 p-0"
+        title="Align Right"
       >
         <AlignRight className="h-4 w-4" />
       </Button>
 
-      <div className="h-6 w-px bg-gray-300" />
+      <div className="h-6 w-px bg-border" />
 
+      {/* Colors */}
       <Popover>
         <PopoverTrigger asChild>
-          <Button size="sm" variant="outline" className="h-8 w-8 p-0 bg-transparent">
+          <Button size="sm" variant="outline" className="h-8 w-8 p-0 bg-transparent" title="Cell Colors">
             <Palette className="h-4 w-4" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-64">
+        <PopoverContent className="w-72">
           <div className="space-y-3">
             <div>
-              <Label className="text-xs">Background Color</Label>
-              <div className="grid grid-cols-5 gap-1 mt-1">
+              <Label className="text-xs font-semibold">Background Color</Label>
+              <div className="grid grid-cols-5 gap-1.5 mt-2">
                 {PRESET_COLORS.map((color) => (
                   <button
                     key={color}
                     onClick={() => onUpdate({ backgroundColor: color })}
-                    className="h-8 w-8 rounded border border-gray-300 hover:scale-110 transition-transform"
+                    className="h-8 w-8 rounded border-2 border-border hover:scale-110 hover:border-primary transition-all"
                     style={{ backgroundColor: color }}
+                    title={color}
                   />
                 ))}
               </div>
@@ -112,42 +120,52 @@ export default function CellFormatToolbar({ cell, onUpdate, onClear }: CellForma
                 type="color"
                 value={cell.backgroundColor || "#ffffff"}
                 onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
-                className="mt-2 h-8"
+                className="mt-2 h-9"
               />
             </div>
             <div>
-              <Label className="text-xs">Text Color</Label>
+              <Label className="text-xs font-semibold">Text Color</Label>
               <Input
                 type="color"
                 value={cell.textColor || "#000000"}
                 onChange={(e) => onUpdate({ textColor: e.target.value })}
-                className="mt-1 h-8"
+                className="mt-2 h-9"
               />
             </div>
           </div>
         </PopoverContent>
       </Popover>
 
-      <div className="h-6 w-px bg-gray-300" />
+      <div className="h-6 w-px bg-border" />
 
-      <Button size="sm" variant="outline" onClick={onClear} className="h-8 w-8 p-0 bg-transparent">
+      {/* Clear cell */}
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={onClear}
+        className="h-8 w-8 p-0 bg-transparent"
+        title="Clear Cell (Del)"
+      >
         <Trash2 className="h-4 w-4" />
       </Button>
 
-      <div className="ml-auto text-xs text-gray-600">
+      <div className="ml-auto flex items-center gap-2">
         {cell.bind && (
-          <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded">
-            Bound: {cell.bind}
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 text-primary rounded-md text-xs font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+            Data: {cell.bind}
           </span>
         )}
         {cell.compute && (
-          <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded">
-            Formula: {cell.compute}
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-secondary/10 text-secondary rounded-md text-xs font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
+            Formula: ={cell.compute}
           </span>
         )}
         {cell.text && !cell.bind && !cell.compute && (
-          <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded">
-            Text: {cell.text}
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-muted text-muted-foreground rounded-md text-xs font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
+            Text
           </span>
         )}
       </div>

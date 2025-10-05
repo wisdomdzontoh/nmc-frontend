@@ -1,169 +1,160 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import { useAuth } from "@/context/AuthContext";
-import api from "@/lib/api";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Loader2, Target, Save } from "lucide-react";
-import { toast } from "sonner";
-import { Toaster } from "@/components/ui/sonner";
-import DataEntryTopBar from "@/components/data-entry/DataEntryTopBar";
-import DataEntryForm from "@/components/data-entry/DataEntryForm";
-import LayoutEntryForm from "@/components/data-entry/LayoutEntryForm";
-import type { ReportType } from "@/components/data-entry/DatasetInlineDropdown";
-import type { OrgNode } from "@/components/data-entry/OrgUnitInlineDropdown";
-import type { Period } from "@/components/data-entry/PeriodInlineDropdown";
+import * as React from "react"
+import { useAuth } from "@/context/AuthContext"
+import api from "@/lib/api"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Loader2, Target, Save } from "lucide-react"
+import { toast } from "sonner"
+import { Toaster } from "@/components/ui/sonner"
+import DataEntryTopBar from "@/components/data-entry/DataEntryTopBar"
+import DataEntryForm from "@/components/data-entry/DataEntryForm"
+import LayoutEntryForm from "@/components/data-entry/LayoutEntryForm"
+import type { ReportType } from "@/components/data-entry/DatasetInlineDropdown"
+import type { OrgNode } from "@/components/data-entry/OrgUnitInlineDropdown"
+import type { Period } from "@/components/data-entry/PeriodInlineDropdown"
 
-type ValuesById = Record<string, number | null>;
-type ValuesByCode = Record<string, number | string | null>;
+type ValuesById = Record<string, number | null>
+type ValuesByCode = Record<string, number | string | null>
 
 export default function DataEntryPage() {
-  const { djangoUser } = useAuth();
+  const { djangoUser } = useAuth()
 
-  const [loading, setLoading] = React.useState(true);
-  const [loadingLayout, setLoadingLayout] = React.useState(false);
-  const [saving, setSaving] = React.useState(false);
+  const [loading, setLoading] = React.useState(true)
+  const [loadingLayout, setLoadingLayout] = React.useState(false)
+  const [saving, setSaving] = React.useState(false)
 
-  const [datasets, setDatasets] = React.useState<ReportType[]>([]);
-  const [dataset, setDataset] = React.useState<ReportType | null>(null);
+  const [datasets, setDatasets] = React.useState<ReportType[]>([])
+  const [dataset, setDataset] = React.useState<ReportType | null>(null)
 
-  const [orgTree, setOrgTree] = React.useState<OrgNode[]>([]);
-  const [org, setOrg] = React.useState<OrgNode | null>(null);
+  const [orgTree, setOrgTree] = React.useState<OrgNode[]>([])
+  const [org, setOrg] = React.useState<OrgNode | null>(null)
 
-  const [period, setPeriod] = React.useState<Period | null>(null);
+  const [period, setPeriod] = React.useState<Period | null>(null)
 
-  const [valuesById, setValuesById] = React.useState<ValuesById>({});
-  const [valuesByCode, setValuesByCode] = React.useState<ValuesByCode>({});
+  const [valuesById, setValuesById] = React.useState<ValuesById>({})
+  const [valuesByCode, setValuesByCode] = React.useState<ValuesByCode>({})
 
-  const [layout, setLayout] = React.useState<any | null>(null);
+  const [layout, setLayout] = React.useState<any | null>(null)
 
   const hasValues = layout
     ? Object.values(valuesByCode).some((v) => v !== null && v !== undefined && v !== "")
-    : Object.values(valuesById).some((v) => v !== null && v !== undefined);
+    : Object.values(valuesById).some((v) => v !== null && v !== undefined)
 
-  const canSubmit = !!dataset && !!period && !!org && hasValues;
+  const canSubmit = !!dataset && !!period && !!org && hasValues
 
   // initial load
   React.useEffect(() => {
-    (async () => {
+    ;(async () => {
       try {
-        setLoading(true);
-        const [rtRes, treeRes] = await Promise.all([
-          api.get("/metadata/report-types/"),
-          api.get("/org/tree/"),
-        ]);
-        setDatasets(rtRes.data);
-        setOrgTree(treeRes.data || []);
+        setLoading(true)
+        const [rtRes, treeRes] = await Promise.all([api.get("/metadata/report-types/"), api.get("/org/tree/")])
+        setDatasets(rtRes.data)
+        setOrgTree(treeRes.data || [])
       } catch (e) {
-        console.error("[entry] init error:", e);
-        toast.error("Failed to load data. Please refresh.");
+        console.error("[entry] init error:", e)
+        toast.error("Failed to load data. Please refresh.")
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    })();
-  }, []);
+    })()
+  }, [])
 
   // reset on dataset change
   React.useEffect(() => {
-    setValuesById({});
-    setValuesByCode({});
-    setLayout(null);
-  }, [dataset?.id]);
+    setValuesById({})
+    setValuesByCode({})
+    setLayout(null)
+  }, [dataset?.id])
 
   // fetch published layout for selected dataset
   React.useEffect(() => {
-    if (!dataset) return;
-    (async () => {
+    if (!dataset) return
+    ;(async () => {
       try {
-        setLoadingLayout(true);
-        const resp = await api.get(
-          `/reporting/report-layouts/?report_type=${dataset.id}&status=published`
-        );
+        setLoadingLayout(true)
+        const resp = await api.get(`/reporting/report-layouts/?report_type=${dataset.id}&status=published`)
 
         // Accept: array, paginated results, or single object
         const arr = Array.isArray(resp.data)
           ? resp.data
           : resp.data?.results
-          ? resp.data.results
-          : resp.data
-          ? [resp.data]
-          : [];
+            ? resp.data.results
+            : resp.data
+              ? [resp.data]
+              : []
 
-        const published = arr.find((l: any) => l?.status === "published");
-        const schema = published?.schema;
+        const published = arr.find((l: any) => l?.status === "published")
+        const schema = published?.schema
 
         if (schema?.sections && Array.isArray(schema.sections)) {
-          setLayout(schema);
-          toast.success("Layout loaded");
+          setLayout(schema)
+          toast.success("Layout loaded")
         } else {
-          setLayout(null);
-          toast.info("No published layout. Using default form.");
+          setLayout(null)
+          toast.info("No published layout. Using default form.")
         }
       } catch (e: any) {
-        console.warn("[entry] layout fetch failed:", e?.response?.data || e);
-        setLayout(null);
+        console.warn("[entry] layout fetch failed:", e?.response?.data || e)
+        setLayout(null)
         // silently fallback to default without scaring users
       } finally {
-        setLoadingLayout(false);
+        setLoadingLayout(false)
       }
-    })();
-  }, [dataset?.id]);
+    })()
+  }, [dataset?.id])
 
   const onClear = () => {
-    setDataset(null);
-    setOrg(null);
-    setPeriod(null);
-    setValuesById({});
-    setValuesByCode({});
-    setLayout(null);
-  };
+    setDataset(null)
+    setOrg(null)
+    setPeriod(null)
+    setValuesById({})
+    setValuesByCode({})
+    setLayout(null)
+  }
 
-  const setIdValue = (id: string, v: number | null) =>
-    setValuesById((p) => ({ ...p, [id]: v }));
-  const setCodeValue = (code: string, v: number | string | null) =>
-    setValuesByCode((p) => ({ ...p, [code]: v }));
+  const setIdValue = (id: string, v: number | null) => setValuesById((p) => ({ ...p, [id]: v }))
+  const setCodeValue = (code: string, v: number | string | null) => setValuesByCode((p) => ({ ...p, [code]: v }))
 
   // code → id map
   const codeToId = React.useMemo(() => {
-    const m: Record<string, number> = {};
-    dataset?.data_elements?.forEach((de) => (m[de.code] = de.id));
-    return m;
-  }, [dataset?.data_elements]);
+    const m: Record<string, number> = {}
+    dataset?.data_elements?.forEach((de) => (m[de.code] = de.id))
+    return m
+  }, [dataset?.data_elements])
 
   const submit = async () => {
-    if (!dataset || !org || !period) return;
+    if (!dataset || !org || !period) return
 
     try {
-      setSaving(true);
+      setSaving(true)
 
-      let payloadValues:
-        | Record<string, number | null>
-        | Record<string, { value: number | null; remark?: string }> = {};
+      let payloadValues: Record<string, number | null> | Record<string, { value: number | null; remark?: string }> = {}
 
       if (layout) {
         // merge numeric + remark.* by element id
-        const combined: Record<string, { value: number | null; remark?: string }> = {};
+        const combined: Record<string, { value: number | null; remark?: string }> = {}
         for (const [code, raw] of Object.entries(valuesByCode)) {
           if (code.startsWith("remark.")) {
-            const base = code.slice("remark.".length);
-            const id = codeToId[base];
-            if (!id) continue;
-            const key = String(id);
-            combined[key] = combined[key] || { value: null };
-            combined[key].remark = (raw as string) ?? "";
+            const base = code.slice("remark.".length)
+            const id = codeToId[base]
+            if (!id) continue
+            const key = String(id)
+            combined[key] = combined[key] || { value: null }
+            combined[key].remark = (raw as string) ?? ""
           } else {
-            const id = codeToId[code];
-            if (!id) continue;
-            const key = String(id);
-            combined[key] = combined[key] || { value: null };
-            combined[key].value = (raw as number | null) ?? null;
+            const id = codeToId[code]
+            if (!id) continue
+            const key = String(id)
+            combined[key] = combined[key] || { value: null }
+            combined[key].value = (raw as number | null) ?? null
           }
         }
-        payloadValues = combined;
+        payloadValues = combined
       } else {
-        payloadValues = valuesById;
+        payloadValues = valuesById
       }
 
       await api.post("/reporting/data-entry/", {
@@ -171,18 +162,18 @@ export default function DataEntryPage() {
         org_unit: org.id,
         reporting_period: period.startDate,
         values: payloadValues,
-      });
+      })
 
-      toast.success("Report submitted successfully!");
-      setValuesById({});
-      setValuesByCode({});
+      toast.success("Report submitted successfully!")
+      setValuesById({})
+      setValuesByCode({})
     } catch (e: any) {
-      console.error("[entry] submit error:", e);
-      toast.error(e?.response?.data?.detail || "Failed to submit report.");
+      console.error("[entry] submit error:", e)
+      toast.error(e?.response?.data?.detail || "Failed to submit report.")
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
   if (loading) {
     return (
@@ -190,10 +181,10 @@ export default function DataEntryPage() {
         <Loader2 className="h-8 w-8 animate-spin mr-2 text-blue-600" />
         <span className="text-gray-600">Loading data entry…</span>
       </div>
-    );
+    )
   }
 
-  const showForm = !!dataset && !!org && !!period;
+  const showForm = !!dataset && !!org && !!period
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
@@ -244,22 +235,12 @@ export default function DataEntryPage() {
                 <div className="text-xs text-gray-500 px-2">
                   Layout loaded: {Array.isArray(layout.sections) ? layout.sections.length : 0} sections
                 </div>
-                <LayoutEntryForm
-                  layout={layout}
-                  values={valuesByCode}
-                  onChange={setCodeValue}
-                />
+                <LayoutEntryForm layout={layout} values={valuesByCode} onChange={setCodeValue} />
               </>
             ) : (
               <>
-                <div className="text-xs text-gray-500 px-2">
-                  Using default form (no layout available)
-                </div>
-                <DataEntryForm
-                  reportType={dataset!}
-                  values={valuesById}
-                  onChange={setIdValue}
-                />
+                <div className="text-xs text-gray-500 px-2">Using default form (no layout available)</div>
+                <DataEntryForm reportType={dataset!} values={valuesById} onChange={setIdValue} />
               </>
             )}
 
@@ -295,5 +276,5 @@ export default function DataEntryPage() {
         ) : null}
       </div>
     </div>
-  );
+  )
 }
