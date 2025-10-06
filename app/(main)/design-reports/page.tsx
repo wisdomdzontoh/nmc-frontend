@@ -14,8 +14,8 @@ export default function DesignReportsList() {
   const { data, error, isLoading } = useSWR("/reporting/report-layouts/", (url) => api.get(url).then((r) => r.data))
 
   // Check if user is staff or superuser
-  const isSuperuser = (djangoUser as any)?.is_superuser
-  const isStaff = (djangoUser as any)?.is_staff
+  const isSuperuser = Boolean((djangoUser as unknown as { is_superuser?: boolean })?.is_superuser)
+  const isStaff = Boolean((djangoUser as unknown as { is_staff?: boolean })?.is_staff)
 
   if (isLoading) {
     return (

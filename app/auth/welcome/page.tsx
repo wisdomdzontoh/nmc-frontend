@@ -36,7 +36,7 @@ export default function WelcomePage() {
         setLoading(false)
         return
       }
-      const flag = (user.user_metadata as any)?.password_set === false
+      const flag = Boolean((user.user_metadata as Record<string, unknown>)?.password_set === false)
       setNeedsPassword(flag)
       setLoading(false)
     })()

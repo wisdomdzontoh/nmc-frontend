@@ -130,7 +130,7 @@ export default function ReportDesignerPage() {
   const addHeading = () => {
     // give headings an id so we can scroll to them
     const hdrId = `hdr_${Date.now()}`
-    const heading = { type: "heading", text: "SECTION TITLE", id: hdrId } as any
+    const heading: HeadingSection = { type: "heading", text: "SECTION TITLE" }
     const newSchema = { ...schema, sections: [...schema.sections, heading] }
     updateSchema(newSchema)
 
@@ -269,8 +269,8 @@ export default function ReportDesignerPage() {
 
   const cellReference = selectedCell ? getCellReference(selectedCell.rowIndex, selectedCell.colIndex) : ""
 
-  const isSuperuser = (djangoUser as any)?.is_superuser
-  const isStaff = (djangoUser as any)?.is_staff
+  const isSuperuser = Boolean((djangoUser as unknown as { is_superuser?: boolean })?.is_superuser)
+  const isStaff = Boolean((djangoUser as unknown as { is_staff?: boolean })?.is_staff)
 
   if (!isSuperuser && !isStaff) {
     return (
@@ -429,9 +429,9 @@ export default function ReportDesignerPage() {
             <TabsContent value="design" className="flex-1 flex flex-col min-h-0 overflow-hidden bg-gray-50">
               <div className="flex-1 overflow-y-auto min-h-0 p-6">
                 <div className="max-w-6xl mx-auto space-y-6 pb-24">
-                  {schema.sections.map((sec: any, idx: number) => {
-                    // ensure each section has an id for scroll target - fallback to index-based id if missing
-                    const sectionId = sec.id ?? `section_fallback_${idx}_${sec.type}`
+                  {schema.sections.map((sec, idx: number) => {
+                    // ensure each section has an id for scroll target - for tables use true id, for headings synthesize
+                    const sectionId = sec.type === "table" ? (sec as TableSection).id : `hdr_${idx}`
                     if (sec.type === "heading") {
                       const h = sec as HeadingSection
                       return (

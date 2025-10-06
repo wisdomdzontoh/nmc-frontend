@@ -162,8 +162,12 @@ export default function DataEntryPage() {
         }
 
         toast.info("Existing report loaded for this selection.");
-      } catch (err: any) {
-        if (err?.response?.status === 404) {
+      } catch (err: unknown) {
+        const status =
+          typeof err === "object" && err !== null && "response" in err
+            ? (err as { response?: { status?: number } }).response?.status
+            : undefined
+        if (status === 404) {
           // no report yet - clear form
           setValuesByCode({});
           setValuesById({});
@@ -177,7 +181,6 @@ export default function DataEntryPage() {
     };
 
     fetchExistingReport();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataset?.id, org?.id, period?.startDate, layout]);
 
   if (loading) {
