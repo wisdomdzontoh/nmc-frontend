@@ -63,7 +63,7 @@ export default function DataEntryPage() {
     })()
   }, [])
 
-  // reset on dataset change
+  // reset on dataset change (intentional reset only when dataset id changes)
   React.useEffect(() => {
     setValuesById({})
     setValuesByCode({})

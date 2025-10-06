@@ -234,7 +234,7 @@ export default function ReportDesignerPage() {
         await updateLayout(layoutId!, payload)
         toast.success("Layout saved")
       }
-    } catch (error) {
+    } catch {
       toast.error("Error saving layout")
     }
   }
@@ -244,7 +244,7 @@ export default function ReportDesignerPage() {
     try {
       await publishLayout(layoutId)
       toast.success("Layout published")
-    } catch (error) {
+    } catch {
       toast.error("Error publishing layout")
     }
   }

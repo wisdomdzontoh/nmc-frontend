@@ -353,7 +353,7 @@ const AnalyticsPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {analyticsData.reportsByType.slice(0, 5).map((item, index) => (
+              {analyticsData.reportsByType.slice(0, 5).map((item) => (
                 <div key={item.report_type} className="flex items-center justify-between">
                   <span className="text-sm font-medium truncate">{item.report_type}</span>
                   <div className="text-sm font-bold">{item.count}</div>

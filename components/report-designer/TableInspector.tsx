@@ -191,6 +191,7 @@ export default function TableInspector({
   const [computeVal, setComputeVal] = React.useState(sel?.compute ?? "")
 
   // keep inputs in sync with selection changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => {
     const s = getSelected()
     setTextVal(s?.text ?? "")

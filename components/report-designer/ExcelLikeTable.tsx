@@ -251,6 +251,7 @@ export default function ExcelLikeTable({
   }, [resizingCol, resizeStartX, resizeStartWidth])
 
   // Remove highlight after a short delay
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (highlightCol !== null) {
       const timeout = setTimeout(() => setHighlightCol(null), 1200);

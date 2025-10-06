@@ -17,8 +17,6 @@ import {
 } from "@/components/ui/dialog"
 import { 
   Calendar, 
-  ChevronRight, 
-  ChevronLeft,
   CheckCircle
 } from "lucide-react"
 

@@ -10,12 +10,12 @@ import React, { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/context/AuthContext"
 import type { DjangoUser } from "@/context/AuthContext"
 import { ApiClient } from "@/lib/api"
-import { createClient } from "@supabase/supabase-js"
+// import { createClient } from "@supabase/supabase-js"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+// import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
@@ -84,10 +84,10 @@ interface UserRow {
   last_login: string | null
 }
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+// const supabase = createClient(
+//   process.env.NEXT_PUBLIC_SUPABASE_URL!,
+//   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// )
 
 /* ----------------------------- helpers ----------------------------- */
 
