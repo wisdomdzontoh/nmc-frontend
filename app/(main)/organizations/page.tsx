@@ -31,7 +31,7 @@ const OrganizationsPage: React.FC = () => {
         const response = await ApiClient.getOrgUnits()
         // Optionally, filter to only the user's assigned org(s) if needed
         setOrgTree(response.data)
-      } catch (e) {
+      } catch {
         setOrgTree([])
       } finally {
         setLoading(false)

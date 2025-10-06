@@ -76,7 +76,7 @@ const AnalyticsPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedPeriod, setSelectedPeriod] = useState("last_30_days")
-  const [selectedOrgUnit, setSelectedOrgUnit] = useState("all")
+  const [selectedOrgUnit] = useState("all")
 
   // Load analytics data
   useEffect(() => {

@@ -69,6 +69,7 @@ interface CreateReportPeriodData {
 }
 
 const MetadataPage: React.FC = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { djangoUser } = useAuth()
   const [reportTypes, setReportTypes] = useState<ReportType[]>([])
   const [reportPeriods, setReportPeriods] = useState<ReportPeriod[]>([])

@@ -212,35 +212,35 @@ const ReportsPage: React.FC = () => {
             </CardContent>
           </Card>
         ) : (
-          filteredReports.map((report) => (
-            <Card key={report.id} className="hover:shadow-md transition-shadow">
+          filteredReports.map((rpt) => (
+            <Card key={rpt.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
                       <FileText className="h-5 w-5 text-blue-600" />
-                      <h3 className="text-lg font-semibold">{report.report_type_name}</h3>
-                      {getStatusBadge(report)}
+                      <h3 className="text-lg font-semibold">{rpt.report_type_name}</h3>
+                      {getStatusBadge(rpt)}
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
                       <div className="flex items-center">
                         <Building2 className="h-4 w-4 mr-2" />
-                        {report.org_unit_name}
+                        {rpt.org_unit_name}
                       </div>
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 mr-2" />
-                        {new Date(report.reporting_period).toLocaleDateString('en-US', { 
+                        {new Date(rpt.reporting_period).toLocaleDateString('en-US', { 
                           year: 'numeric', 
                           month: 'long' 
                         })}
                       </div>
                       <div className="flex items-center">
                         <Clock className="h-4 w-4 mr-2" />
-                        {new Date(report.submitted_at).toLocaleDateString()}
+                        {new Date(rpt.submitted_at).toLocaleDateString()}
                       </div>
                     </div>
                     <div className="text-sm text-gray-500 mt-2">
-                      Data elements: {report.values.length} values submitted
+                      Data elements: {rpt.values.length} values submitted
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
