@@ -29,6 +29,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
+    // Set password_set flag to false for invited user
+    if (data?.user?.id) {
+      await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
+        user_metadata: { password_set: false },
+      })
+    }
+
     return NextResponse.json({ ok: true, data })
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unknown error"
