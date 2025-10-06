@@ -24,13 +24,12 @@ import {
   DialogTrigger 
 } from "@/components/ui/dialog"
 import { 
-  Database, 
   Plus, 
   Search, 
   Edit, 
   Trash2, 
   FileText, 
-  Tag,
+  
   Calendar,
   Loader2,
   BarChart3

@@ -18,6 +18,7 @@ interface OrgUnit {
 }
 
 const OrganizationsPage: React.FC = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { djangoUser } = useAuth()
   const [orgTree, setOrgTree] = useState<OrgUnit[] | null>(null)
   const [loading, setLoading] = useState(true)

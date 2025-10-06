@@ -20,6 +20,7 @@ type ValuesById = Record<string, number | null>
 type ValuesByCode = Record<string, number | string | null>
 
 export default function DataEntryPage() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { djangoUser } = useAuth()
 
   const [loading, setLoading] = React.useState(true)

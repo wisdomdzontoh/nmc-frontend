@@ -16,11 +16,11 @@ import {
   Switch 
 } from "@/components/ui/switch"
 import { 
-  Settings, 
+  
   User, 
   Bell, 
   Shield, 
-  Database,
+  
   Save,
   Loader2,
   CheckCircle
