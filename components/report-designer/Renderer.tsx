@@ -47,9 +47,9 @@ export type LayoutSchema = {
 type RendererProps = {
   layout: LayoutSchema
   /** Flat record of values bound via "bind" keys */
-  data: Record<string, any>
+  data: Record<string, unknown>
   /** Optional record of remark strings bound via "bind" (e.g., "remark.hr.transfer_in") */
-  remarks?: Record<string, any>
+  remarks?: Record<string, unknown>
   /** Optional number formatter (defaults to plain output) */
   formatNumber?: (n: number) => string
 }
@@ -169,9 +169,12 @@ export default function Renderer({ layout, data, remarks = {}, formatNumber }: R
                 <tbody>
                   {t.rows.map((row, ri) => {
                     // Pre-compute row values (for compute expressions)
-                    const rowValues = row.cells.map((c) => {
+                    const rowValues: (number | string | undefined)[] = row.cells.map((c) => {
                       if (c.bind?.startsWith("remark.")) return undefined
-                      if (c.bind) return data[c.bind]
+                      if (c.bind) {
+                        const v = data[c.bind]
+                        return typeof v === "number" || typeof v === "string" ? v : undefined
+                      }
                       return undefined
                     })
 
@@ -182,13 +185,14 @@ export default function Renderer({ layout, data, remarks = {}, formatNumber }: R
 
                           if (c.bind) {
                             if (c.bind.startsWith("remark.")) {
-                              content = remarks[c.bind] ?? ""
+                              const rv = remarks[c.bind]
+                              content = typeof rv === "string" || typeof rv === "number" ? rv : String(rv ?? "")
                             } else {
                               const v = data[c.bind]
                               if (isNumberLike(v) && formatNumber) {
                                 content = formatNumber(Number(v))
                               } else {
-                                content = v ?? ""
+                                content = typeof v === "string" || typeof v === "number" ? v : String(v ?? "")
                               }
                             }
                           }

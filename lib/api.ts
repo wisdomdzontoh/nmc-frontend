@@ -3,7 +3,7 @@
  * Clean, secure, and maintainable API communication
  */
 
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios"
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig, AxiosHeaders } from "axios"
 import { createClient } from "@supabase/supabase-js"
 
 // Supabase client for token management
@@ -61,7 +61,7 @@ const TokenManager = {
 
 // Request interceptor
 api.interceptors.request.use(
-  async (config: AxiosRequestConfig) => {
+  async (config: InternalAxiosRequestConfig) => {
     const token = TokenManager.getAccessToken()
     
     if (token) {
@@ -84,10 +84,9 @@ api.interceptors.request.use(
             
             if (data.session) {
               TokenManager.setTokens(data.session.access_token, data.session.refresh_token)
-              config.headers = {
-                ...config.headers,
-                Authorization: `Bearer ${data.session.access_token}`,
-              }
+              const headers = new AxiosHeaders(config.headers)
+              headers.set("Authorization", `Bearer ${data.session.access_token}`)
+              config.headers = headers
               console.log("[API] Token refreshed successfully")
             }
           } catch (error) {
@@ -97,10 +96,9 @@ api.interceptors.request.use(
         }
       } else {
         // Token is valid, add to request
-        config.headers = {
-          ...config.headers,
-          Authorization: `Bearer ${token}`,
-        }
+        const headers = new AxiosHeaders(config.headers)
+        headers.set("Authorization", `Bearer ${token}`)
+        config.headers = headers
       }
     }
     
@@ -148,37 +146,37 @@ export const ApiClient = {
   getUserProfile: () => api.get("/users/profile/"),
   
   // Admin endpoints
-  getUsers: (params?: any) => api.get("/users/", { params }),
+  getUsers: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/users/", { params }),
   getUser: (id: number) => api.get(`/users/${id}/`),
-  createUser: (data: any) => api.post("/users/", data),
-  updateUser: (id: number, data: any) => api.patch(`/users/${id}/`, data),
+  createUser: (data: unknown) => api.post("/users/", data),
+  updateUser: (id: number, data: unknown) => api.patch(`/users/${id}/`, data),
   deleteUser: (id: number) => api.delete(`/users/${id}/`),
   
   // Organization endpoints
   getOrgUnits: () => api.get("/org/tree/"),
   getOrgUnit: (id: number) => api.get(`/org/units/${id}/`),
-  createOrgUnit: (data: any) => api.post("/org/units/", data),
-  updateOrgUnit: (id: number, data: any) => api.patch(`/org/units/${id}/`, data),
+  createOrgUnit: (data: unknown) => api.post("/org/units/", data),
+  updateOrgUnit: (id: number, data: unknown) => api.patch(`/org/units/${id}/`, data),
   deleteOrgUnit: (id: number) => api.delete(`/org/units/${id}/`),
   
   // Metadata endpoints
   getReportTypes: () => api.get("/metadata/report-types/"),
   getReportType: (id: number) => api.get(`/metadata/report-types/${id}/`),
-  createReportType: (data: any) => api.post("/metadata/report-types/", data),
-  updateReportType: (id: number, data: any) => api.patch(`/metadata/report-types/${id}/`, data),
+  createReportType: (data: unknown) => api.post("/metadata/report-types/", data),
+  updateReportType: (id: number, data: unknown) => api.patch(`/metadata/report-types/${id}/`, data),
   deleteReportType: (id: number) => api.delete(`/metadata/report-types/${id}/`),
   
   getReportPeriods: () => api.get("/metadata/report-periods/"),
   getReportPeriod: (id: number) => api.get(`/metadata/report-periods/${id}/`),
-  createReportPeriod: (data: any) => api.post("/metadata/report-periods/", data),
-  updateReportPeriod: (id: number, data: any) => api.patch(`/metadata/report-periods/${id}/`, data),
+  createReportPeriod: (data: unknown) => api.post("/metadata/report-periods/", data),
+  updateReportPeriod: (id: number, data: unknown) => api.patch(`/metadata/report-periods/${id}/`, data),
   deleteReportPeriod: (id: number) => api.delete(`/metadata/report-periods/${id}/`),
   
   // Reporting endpoints
-  getReports: (params?: any) => api.get("/reporting/reports/", { params }),
+  getReports: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/reporting/reports/", { params }),
   getReport: (id: number) => api.get(`/reporting/reports/${id}/`),
-  createReport: (data: any) => api.post("/reporting/reports/", data),
-  updateReport: (id: number, data: any) => api.patch(`/reporting/reports/${id}/`, data),
+  createReport: (data: unknown) => api.post("/reporting/reports/", data),
+  updateReport: (id: number, data: unknown) => api.patch(`/reporting/reports/${id}/`, data),
   deleteReport: (id: number) => api.delete(`/reporting/reports/${id}/`),
   exportReport: (id: number, format: string = "pdf") => api.get(`/reporting/reports/${id}/export/`, { 
     params: { format },
@@ -186,17 +184,17 @@ export const ApiClient = {
   }),
   
   // Data entry endpoint
-  submitDataEntry: (data: any) => api.post("/reporting/data-entry/", data),
+  submitDataEntry: (data: unknown) => api.post("/reporting/data-entry/", data),
   
   // Analytics endpoints
-  getAnalytics: (params?: any) => api.get("/analytics/", { params }),
+  getAnalytics: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/analytics/", { params }),
   getAnalyticsSummary: () => api.get("/analytics/summary/"),
-  getAnalyticsReports: (params?: any) => api.get("/analytics/reports/", { params }),
-  getAnalyticsUsers: (params?: any) => api.get("/analytics/users/", { params }),
-  getAnalyticsOrgUnits: (params?: any) => api.get("/analytics/org-units/", { params }),
+  getAnalyticsReports: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/analytics/reports/", { params }),
+  getAnalyticsUsers: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/analytics/users/", { params }),
+  getAnalyticsOrgUnits: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/analytics/org-units/", { params }),
   
   // Export endpoints
-  exportData: (type: string, format: string = "csv", params?: any) => api.get(`/exports/${type}/`, {
+  exportData: (type: string, format: string = "csv", params?: Record<string, string | number | boolean | null | undefined>) => api.get(`/exports/${type}/`, {
     params: { format, ...params },
     responseType: "blob"
   }),

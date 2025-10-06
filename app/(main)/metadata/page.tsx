@@ -108,7 +108,7 @@ const MetadataPage: React.FC = () => {
         ])
         setReportTypes(reportTypesRes.data)
         setReportPeriods(reportPeriodsRes.data)
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to load metadata:", err)
         setError("Failed to load metadata. Please try again.")
       } finally {
@@ -134,7 +134,7 @@ const MetadataPage: React.FC = () => {
       setReportTypes(prev => [...prev, response.data])
       setIsCreateReportTypeDialogOpen(false)
       setCreateReportTypeData({ name: "", description: "" })
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to create report type:", err)
       setError("Failed to create report type. Please try again.")
     } finally {
@@ -162,7 +162,7 @@ const MetadataPage: React.FC = () => {
       setReportPeriods(prev => [...prev, response.data])
       setIsCreateReportPeriodDialogOpen(false)
       setCreateReportPeriodData({ name: "", description: "", start_date: "", end_date: "" })
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to create report period:", err)
       setError("Failed to create report period. Please try again.")
     } finally {

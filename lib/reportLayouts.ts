@@ -1,11 +1,18 @@
 import api from "./api"
 
-export async function createLayout(data: any) {
+export interface ReportLayoutPayload {
+  name: string
+  code: string
+  sections?: unknown
+  [key: string]: unknown
+}
+
+export async function createLayout(data: ReportLayoutPayload) {
   const response = await api.post("/reporting/report-layouts/", data)
   return response.data
 }
 
-export async function updateLayout(id: number, data: any) {
+export async function updateLayout(id: number, data: Partial<ReportLayoutPayload>) {
   const response = await api.patch(`/reporting/report-layouts/${id}/`, data)
   return response.data
 }

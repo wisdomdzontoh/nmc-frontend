@@ -382,13 +382,13 @@ export default function TableInspector({
                   onChange({ ...table, header })
                 }}
               />
-              <Input
+      <Input
                 placeholder="align (left|center|right)"
-                value={(hc.align as any) || ""}
+        value={hc.align || ""}
                 onChange={(e) => {
                   const header = {
                     rows: table.header!.rows.map((r, rI) =>
-                      rI === ri ? r.map((c, cI) => (cI === ci ? { ...c, align: e.target.value as any } : c)) : r,
+              rI === ri ? r.map((c, cI) => (cI === ci ? { ...c, align: e.target.value as "left" | "center" | "right" } : c)) : r,
                     ),
                   }
                   onChange({ ...table, header })

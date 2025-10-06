@@ -29,7 +29,7 @@ import {
   Loader2,
   CheckCircle,
   Clock,
-  User
+  User as UserIcon
 } from "lucide-react"
 import api from "@/lib/api"
 
@@ -68,7 +68,7 @@ const ReportsPage: React.FC = () => {
         setError(null)
         const response = await api.get("/reporting/reports/")
         setReports(response.data.results || response.data)
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to load reports:", err)
         setError("Failed to load reports. Please try again.")
       } finally {

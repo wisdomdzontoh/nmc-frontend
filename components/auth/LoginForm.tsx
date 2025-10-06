@@ -78,7 +78,7 @@ const LoginForm: React.FC = () => {
     try {
       await login(formData.email, formData.password)
       router.push("/dashboard")
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Error is handled by the auth context
       console.error("Login error:", error)
     } finally {
@@ -219,7 +219,7 @@ const LoginForm: React.FC = () => {
         {/* Footer */}
         <div className="text-center text-sm text-muted-foreground">
           <p>
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <span className="text-gray-600">
               Contact your system administrator
             </span>

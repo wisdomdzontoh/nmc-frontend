@@ -91,7 +91,7 @@ const SettingsPage: React.FC = () => {
           session_timeout: 30,
           max_file_size: 10
         })
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to load settings:", err)
         setError("Failed to load settings. Please try again.")
       } finally {
@@ -113,7 +113,7 @@ const SettingsPage: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 1000))
       
       setSuccess("User settings saved successfully!")
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to save user settings:", err)
       setError("Failed to save user settings. Please try again.")
     } finally {
@@ -132,7 +132,7 @@ const SettingsPage: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 1000))
       
       setSuccess("System settings saved successfully!")
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to save system settings:", err)
       setError("Failed to save system settings. Please try again.")
     } finally {

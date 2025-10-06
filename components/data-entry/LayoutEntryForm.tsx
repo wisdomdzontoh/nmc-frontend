@@ -4,7 +4,7 @@ import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { Calculator, Database } from "lucide-react";
+import { Calculator } from "lucide-react";
 
 /** We support TWO section shapes:
  *  A) GRID shape
@@ -21,8 +21,70 @@ import { Calculator, Database } from "lucide-react";
 
 type ValuesByCode = Record<string, number | string | null>;
 
+type TableArrayHeaderCell = {
+  label?: string;
+  colSpan?: number;
+  rowSpan?: number;
+  align?: "left" | "center" | "right";
+  bold?: boolean;
+};
+
+type TableArrayRowCell = {
+  text?: string;
+  bind?: string;
+  compute?: string;
+  colSpan?: number;
+  rowSpan?: number;
+  align?: "left" | "center" | "right";
+  bold?: boolean;
+};
+
+type TableArraySection = {
+  id?: string | number;
+  type: "table";
+  columnWidths?: number[];
+  header?: { rows: TableArrayHeaderCell[][] };
+  rows: { cells: TableArrayRowCell[] }[];
+};
+
+type GridCell = {
+  type?: "bound" | "formula" | "text";
+  content?: string;
+  dataElement?: string;
+  formula?: string;
+  alignment?: "left" | "center" | "right";
+  bold?: boolean;
+};
+
+type GridSection = {
+  id?: string | number;
+  type: "table";
+  rows: number;
+  cols: number;
+  cells: Record<string, GridCell>;
+};
+
+type HeadingSection = {
+  id?: string | number;
+  type: "heading";
+  level?: 1 | 2 | 3;
+  text: string;
+};
+
+type TextSection = {
+  id?: string | number;
+  type: "text";
+  content: string;
+};
+
+export type LayoutSchemaSection = HeadingSection | TextSection | TableArraySection | GridSection;
+
+export type LayoutSchema = {
+  sections?: LayoutSchemaSection[];
+};
+
 type Props = {
-  layout: any; // layout schema (two variants supported)
+  layout: LayoutSchema; // layout schema (two variants supported)
   values: ValuesByCode;
   onChange: (code: string, val: number | string | null) => void;
   readOnly?: boolean;
@@ -101,7 +163,7 @@ function TableArray({
   onChange,
   readOnly,
 }: {
-  section: any;
+  section: TableArraySection;
   values: ValuesByCode;
   onChange: (code: string, val: number | string | null) => void;
   readOnly?: boolean;
@@ -123,9 +185,9 @@ function TableArray({
 
         {Array.isArray(header) && header.length > 0 ? (
           <thead className="bg-amber-50">
-            {header.map((hr: any[], ri: number) => (
+            {header.map((hr: TableArrayHeaderCell[], ri: number) => (
               <tr key={`th-${ri}`}>
-                {hr.map((hc: any, ci: number) => (
+                {hr.map((hc: TableArrayHeaderCell, ci: number) => (
                   <th
                     key={`thc-${ri}-${ci}`}
                     colSpan={hc.colSpan || 1}
@@ -145,9 +207,9 @@ function TableArray({
         ) : null}
 
         <tbody>
-          {body.map((row: any, ri: number) => (
+          {body.map((row: { cells: TableArrayRowCell[] }, ri: number) => (
             <tr key={`tr-${ri}`} className="hover:bg-blue-50/20">
-              {(row.cells || []).map((c: any, ci: number) => {
+              {(row.cells || []).map((c: TableArrayRowCell, ci: number) => {
                 let content: React.ReactNode = c.text ?? "";
                 let extraClass = "";
 
@@ -212,14 +274,14 @@ function GridTable({
   onChange,
   readOnly,
 }: {
-  section: any;
+  section: GridSection;
   values: ValuesByCode;
   onChange: (code: string, val: number | string | null) => void;
   readOnly?: boolean;
 }) {
   const rows: number = Number(section.rows || 0);
   const cols: number = Number(section.cols || 0);
-  const cells: Record<string, any> = section.cells || {};
+  const cells: Record<string, GridCell> = section.cells || {};
 
   return (
     <div className="overflow-x-auto">
@@ -304,7 +366,7 @@ export default function LayoutEntryForm({
   onChange,
   readOnly,
 }: Props) {
-  const sections = Array.isArray(layout?.sections) ? layout.sections : [];
+  const sections: LayoutSchemaSection[] = Array.isArray(layout?.sections) ? layout.sections : [];
   if (!sections.length) {
     return (
       <div className="bg-white rounded-lg shadow-sm border p-6 text-center">
@@ -317,7 +379,7 @@ export default function LayoutEntryForm({
 
   return (
     <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-      {sections.map((section: any, sIdx: number) => {
+      {sections.map((section: LayoutSchemaSection, sIdx: number) => {
         if (section.type === "heading") {
           return (
             <div
@@ -348,22 +410,25 @@ export default function LayoutEntryForm({
         if (section.type === "table") {
           // Branch based on shape
           const isGridShape =
-            typeof section.rows === "number" && typeof section.cols === "number";
+            (section as Partial<GridSection>).rows !== undefined &&
+            typeof (section as Partial<GridSection>).rows === "number" &&
+            typeof (section as Partial<GridSection>).cols === "number";
           const isTableArrayShape =
-            Array.isArray(section.rows) || Array.isArray(section.header?.rows);
+            Array.isArray((section as Partial<TableArraySection>).rows) ||
+            Array.isArray((section as Partial<TableArraySection>).header?.rows);
 
           return (
             <div key={section.id || `table-${sIdx}`}>
               {isTableArrayShape ? (
                 <TableArray
-                  section={section}
+                  section={section as TableArraySection}
                   values={values}
                   onChange={onChange}
                   readOnly={readOnly}
                 />
               ) : isGridShape ? (
                 <GridTable
-                  section={section}
+                  section={section as GridSection}
                   values={values}
                   onChange={onChange}
                   readOnly={readOnly}

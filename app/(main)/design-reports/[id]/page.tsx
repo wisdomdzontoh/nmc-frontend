@@ -136,7 +136,7 @@ export default function ReportDesignerPage() {
     updateSchema({ ...schema, sections: [...schema.sections, t] })
   }
 
-  const updateSectionAt = (index: number, next: any) => {
+  const updateSectionAt = (index: number, next: TableSection | HeadingSection) => {
     const copy = [...schema.sections]
     copy[index] = next
     updateSchema({ ...schema, sections: copy })

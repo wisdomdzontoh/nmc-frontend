@@ -11,7 +11,7 @@ import { toast } from "sonner"
 import { Toaster } from "@/components/ui/sonner"
 import DataEntryTopBar from "@/components/data-entry/DataEntryTopBar"
 import DataEntryForm from "@/components/data-entry/DataEntryForm"
-import LayoutEntryForm from "@/components/data-entry/LayoutEntryForm"
+import LayoutEntryForm, { type LayoutSchema } from "@/components/data-entry/LayoutEntryForm"
 import type { ReportType } from "@/components/data-entry/DatasetInlineDropdown"
 import type { OrgNode } from "@/components/data-entry/OrgUnitInlineDropdown"
 import type { Period } from "@/components/data-entry/PeriodInlineDropdown"
@@ -37,7 +37,7 @@ export default function DataEntryPage() {
   const [valuesById, setValuesById] = React.useState<ValuesById>({})
   const [valuesByCode, setValuesByCode] = React.useState<ValuesByCode>({})
 
-  const [layout, setLayout] = React.useState<any | null>(null)
+  const [layout, setLayout] = React.useState<LayoutSchema | null>(null)
 
   const hasValues = layout
     ? Object.values(valuesByCode).some((v) => v !== null && v !== undefined && v !== "")
@@ -86,7 +86,7 @@ export default function DataEntryPage() {
               ? [resp.data]
               : []
 
-        const published = arr.find((l: any) => l?.status === "published")
+        const published = arr.find((l: { status?: string }) => l?.status === "published")
         const schema = published?.schema
 
         if (schema?.sections && Array.isArray(schema.sections)) {
@@ -96,8 +96,8 @@ export default function DataEntryPage() {
           setLayout(null)
           toast.info("No published layout. Using default form.")
         }
-      } catch (e: any) {
-        console.warn("[entry] layout fetch failed:", e?.response?.data || e)
+      } catch (e: unknown) {
+        console.warn("[entry] layout fetch failed:", e)
         setLayout(null)
         // silently fallback to default without scaring users
       } finally {
@@ -167,9 +167,13 @@ export default function DataEntryPage() {
       toast.success("Report submitted successfully!")
       setValuesById({})
       setValuesByCode({})
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("[entry] submit error:", e)
-      toast.error(e?.response?.data?.detail || "Failed to submit report.")
+      const detail =
+        typeof e === "object" && e !== null && "response" in e
+          ? (e as { response?: { data?: { detail?: string } } }).response?.data?.detail
+          : undefined
+      toast.error(detail || "Failed to submit report.")
     } finally {
       setSaving(false)
     }

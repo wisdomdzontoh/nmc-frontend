@@ -57,6 +57,7 @@ import {
   getSortedRowModel,
   SortingState,
   useReactTable,
+  Column,
 } from "@tanstack/react-table"
 
 interface OrgTreeNode {
@@ -205,7 +206,7 @@ const columns: ColumnDef<UserRow>[] = [
   },
 ]
 
-function HeaderCell({ column, title }: { column: any; title: string }) {
+function HeaderCell({ column, title }: { column: Column<UserRow, unknown>; title: string }) {
   const isSorted = column.getIsSorted()
   return (
     <button
@@ -339,8 +340,12 @@ const UsersPage: React.FC = () => {
         ])
         setUsers(usersRes.data.results || usersRes.data)
         setOrgTree(orgTreeRes.data || [])
-      } catch (err: any) {
-        if (err?.response?.status === 403) {
+      } catch (err: unknown) {
+        const status =
+          typeof err === "object" && err !== null && "response" in err
+            ? (err as { response?: { status?: number } }).response?.status
+            : undefined
+        if (status === 403) {
           setError("You do not have permission to view or manage users. Contact your administrator if you need access.")
           setUsers([])
           setOrgTree([])
@@ -354,8 +359,8 @@ const UsersPage: React.FC = () => {
     load()
   }, [])
 
-  const isSuperuser = (djangoUser as any)?.is_superuser
-  const isStaff = (djangoUser as any)?.is_staff
+  const isSuperuser = Boolean((djangoUser as unknown as { is_superuser?: boolean })?.is_superuser)
+  const isStaff = Boolean((djangoUser as unknown as { is_staff?: boolean })?.is_staff)
   const myOrgId = djangoUser?.org_unit ?? null
   
   // If superuser OR staff without an assigned org → see everyone.
@@ -374,7 +379,7 @@ const UsersPage: React.FC = () => {
   
     const inScope = (u: UserRow) => {
       if (scopeAll) return true
-      if (!isStaff) return u.id === (djangoUser as any)?.id // non-staff: only self
+      if (!isStaff) return u.id === (djangoUser as unknown as { id?: number })?.id // non-staff: only self
       // staff w/ org: users whose org is inside my subtree
       return u.org_unit != null && allowedOrgIds.includes(u.org_unit)
     }
@@ -389,7 +394,7 @@ const UsersPage: React.FC = () => {
   }, [users, searchTerm, scopeAll, isStaff, djangoUser, allowedOrgIds])
   
 
-  const canManageUsers = isSuperuser || (djangoUser as any)?.is_staff
+  const canManageUsers = isSuperuser || Boolean((djangoUser as unknown as { is_staff?: boolean })?.is_staff)
 
   async function refetchUsers() {
     const res = await ApiClient.getUsers()
@@ -440,8 +445,9 @@ async function handleCreate() {
       org_unit: null,
       org_unit_name: null,
     })
-  } catch (err: any) {
-    setError("Failed to create user. " + (err?.message || ""))
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : ""
+    setError("Failed to create user. " + message)
   } finally {
     setIsSubmitting(false)
   }

@@ -16,7 +16,7 @@ export default function DesignReportsList() {
         </Link>
       </div>
       <div className="border rounded divide-y">
-        {(data || []).map((l: any) => (
+        {(data || []).map((l: { id: number; name: string; code: string; status?: string; version?: number }) => (
           <Link
             key={l.id}
             href={`/design-reports/${l.id}`}

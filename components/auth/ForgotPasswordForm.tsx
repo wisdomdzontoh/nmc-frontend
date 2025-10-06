@@ -51,7 +51,7 @@ export default function ForgotPasswordForm() {
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Forgot Password</h1>
           <p className="text-sm text-muted-foreground">
-            Enter your email address and we'll send you a link to reset your password
+            Enter your email address and we&apos;ll send you a link to reset your password
           </p>
         </div>
 
@@ -98,7 +98,7 @@ export default function ForgotPasswordForm() {
         </div>
 
         <div className="pt-4 text-center text-sm text-muted-foreground">
-          Don't have the code?{" "}
+          Don&apos;t have the code?{" "}
           <Link href="/contact" className="text-foreground font-medium hover:underline">
             Contact Support
           </Link>

@@ -29,14 +29,14 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
+  // LineChart,
+  // Line,
   Area,
   AreaChart
 } from "recharts"
 import { 
-  BarChart3, 
-  TrendingUp, 
+  // BarChart3, 
+  // TrendingUp, 
   Users, 
   FileText, 
   Building2,
@@ -47,8 +47,8 @@ import {
   Activity,
   Target,
   CheckCircle,
-  Clock,
-  XCircle
+  // Clock,
+  // XCircle
 } from "lucide-react"
 
 interface AnalyticsData {
@@ -91,7 +91,7 @@ const AnalyticsPage: React.FC = () => {
         })
         
         setAnalyticsData(response.data)
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to load analytics data:", err)
         setError("Failed to load analytics data. Please try again.")
       } finally {

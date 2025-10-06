@@ -67,7 +67,7 @@ const DashboardPage: React.FC = () => {
         setReportTypes(reportTypesRes.data)
         setReports(reportsRes.data.results || [])
         
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to load dashboard data:", err)
         setError("Failed to load dashboard data. Please try again.")
       } finally {
