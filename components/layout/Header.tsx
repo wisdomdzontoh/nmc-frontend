@@ -17,7 +17,6 @@ import {
   Circle,
   Search,
   LogOut,
-  User,
   ChevronRight,
   Sparkles,
 } from "lucide-react";
@@ -421,12 +420,7 @@ export default function Header() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/profile" className="cursor-pointer">
-                  <User className="h-4 w-4 mr-2 text-gray-500" />
-                  <span>My Profile</span>
-                </Link>
-              </DropdownMenuItem>
+            
               <DropdownMenuItem asChild>
                 <Link href="/settings" className="cursor-pointer">
                   <Settings className="h-4 w-4 mr-2 text-gray-500" />

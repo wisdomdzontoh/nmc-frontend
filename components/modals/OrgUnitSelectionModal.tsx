@@ -1,15 +1,6 @@
-/**
- * Organization Unit Selection Modal — Single Select
- * - Always centered
- * - Full-screen on mobile, dialog on desktop
- * - Sticky header/footer, scrollable body
- * - Single-selection (radio-like behavior)
- * - Fixed ESLint warnings and improved UI
- */
-
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -37,17 +28,19 @@ import api from "@/lib/api"
 interface OrgUnit {
   id: number
   name: string
+  code?: string
+  type?: string
   description?: string
   parent?: number
-  level: number
-  is_active: boolean
+  level?: number
+  is_active?: boolean
   children?: OrgUnit[]
 }
 
 interface OrgUnitSelectionModalProps {
   isOpen: boolean
   onClose: () => void
-  onSelect: (selectedUnits: OrgUnit[]) => void // returns [one] or []
+  onSelect: (selectedUnits: OrgUnit[]) => void
   userOrgUnit?: number
 }
 
@@ -66,7 +59,15 @@ const OrgUnitSelectionModal: React.FC<OrgUnitSelectionModalProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [pickMyUnit, setPickMyUnit] = useState(false)
 
-  // Load organization units
+  // Normalize so children is always an array (memoized)
+  const normalizeTree = useCallback((nodes: OrgUnit[]): OrgUnit[] => {
+    return nodes.map((node) => ({
+      ...node,
+      is_active: node.is_active ?? true,
+      children: normalizeTree(node.children ?? []),
+    }))
+  }, [])
+
   useEffect(() => {
     if (!isOpen) return
 
@@ -75,11 +76,10 @@ const OrgUnitSelectionModal: React.FC<OrgUnitSelectionModalProps> = ({
         setLoading(true)
         setError(null)
         const res = await api.get("/org/tree/")
-        const tree = res.data || []
-        setOrgUnits(tree)
-        setFiltered(tree)
-        
-        // Auto-expand user's org unit branch if provided
+        const data = normalizeTree(res.data ?? [])
+        setOrgUnits(data)
+        setFiltered(data)
+
         if (userOrgUnit) {
           setExpanded((prev) => new Set(prev).add(userOrgUnit))
         }
@@ -92,9 +92,9 @@ const OrgUnitSelectionModal: React.FC<OrgUnitSelectionModalProps> = ({
     }
 
     loadOrgUnits()
-  }, [isOpen, userOrgUnit])
+  }, [isOpen, userOrgUnit, normalizeTree])
 
-  // Filter tree while keeping hierarchy for matches
+  // Filtering
   useEffect(() => {
     if (!search) {
       setFiltered(orgUnits)
@@ -102,54 +102,42 @@ const OrgUnitSelectionModal: React.FC<OrgUnitSelectionModalProps> = ({
     }
 
     const q = search.toLowerCase()
-    
-    const matches = (nodeList: OrgUnit[]): OrgUnit[] =>
-      nodeList
-        .map((node) => ({
-          ...node,
-          children: node.children ? matches(node.children) : [],
-        }))
-        .filter(
-          (node) =>
-            node.name.toLowerCase().includes(q) ||
-            (node.children && node.children.length > 0)
-        )
-    
-    const out = matches(orgUnits)
-    setFiltered(out)
 
-    // Expand all parents of matches for visibility
-    const toExpand = new Set<number>()
-    const walk = (arr: OrgUnit[], parents: number[]): void => {
-      for (const node of arr) {
-        if ((node.children && node.children.length) || node.name.toLowerCase().includes(q)) {
-          parents.forEach((p) => toExpand.add(p))
+    const filterTree = (nodes: OrgUnit[]): OrgUnit[] =>
+      nodes
+        .map((n) => ({
+          ...n,
+          children: filterTree(n.children ?? []),
+        }))
+        .filter((n) => n.name.toLowerCase().includes(q) || (n.children ?? []).length > 0)
+
+    const result = filterTree(orgUnits)
+    setFiltered(result)
+
+    // Expand parents of matches
+    const expandedIds = new Set<number>()
+    const collectParents = (nodes: OrgUnit[], parents: number[] = []) => {
+      for (const n of nodes) {
+        if (n.name.toLowerCase().includes(q)) {
+          parents.forEach((p) => expandedIds.add(p))
         }
-        if (node.children) {
-          walk(node.children, [...parents, node.id])
-        }
+        collectParents(n.children ?? [], [...parents, n.id])
       }
     }
-    walk(out, [])
-    setExpanded(toExpand)
+    collectParents(result)
+    setExpanded(expandedIds)
   }, [search, orgUnits])
 
-  const toggleExpand = (id: number) => {
+  const toggleExpand = (id: number) =>
     setExpanded((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
-  }
 
   const selectOnly = (id: number) => {
-    // Radio-like; click again to clear
     setSelectedId((prev) => (prev === id ? null : id))
-    // Turn off quick-pick if manual change conflicts
     if (pickMyUnit && userOrgUnit && id !== userOrgUnit) {
       setPickMyUnit(false)
     }
@@ -157,45 +145,45 @@ const OrgUnitSelectionModal: React.FC<OrgUnitSelectionModalProps> = ({
 
   const applyMyUnit = (checked: boolean) => {
     setPickMyUnit(checked)
-    if (!userOrgUnit) return
-    setSelectedId(checked ? userOrgUnit : null)
+    if (userOrgUnit) setSelectedId(checked ? userOrgUnit : null)
   }
 
-  const findById = (nodeList: OrgUnit[], id: number): OrgUnit | undefined => {
-    for (const node of nodeList) {
-      if (node.id === id) return node
-      if (node.children) {
-        const hit = findById(node.children, id)
-        if (hit) return hit
+  const findById = useMemo(() => {
+    const fn = (nodes: OrgUnit[], id: number): OrgUnit | undefined => {
+      for (const node of nodes) {
+        if (node.id === id) return node
+        const found = fn(node.children ?? [], id)
+        if (found) return found
       }
+      return undefined
     }
-    return undefined
-  }
+    return fn
+  }, [])
 
   const getSelectedName = () => {
     if (!selectedId) return null
-    const unit = findById(orgUnits, selectedId)
-    return unit?.name
+    const node = findById(orgUnits, selectedId)
+    return node?.name ?? null
   }
 
-  const renderTree = (nodeList: OrgUnit[], level = 0): React.ReactNode =>
-    nodeList.map((node) => {
-      const hasKids = !!(node.children && node.children.length)
+  const renderTree = (nodes: OrgUnit[], level = 0): React.ReactNode =>
+    nodes.map((node) => {
+      const children = node.children ?? []
+      const hasChildren = children.length > 0
       const isOpen = expanded.has(node.id)
       const isChecked = selectedId === node.id
       const isUserUnit = userOrgUnit === node.id
-      
+      const isActive = node.is_active ?? true
+
       return (
-        <div key={node.id} className="select-none">
+        <div key={node.id}>
           <div
-            className={`
-              flex items-center py-2.5 px-2 rounded-md transition-colors
-              ${isChecked ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'}
-              ${!node.is_active ? 'opacity-60' : ''}
-            `}
+            className={`flex items-center py-2 px-2 rounded-md transition-colors ${
+              isChecked ? "bg-blue-50 border border-blue-200" : "hover:bg-gray-50"
+            } ${!isActive ? "opacity-70 pointer-events-none" : ""}`}
             style={{ paddingLeft: `${level * 20 + 8}px` }}
           >
-            {hasKids ? (
+            {hasChildren ? (
               <button
                 type="button"
                 onClick={() => toggleExpand(node.id)}
@@ -212,19 +200,23 @@ const OrgUnitSelectionModal: React.FC<OrgUnitSelectionModalProps> = ({
               <div className="w-6 mr-2" />
             )}
 
-            {/* Using Checkbox component but enforcing radio behavior */}
             <Checkbox
               checked={isChecked}
-              onCheckedChange={() => node.is_active && selectOnly(node.id)}
+              onCheckedChange={() => isActive && selectOnly(node.id)}
               className="mr-3 rounded-full"
               aria-checked={isChecked}
               role="radio"
               aria-label={`Select ${node.name}`}
-              disabled={!node.is_active}
             />
 
-            <Building2 className={`h-4 w-4 mr-2 ${isChecked ? 'text-blue-600' : 'text-gray-500'}`} />
-            <span className={`text-sm flex-1 ${isChecked ? 'font-medium text-blue-900' : 'text-gray-900'}`}>
+            <Building2
+              className={`h-4 w-4 mr-2 ${isChecked ? "text-blue-600" : "text-gray-500"}`}
+            />
+            <span
+              className={`text-sm flex-1 ${
+                isChecked ? "font-medium text-blue-900" : "text-gray-900"
+              }`}
+            >
               {node.name}
             </span>
 
@@ -233,24 +225,20 @@ const OrgUnitSelectionModal: React.FC<OrgUnitSelectionModalProps> = ({
                 Your Unit
               </Badge>
             )}
-
-            {!node.is_active && (
+            {!isActive && (
               <Badge variant="outline" className="ml-2 text-xs text-gray-500">
                 Inactive
               </Badge>
             )}
-
-            {hasKids && (
+            {hasChildren && (
               <Badge variant="outline" className="ml-2 text-xs">
-                {node.children!.length}
+                {children.length}
               </Badge>
             )}
           </div>
 
-          {isOpen && hasKids && (
-            <div className="mt-1">
-              {renderTree(node.children!, level + 1)}
-            </div>
+          {isOpen && hasChildren && (
+            <div className="mt-1">{renderTree(children, level + 1)}</div>
           )}
         </div>
       )
@@ -274,19 +262,20 @@ const OrgUnitSelectionModal: React.FC<OrgUnitSelectionModalProps> = ({
     onClose()
   }
 
-  const treeData = filtered.length > 0 ? filtered : orgUnits
+  const treeData = filtered.length ? filtered : orgUnits
 
   return (
     <Dialog open={isOpen} onOpenChange={handleCancel}>
       <DialogContent
         className="
-          z-[60] p-0 sm:max-w-4xl w-[100vw] sm:w-[min(95vw,1000px)]
-          h-[100vh] sm:h-auto sm:max-h-[90vh]
-          overflow-hidden rounded-none sm:rounded-lg
+          z-[60] p-0 sm:max-w-5xl w-[100vw] sm:w-[min(95vw,1100px)]
+          h-[100vh] sm:h-[90vh]
+          flex flex-col overflow-hidden
+          rounded-none sm:rounded-lg
         "
       >
-        {/* Sticky header */}
-        <div className="sticky top-0 z-10 bg-white border-b">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-white border-b flex-shrink-0">
           <DialogHeader className="p-5">
             <DialogTitle className="flex items-center text-xl">
               <Building2 className="mr-2 h-5 w-5 text-blue-600" />
@@ -298,73 +287,80 @@ const OrgUnitSelectionModal: React.FC<OrgUnitSelectionModalProps> = ({
           </DialogHeader>
         </div>
 
-        {/* Body */}
-        <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
-          {/* Left: quick pick + search */}
-          <aside className="sm:w-72 border-b sm:border-b-0 sm:border-r bg-gradient-to-b from-gray-50 to-white p-5 space-y-4 overflow-auto">
-            <div>
-              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">
-                Quick Selection
+        {/* Scrollable body */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Sidebar */}
+          <aside className="sm:w-80 flex-shrink-0 border-r bg-gradient-to-b from-gray-50 to-white p-5 overflow-y-auto">
+            <div className="space-y-6">
+              {/* Quick Selection */}
+              <div>
+                <div className="text-xs font-semibold text-gray-600 uppercase mb-3">
+                  Quick Selection
+                </div>
+                <label className="flex items-start space-x-3 p-3 rounded-lg border hover:border-blue-300 hover:bg-blue-50 cursor-pointer">
+                  <Checkbox
+                    checked={pickMyUnit}
+                    onCheckedChange={(c) => applyMyUnit(Boolean(c))}
+                    className="mt-0.5"
+                    disabled={!userOrgUnit}
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-medium text-gray-900">
+                      My organisation unit
+                    </span>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {userOrgUnit ? "Use your assigned unit" : "No unit assigned"}
+                    </p>
+                  </div>
+                </label>
               </div>
-              <label className="flex items-start space-x-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer">
-                <Checkbox
-                  checked={pickMyUnit}
-                  onCheckedChange={(c) => applyMyUnit(Boolean(c))}
-                  className="mt-0.5"
-                  disabled={!userOrgUnit}
-                />
-                <div className="flex-1">
-                  <span className="text-sm font-medium text-gray-900">
-                    My organisation unit
-                  </span>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {userOrgUnit ? "Use your assigned unit" : "No unit assigned"}
+
+              {/* Search */}
+              <div>
+                <div className="text-xs font-semibold text-gray-600 uppercase mb-3">
+                  Search
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search units..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                {search && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    {filtered.length === 0
+                      ? "No matches found"
+                      : `${filtered.length} unit(s) found`}
                   </p>
-                </div>
-              </label>
-            </div>
-
-            <div className="pt-2">
-              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">
-                Search
+                )}
               </div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search units..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              {search && (
-                <p className="text-xs text-gray-500 mt-2">
-                  {filtered.length === 0 ? 'No matches found' : `${filtered.length} unit(s) found`}
-                </p>
-              )}
-            </div>
 
-            {selectedId && (
-              <div className="pt-2">
-                <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">
-                  Selected Unit
-                </div>
-                <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
-                  <div className="flex items-start space-x-2">
-                    <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-blue-900 break-words">
-                        {getSelectedName()}
-                      </p>
+              {/* Selected */}
+              {selectedId && (
+                <div>
+                  <div className="text-xs font-semibold text-gray-600 uppercase mb-3">
+                    Selected Unit
+                  </div>
+                  <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                    <div className="flex items-start space-x-2">
+                      <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-blue-900 break-words">
+                          {getSelectedName()}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </aside>
 
-          {/* Right: tree */}
-          <section className="flex-1 overflow-auto bg-white">
+          {/* Tree Section (scrollable) */}
+          <section className="flex-1 overflow-y-auto bg-white">
             {error ? (
               <div className="p-5">
                 <Alert variant="destructive">
@@ -374,30 +370,26 @@ const OrgUnitSelectionModal: React.FC<OrgUnitSelectionModalProps> = ({
               </div>
             ) : loading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-blue-600" />
-                  <span className="text-sm text-gray-600">Loading organization units...</span>
-                </div>
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-blue-600" />
+                <span className="text-sm text-gray-600">
+                  Loading organization units...
+                </span>
               </div>
             ) : treeData.length === 0 ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-sm text-gray-600">
-                    {search ? 'No units match your search' : 'No organization units available'}
-                  </p>
-                </div>
+              <div className="flex items-center justify-center py-12 text-gray-600">
+                <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                {search
+                  ? "No units match your search"
+                  : "No organization units available"}
               </div>
             ) : (
-              <div className="p-3 space-y-1">
-                {treeData.map((root) => renderTree([root]))}
-              </div>
+              <div className="p-4 space-y-1">{renderTree(treeData)}</div>
             )}
           </section>
         </div>
 
         {/* Sticky footer */}
-        <div className="sticky bottom-0 z-10 bg-white border-t shadow-lg">
+        <div className="sticky bottom-0 z-10 bg-white border-t shadow-lg flex-shrink-0">
           <DialogFooter className="p-4 flex-row justify-between items-center space-x-2">
             <div className="text-sm text-gray-600">
               {selectedId ? (
@@ -413,12 +405,12 @@ const OrgUnitSelectionModal: React.FC<OrgUnitSelectionModalProps> = ({
               <Button variant="outline" onClick={handleCancel}>
                 Cancel
               </Button>
-              <Button 
-                onClick={handleApply} 
+              <Button
+                onClick={handleApply}
                 disabled={!selectedId}
                 className="min-w-[100px]"
               >
-                {selectedId ? 'Apply Selection' : 'Select a Unit'}
+                {selectedId ? "Apply Selection" : "Select a Unit"}
               </Button>
             </div>
           </DialogFooter>
