@@ -286,7 +286,7 @@ export default function ReportDesignerPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col bg-gray-50">
       <Toaster />
 
       {/* Header */}
@@ -425,97 +425,91 @@ export default function ReportDesignerPage() {
               </TabsList>
             </div>
 
-            {/* Design tab - full flex chain (min-h-0) + scroll container */}
-            <TabsContent value="design" className="flex-1 flex flex-col min-h-0 overflow-hidden bg-gray-50">
-              <div className="flex-1 overflow-y-auto min-h-0 p-6">
-                <div className="max-w-6xl mx-auto space-y-6 pb-24">
-                  {schema.sections.map((sec, idx: number) => {
-                    // ensure each section has an id for scroll target - for tables use true id, for headings synthesize
-                    const sectionId = sec.type === "table" ? (sec as TableSection).id : `hdr_${idx}`
-                    if (sec.type === "heading") {
-                      const h = sec as HeadingSection
-                      return (
-                        <div
-                          id={`section-${sectionId}`}
-                          key={sectionId}
-                          className="bg-white rounded-lg p-4 border-2 border-gray-200 group relative shadow-sm"
-                        >
-                          <Input
-                            value={h.text}
-                            onChange={(e) => {
-                              const copy = [...schema.sections]
-                              copy[idx] = { ...h, text: e.target.value }
-                              updateSchema({ ...schema, sections: copy })
-                            }}
-                            className="text-lg font-semibold border-0 focus-visible:ring-0 px-0"
-                            placeholder="Enter heading text..."
-                          />
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
-                            onClick={() => deleteSection(idx)}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-600" />
-                          </Button>
-                        </div>
-                      )
-                    }
-
-                    const t = sec as TableSection
+            <TabsContent value="design" className="flex-1 overflow-y-auto min-h-0 bg-gray-50 p-6 m-0">
+              <div className="max-w-6xl mx-auto space-y-6 pb-24">
+                {schema.sections.map((sec, idx: number) => {
+                  // ensure each section has an id for scroll target - for tables use true id, for headings synthesize
+                  const sectionId = sec.type === "table" ? (sec as TableSection).id : `hdr_${idx}`
+                  if (sec.type === "heading") {
+                    const h = sec as HeadingSection
                     return (
                       <div
                         id={`section-${sectionId}`}
                         key={sectionId}
-                        className="bg-white rounded-lg border-2 border-gray-200 overflow-hidden group relative shadow-sm"
+                        className="bg-white rounded-lg p-4 border-2 border-gray-200 group relative shadow-sm"
                       >
+                        <Input
+                          value={h.text}
+                          onChange={(e) => {
+                            const copy = [...schema.sections]
+                            copy[idx] = { ...h, text: e.target.value }
+                            updateSchema({ ...schema, sections: copy })
+                          }}
+                          className="text-lg font-semibold border-0 focus-visible:ring-0 px-0"
+                          placeholder="Enter heading text..."
+                        />
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0 bg-white shadow-sm"
+                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
                           onClick={() => deleteSection(idx)}
                         >
                           <Trash2 className="h-4 w-4 text-red-600" />
                         </Button>
-
-                        <CellFormatToolbar
-                          cell={selectedCell?.sectionIndex === idx ? getSelectedCell() : null}
-                          onUpdate={updateSelectedCell}
-                          onClear={clearSelectedCell}
-                        />
-
-                        <div className="p-4">
-                          <ExcelLikeTable
-                            table={t}
-                            sectionIndex={idx}
-                            onChange={(next) => updateSectionAt(idx, next)}
-                            onCopy={handleCopy}
-                            onPaste={handlePaste}
-                            onDelete={clearSelectedCell}
-                          />
-                        </div>
                       </div>
                     )
-                  })}
+                  }
 
-                  {/* Empty state */}
-                  {schema.sections.length === 0 && (
-                    <div className="text-center py-20 text-gray-500">
-                      <TableIcon className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                      <p className="text-lg font-medium mb-2">No elements yet</p>
-                      <p className="text-sm">Add a heading or table from the left sidebar to get started</p>
+                  const t = sec as TableSection
+                  return (
+                    <div
+                      id={`section-${sectionId}`}
+                      key={sectionId}
+                      className="bg-white rounded-lg border-2 border-gray-200 overflow-hidden group relative shadow-sm"
+                    >
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0 bg-white shadow-sm"
+                        onClick={() => deleteSection(idx)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </Button>
+
+                      <CellFormatToolbar
+                        cell={selectedCell?.sectionIndex === idx ? getSelectedCell() : null}
+                        onUpdate={updateSelectedCell}
+                        onClear={clearSelectedCell}
+                      />
+
+                      <div className="p-4">
+                        <ExcelLikeTable
+                          table={t}
+                          sectionIndex={idx}
+                          onChange={(next) => updateSectionAt(idx, next)}
+                          onCopy={handleCopy}
+                          onPaste={handlePaste}
+                          onDelete={clearSelectedCell}
+                        />
+                      </div>
                     </div>
-                  )}
-                </div>
+                  )
+                })}
+
+                {/* Empty state */}
+                {schema.sections.length === 0 && (
+                  <div className="text-center py-20 text-gray-500">
+                    <TableIcon className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                    <p className="text-lg font-medium mb-2">No elements yet</p>
+                    <p className="text-sm">Add a heading or table from the left sidebar to get started</p>
+                  </div>
+                )}
               </div>
             </TabsContent>
 
-            {/* Preview tab */}
-            <TabsContent value="preview" className="flex-1 flex flex-col min-h-0 overflow-hidden bg-gray-100">
-              <div className="flex-1 overflow-y-auto min-h-0 p-6">
-                <div className="max-w-6xl mx-auto pb-24">
-                  <Renderer layout={schema} data={{}} />
-                </div>
+            <TabsContent value="preview" className="flex-1 overflow-y-auto min-h-0 bg-gray-100 p-6 m-0">
+              <div className="max-w-6xl mx-auto pb-24">
+                <Renderer layout={schema} data={{}} />
               </div>
             </TabsContent>
           </Tabs>

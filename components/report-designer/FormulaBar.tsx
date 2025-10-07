@@ -1,9 +1,11 @@
 "use client"
 
-import * as React from "react"
+import type React from "react"
+
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Calculator } from "lucide-react"
 import type { CellDef } from "@/types/report-layout"
+import { useState, useEffect } from "react"
 
 type FormulaBarProps = {
   cell: CellDef | null
@@ -12,25 +14,19 @@ type FormulaBarProps = {
 }
 
 export default function FormulaBar({ cell, cellReference, onUpdate }: FormulaBarProps) {
-  const [value, setValue] = React.useState("")
-  const [mode, setMode] = React.useState<"text" | "bind" | "compute">("text")
+  const [value, setValue] = useState("")
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!cell) {
       setValue("")
-      setMode("text")
       return
     }
-
-    if (cell.bind) {
+    if (cell.compute) {
+      setValue(`=${cell.compute}`)
+    } else if (cell.bind) {
       setValue(cell.bind)
-      setMode("bind")
-    } else if (cell.compute) {
-      setValue(cell.compute)
-      setMode("compute")
     } else {
       setValue(cell.text || "")
-      setMode("text")
     }
   }, [cell])
 
@@ -41,12 +37,11 @@ export default function FormulaBar({ cell, cellReference, onUpdate }: FormulaBar
   const handleBlur = () => {
     if (!cell) return
 
-    // Determine what type of value this is
     if (value.startsWith("=")) {
-      // Formula
+      // Formula: remove = prefix and store in compute
       onUpdate({ compute: value.slice(1), text: undefined, bind: undefined })
     } else if (value.includes(".") && !value.includes(" ")) {
-      // Likely a binding (e.g., "hr.transfer_in")
+      // Data binding path
       onUpdate({ bind: value, text: undefined, compute: undefined })
     } else {
       // Plain text
@@ -61,53 +56,37 @@ export default function FormulaBar({ cell, cellReference, onUpdate }: FormulaBar
       ;(e.target as HTMLInputElement).blur()
     } else if (e.key === "Escape") {
       // Reset to original value
-      if (cell?.bind) setValue(cell.bind)
-      else if (cell?.compute) setValue(cell.compute)
-      else setValue(cell?.text || "")
+      if (cell?.compute) {
+        setValue(`=${cell.compute}`)
+      } else if (cell?.bind) {
+        setValue(cell.bind)
+      } else {
+        setValue(cell?.text || "")
+      }
       ;(e.target as HTMLInputElement).blur()
     }
   }
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 bg-white border-b">
-      <div className="flex items-center gap-2 min-w-[100px]">
-        <Label className="text-xs font-semibold text-gray-600">Cell:</Label>
-        <div className="px-2 py-1 bg-gray-100 rounded text-sm font-mono font-semibold min-w-[60px] text-center">
-          {cellReference || "—"}
-        </div>
+    <div className="px-4 py-2 border-b bg-gray-50 flex items-center gap-3">
+      <div className="flex items-center gap-2 min-w-[80px]">
+        <Calculator className="h-4 w-4 text-gray-500" />
+        <span className="text-sm font-mono font-semibold text-gray-700">{cellReference || "—"}</span>
       </div>
-
-      <div className="h-6 w-px bg-gray-300" />
-
-      <div className="flex-1 flex items-center gap-2">
-        <Label className="text-xs font-semibold text-gray-600">
-          {mode === "bind" ? "Binding:" : mode === "compute" ? "Formula:" : "Value:"}
-        </Label>
-        <Input
-          value={value}
-          onChange={(e) => handleChange(e.target.value)}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-          placeholder={
-            cell
-              ? 'Type text, binding (e.g., "hr.transfer_in"), or formula (e.g., "=sum(row,1,5)")'
-              : "Select a cell to edit"
-          }
-          disabled={!cell}
-          className="flex-1 font-mono text-sm"
-        />
+      <Input
+        value={value}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        placeholder={
+          cell ? "Enter formula (=SUM(A1:A5)), data binding (hr.transfer_in), or text" : "Select a cell to edit"
+        }
+        disabled={!cell}
+        className="flex-1 font-mono text-sm"
+      />
+      <div className="text-xs text-gray-500 hidden lg:block">
+        <span className="font-semibold">Formulas:</span> =SUM(A1:A5), =AVERAGE(B1:B10), =A1+B1*C1
       </div>
-
-      {cell && (
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          {cell.bind && (
-            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">Data Bound</span>
-          )}
-          {cell.compute && (
-            <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-medium">Formula</span>
-          )}
-        </div>
-      )}
     </div>
   )
 }

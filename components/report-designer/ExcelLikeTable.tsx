@@ -13,7 +13,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 import { Input } from "@/components/ui/input"
-import { useRef, useEffect } from "react";
+import { useRef, useEffect } from "react"
 
 type ExcelLikeTableProps = {
   table: TableSection
@@ -54,18 +54,16 @@ export default function ExcelLikeTable({
   const [resizeStartWidth, setResizeStartWidth] = React.useState(0)
   const inputRef = React.useRef<HTMLInputElement>(null)
 
-  // --- New: Scroll and highlight logic ---
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [highlightCol, setHighlightCol] = React.useState<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [highlightCol, setHighlightCol] = React.useState<number | null>(null)
 
-  // Helper to scroll to a column
   const scrollToColumn = (colIndex: number) => {
-    if (!scrollRef.current) return;
-    const th = scrollRef.current.querySelector(`th[data-col-index="${colIndex}"]`);
+    if (!scrollRef.current) return
+    const th = scrollRef.current.querySelector(`th[data-col-index="${colIndex}"]`)
     if (th && th instanceof HTMLElement) {
-      th.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      th.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" })
     }
-  };
+  }
 
   const isSelected = (rowIndex: number, colIndex: number) => {
     return (
@@ -109,10 +107,13 @@ export default function ExcelLikeTable({
       updateHeaderCell(rowIndex, colIndex, { label: editValue })
     } else {
       if (editValue.startsWith("=")) {
+        // Remove the = prefix and store as compute
         updateCell(rowIndex, colIndex, { compute: editValue.slice(1), text: undefined, bind: undefined })
       } else if (editValue.includes(".") && !editValue.includes(" ")) {
+        // Looks like a data binding path
         updateCell(rowIndex, colIndex, { bind: editValue, text: undefined, compute: undefined })
       } else {
+        // Plain text
         updateCell(rowIndex, colIndex, { text: editValue, bind: undefined, compute: undefined })
       }
     }
@@ -181,9 +182,9 @@ export default function ExcelLikeTable({
 
     onChange({ ...table, rows, header, columnWidths })
     setTimeout(() => {
-      scrollToColumn(colIndex);
-      setHighlightCol(colIndex);
-    }, 50);
+      scrollToColumn(colIndex)
+      setHighlightCol(colIndex)
+    }, 50)
   }
 
   const addColumnRight = (colIndex: number) => {
@@ -201,9 +202,9 @@ export default function ExcelLikeTable({
 
     onChange({ ...table, rows, header, columnWidths })
     setTimeout(() => {
-      scrollToColumn(colIndex + 1);
-      setHighlightCol(colIndex + 1);
-    }, 50);
+      scrollToColumn(colIndex + 1)
+      setHighlightCol(colIndex + 1)
+    }, 50)
   }
 
   const deleteColumn = (colIndex: number) => {
@@ -250,14 +251,12 @@ export default function ExcelLikeTable({
     }
   }, [resizingCol, resizeStartX, resizeStartWidth])
 
-  // Remove highlight after a short delay
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (highlightCol !== null) {
-      const timeout = setTimeout(() => setHighlightCol(null), 1200);
-      return () => clearTimeout(timeout);
+      const timeout = setTimeout(() => setHighlightCol(null), 1200)
+      return () => clearTimeout(timeout)
     }
-  }, [highlightCol]);
+  }, [highlightCol])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!selectedCell || selectedCell.sectionIndex !== sectionIndex) return
@@ -335,11 +334,7 @@ export default function ExcelLikeTable({
   }
 
   return (
-    <div
-      className="border border-gray-300 rounded-lg overflow-hidden shadow-sm"
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
-    >
+    <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm" onKeyDown={handleKeyDown} tabIndex={0}>
       <div className="overflow-x-auto" ref={scrollRef}>
         <table className="w-full border-collapse">
           <colgroup>
@@ -352,7 +347,7 @@ export default function ExcelLikeTable({
                     typeof table.columnWidths?.[i] === "number" && table.columnWidths[i] > 0
                       ? table.columnWidths[i]
                       : 150
-                  }px`
+                  }px`,
                 }}
               />
             ))}
@@ -368,7 +363,7 @@ export default function ExcelLikeTable({
                       data-col-index={i}
                       className={cn(
                         "border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 bg-gray-100 relative group cursor-pointer",
-                        highlightCol === i && "bg-yellow-200 transition-colors"
+                        highlightCol === i && "bg-yellow-200 transition-colors",
                       )}
                     >
                       {getColumnLabel(i)}
@@ -399,7 +394,6 @@ export default function ExcelLikeTable({
               ))}
             </tr>
 
-            {/* Header rows */}
             {table.header?.rows?.map((row, ri) => (
               <tr key={`h-${ri}`} className="bg-amber-50">
                 <td className="border border-gray-300 px-2 py-1 text-xs text-gray-500 text-center font-medium bg-gray-100">
@@ -442,7 +436,6 @@ export default function ExcelLikeTable({
             ))}
           </thead>
 
-          {/* Body */}
           <tbody>
             {table.rows.map((row, ri) => (
               <tr key={`r-${ri}`}>

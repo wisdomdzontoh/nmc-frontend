@@ -2,6 +2,7 @@
 
 import type * as React from "react"
 import { cn } from "@/lib/utils"
+import { evaluateFormula, type FormulaContext, type CellValue } from "@/lib/formula-evaluator"
 
 /* ---------- Types (keep in sync with your layout schema) ---------- */
 
@@ -12,7 +13,7 @@ export type CellDef = {
   text?: string
   /** Data binding key, e.g. "hr.transfer_in" or "remark.hr.transfer_in" */
   bind?: string
-  /** Small expression, e.g. "sum(row,1,11)" or "sum(column,2,10)" */
+  /** Formula expression, e.g. "SUM(A1:A5)" or "sum(row,1,11)" (legacy) */
   compute?: string
   /** HTML colspan/rowspan */
   colSpan?: number
@@ -61,19 +62,17 @@ function isNumberLike(v: unknown) {
 }
 
 /**
- * Evaluate a tiny compute expression.
- * Supported:
- *   - sum(row, startCol, endCol)
- *   - sum(column, startRow, endRow)
+ * Legacy compute evaluation for backward compatibility
+ * Supports: sum(row, startCol, endCol) and sum(column, startRow, endRow)
  */
-function evalCompute(
+function evalLegacyCompute(
   expr: string,
   ctx: {
     rowValues: (number | string | undefined)[]
     columnValues?: (number | string | undefined)[]
   },
 ): number | string {
-  const mRow = expr.match(/^sum$$\s*row\s*,\s*(\d+)\s*,\s*(\d+)\s*$$$/i)
+  const mRow = expr.match(/^sum\s*$$\s*row\s*,\s*(\d+)\s*,\s*(\d+)\s*$$$/i)
   if (mRow) {
     const a = Number(mRow[1])
     const b = Number(mRow[2])
@@ -85,7 +84,7 @@ function evalCompute(
     return s
   }
 
-  const mCol = expr.match(/^sum$$\s*column\s*,\s*(\d+)\s*,\s*(\d+)\s*$$$/i)
+  const mCol = expr.match(/^sum\s*$$\s*column\s*,\s*(\d+)\s*,\s*(\d+)\s*$$$/i)
   if (mCol && ctx.columnValues) {
     const a = Number(mCol[1])
     const b = Number(mCol[2])
@@ -97,7 +96,7 @@ function evalCompute(
     return s
   }
 
-  // unsupported → empty
+  // Not a legacy format, return empty
   return ""
 }
 
@@ -105,7 +104,7 @@ function evalCompute(
 
 export default function Renderer({ layout, data, remarks = {}, formatNumber }: RendererProps) {
   return (
-    <div className="bg-card border rounded overflow-hidden">
+    <div className="bg-card border rounded overflow-hidden max-w-full">
       {layout.title ? <div className="px-3 py-2 text-sm font-semibold border-b">{layout.title}</div> : null}
 
       <div className="p-3 space-y-4">
@@ -121,27 +120,43 @@ export default function Renderer({ layout, data, remarks = {}, formatNumber }: R
 
           const t = sec as TableSection
 
+          const formulaContext: FormulaContext = {
+            getCellValue: (rowIndex: number, colIndex: number): CellValue => {
+              const cell = t.rows[rowIndex]?.cells[colIndex]
+              if (!cell) return undefined
+
+              if (cell.compute) return undefined
+
+              if (cell.bind) {
+                if (cell.bind.startsWith("remark.")) {
+                  return remarks[cell.bind] as CellValue
+                }
+                return data[cell.bind] as CellValue
+              }
+
+              return cell.text
+            },
+            rowCount: t.rows.length,
+            colCount: t.rows[0]?.cells.length || 0,
+          }
+
           return (
-            <div key={t.id} className="border border-border overflow-x-auto">
-              <table className="w-full border-collapse">
-                {/* Column widths (if provided) */}
+            <div key={t.id} className="border border-border overflow-x-auto max-w-full">
+              <table className="w-full border-collapse min-w-max">
                 {(() => {
-                  // Determine the number of columns
-                  const colCount = t.header?.rows?.[0]?.length || t.rows?.[0]?.cells?.length || 0;
-                  // Use provided widths, but fill missing with default (150px)
+                  const colCount = t.header?.rows?.[0]?.length || t.rows?.[0]?.cells?.length || 0
                   const widths = Array.from({ length: colCount }, (_, i) =>
-                    typeof t.columnWidths?.[i] === "number" && t.columnWidths[i] > 0 ? t.columnWidths[i] : 150
-                  );
+                    typeof t.columnWidths?.[i] === "number" && t.columnWidths[i] > 0 ? t.columnWidths[i] : 150,
+                  )
                   return colCount ? (
                     <colgroup>
                       {widths.map((w, i) => (
                         <col key={i} style={{ width: `${w}px` }} />
                       ))}
                     </colgroup>
-                  ) : null;
+                  ) : null
                 })()}
 
-                {/* Header */}
                 {t.header?.rows?.length ? (
                   <thead className="bg-accent/20">
                     {t.header.rows.map((r, ri) => (
@@ -165,10 +180,8 @@ export default function Renderer({ layout, data, remarks = {}, formatNumber }: R
                   </thead>
                 ) : null}
 
-                {/* Body */}
                 <tbody>
                   {t.rows.map((row, ri) => {
-                    // Pre-compute row values (for compute expressions)
                     const rowValues: (number | string | undefined)[] = row.cells.map((c) => {
                       if (c.bind?.startsWith("remark.")) return undefined
                       if (c.bind) {
@@ -198,8 +211,24 @@ export default function Renderer({ layout, data, remarks = {}, formatNumber }: R
                           }
 
                           if (c.compute) {
-                            const computed = evalCompute(c.compute, { rowValues })
-                            content = isNumberLike(computed) && formatNumber ? formatNumber(Number(computed)) : computed
+                            const legacyResult = evalLegacyCompute(c.compute, { rowValues })
+
+                            if (legacyResult !== "") {
+                              content =
+                                isNumberLike(legacyResult) && formatNumber
+                                  ? formatNumber(Number(legacyResult))
+                                  : legacyResult
+                            } else {
+                              const result = evaluateFormula(c.compute, formulaContext)
+
+                              if (typeof result === "string" && result.startsWith("#")) {
+                                content = <span className="text-red-600 text-xs">{result}</span>
+                              } else if (isNumberLike(result) && formatNumber) {
+                                content = formatNumber(Number(result))
+                              } else {
+                                content = result
+                              }
+                            }
                           }
 
                           return (
