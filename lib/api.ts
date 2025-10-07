@@ -13,7 +13,7 @@ const supabase = createClient(
 )
 
 // API configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://nmc-backend-mr7q.onrender.com/api"
 
 // Create axios instance
 const api: AxiosInstance = axios.create({

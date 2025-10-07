@@ -1,82 +1,119 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Light and dark variants */
 @custom-variant dark (&:is(.dark *));
 
+/* ===================================================
+   BRAND COLOR SYSTEM
+   =================================================== */
 :root {
-  /* Modern dark theme with professional color palette */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  /* Base Palette */
+  --color-primary-base: #9C2007; /* Deep red */
+  --color-dark-base: #180501; /* Almost black */
+  --color-soft-base: #FEEBE7; /* Warm pale background */
+
+  /* Core theme variables */
+  --background: var(--color-soft-base);
+  --foreground: var(--color-dark-base);
+
+  --card: #ffffff;
+  --card-foreground: var(--color-dark-base);
+
+  --popover: #ffffff;
+  --popover-foreground: var(--color-dark-base);
+
+  --primary: var(--color-primary-base);
+  --primary-foreground: #ffffff;
+
+  --secondary: #f5c6bc;
+  --secondary-foreground: var(--color-dark-base);
+
+  --muted: #f9d7d1;
+  --muted-foreground: #5c3b35;
+
+  --accent: #ffede8;
+  --accent-foreground: var(--color-dark-base);
+
+  --destructive: #b71c1c;
+  --destructive-foreground: #ffffff;
+
+  --border: #e6bdb7;
+  --input: #f8d9d2;
+  --ring: var(--color-primary-base);
+
+  /* Chart tones for Recharts and analytics */
+  --chart-1: #9C2007;
+  --chart-2: #c53e1a;
+  --chart-3: #e8703a;
+  --chart-4: #ffb097;
+  --chart-5: #ffd8cc;
+
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+
+  /* Sidebar */
+  --sidebar: var(--color-dark-base);
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: var(--color-primary-base);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #4d0f05;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #6f1a0b;
+  --sidebar-ring: var(--color-primary-base);
 }
 
+/* ===================================================
+   DARK THEME VARIANTS
+   =================================================== */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --background: var(--color-dark-base);
+  --foreground: #FEEBE7;
+
+  --card: #2a0c05;
+  --card-foreground: #FEEBE7;
+
+  --popover: #2a0c05;
+  --popover-foreground: #FEEBE7;
+
+  --primary: #FEEBE7;
+  --primary-foreground: var(--color-dark-base);
+
+  --secondary: #9C2007;
+  --secondary-foreground: #ffffff;
+
+  --muted: #4d0f05;
+  --muted-foreground: #f2b3a7;
+
+  --accent: #6f1a0b;
+  --accent-foreground: #ffffff;
+
+  --destructive: #ff4d4d;
+  --destructive-foreground: #fff;
+
+  --border: #3b1008;
+  --input: #3b1008;
+  --ring: #9C2007;
+
+  --chart-1: #ffb097;
+  --chart-2: #e8703a;
+  --chart-3: #c53e1a;
+  --chart-4: #9C2007;
+  --chart-5: #6f1a0b;
+
+  --sidebar: #1a0602;
+  --sidebar-foreground: #fff3f1;
+  --sidebar-primary: #9C2007;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #300b03;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #4d0f05;
+  --sidebar-ring: #9C2007;
 }
 
+/* ===================================================
+   THEME MAPPING TO TAILWIND
+   =================================================== */
 @theme inline {
-  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -115,30 +152,55 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* ===================================================
+   BASE STYLES
+   =================================================== */
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring/50 transition-colors duration-200;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  a {
+    @apply text-primary hover:underline hover:text-primary/80;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-foreground font-semibold;
+  }
+
+  button {
+    @apply rounded-md transition-all;
   }
 }
 
-/* Custom scrollbar styling for modern look */
+/* ===================================================
+   CUSTOM SCROLLBAR
+   =================================================== */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: oklch(0.16 0.01 264);
+  background: var(--color-soft-base);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.3 0.02 264);
+  background: var(--color-primary-base);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.4 0.02 264);
+  background: #b7310d;
+}
+
+/* ===================================================
+   OPTIONAL BODY GRADIENT FOR VISUAL DEPTH
+   =================================================== */
+body {
+  background: linear-gradient(180deg, #FEEBE7 0%, #ffffff 100%);
 }
