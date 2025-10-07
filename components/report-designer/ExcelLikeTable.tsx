@@ -249,7 +249,7 @@ export default function ExcelLikeTable({
       document.removeEventListener("mousemove", handleMouseMove)
       document.removeEventListener("mouseup", handleMouseUp)
     }
-  }, [resizingCol, resizeStartX, resizeStartWidth])
+  }, [resizingCol, resizeStartX, resizeStartWidth, onChange, table])
 
   useEffect(() => {
     if (highlightCol !== null) {

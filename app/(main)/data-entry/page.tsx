@@ -11,7 +11,7 @@ import { toast } from "sonner"
 import { Toaster } from "@/components/ui/sonner"
 import DataEntryTopBar from "@/components/data-entry/DataEntryTopBar"
 import DataEntryForm from "@/components/data-entry/DataEntryForm"
-import LayoutEntryForm, { type LayoutSchema } from "@/components/data-entry/LayoutEntryForm"
+import LayoutEntryForm, { type LayoutSchema, type TableArraySection } from "@/components/data-entry/LayoutEntryForm"
 import type { ReportType } from "@/components/data-entry/DatasetInlineDropdown"
 import type { OrgNode } from "@/components/data-entry/OrgUnitInlineDropdown"
 import type { Period } from "@/components/data-entry/PeriodInlineDropdown"
@@ -20,19 +20,8 @@ import { evaluateFormula } from "@/lib/formula-evaluator"
 type ValuesById = Record<string, number | null>
 type ValuesByCode = Record<string, number | string | null>
 
-/** Helper: convert zero-based column index to Excel column letters (0 -> A, 25 -> Z, 26 -> AA) */
-function indexToColumnLetter(index: number): string {
-  let i = index + 1
-  let s = ""
-  while (i > 0) {
-    const rem = (i - 1) % 26
-    s = String.fromCharCode(65 + rem) + s
-    i = Math.floor((i - 1) / 26)
-  }
-  return s
-}
-
 export default function DataEntryPage() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { djangoUser } = useAuth()
 
   const [loading, setLoading] = React.useState(true)
@@ -86,42 +75,45 @@ export default function DataEntryPage() {
   }, [dataset?.id])
 
   /* ---------------- FETCH PUBLISHED LAYOUT ---------------- */
-  React.useEffect(() => {
+  const loadLayoutData = React.useCallback(async () => {
     if (!dataset) return
-    ;(async () => {
-      try {
-        setLoadingLayout(true)
-        const resp = await api.get(
-          `/reporting/report-layouts/?report_type=${dataset.id}&status=published`,
-          { timeout: 30000 }
-        )
+    
+    try {
+      setLoadingLayout(true)
+      const resp = await api.get(
+        `/reporting/report-layouts/?report_type=${dataset.id}&status=published`,
+        { timeout: 30000 }
+      )
 
-        const arr = Array.isArray(resp.data)
-          ? resp.data
-          : resp.data?.results
-          ? resp.data.results
-          : resp.data
-          ? [resp.data]
-          : []
+      const arr = Array.isArray(resp.data)
+        ? resp.data
+        : resp.data?.results
+        ? resp.data.results
+        : resp.data
+        ? [resp.data]
+        : []
 
-        const published = arr.find((l: { status?: string }) => l?.status === "published")
-        const schema = published?.schema
+      const published = arr.find((l: { status?: string }) => l?.status === "published")
+      const schema = published?.schema
 
-        if (schema?.sections && Array.isArray(schema.sections)) {
-          setLayout(schema)
-          toast.success("Layout loaded")
-        } else {
-          setLayout(null)
-          toast.info("No published layout found.")
-        }
-      } catch (e) {
-        console.warn("[entry] layout fetch failed:", e)
+      if (schema?.sections && Array.isArray(schema.sections)) {
+        setLayout(schema)
+        toast.success("Layout loaded")
+      } else {
         setLayout(null)
-      } finally {
-        setLoadingLayout(false)
+        toast.info("No published layout found.")
       }
-    })()
-  }, [dataset?.id])
+    } catch (e) {
+      console.warn("[entry] layout fetch failed:", e)
+      setLayout(null)
+    } finally {
+      setLoadingLayout(false)
+    }
+  }, [dataset])
+
+  React.useEffect(() => {
+    loadLayoutData()
+  }, [loadLayoutData])
 
   /* ---------------- CLEAR FORM ---------------- */
   const onClear = () => {
@@ -146,55 +138,56 @@ export default function DataEntryPage() {
   }, [dataset?.data_elements])
 
   /* ---------------- LOAD EXISTING REPORT ---------------- */
-  React.useEffect(() => {
-    const fetchExistingReport = async () => {
-      if (!dataset?.id || !org?.id || !period?.startDate) return
+  const fetchExistingReport = React.useCallback(async () => {
+    if (!dataset?.id || !org?.id || !period?.startDate) return
 
-      try {
-        setSaving(true)
-        const res = await api.get("/reporting/data-entry/", {
-          params: {
-            report_type: dataset.id,
-            org_unit: org.id,
-            reporting_period: period.startDate,
-          },
-        })
+    try {
+      setSaving(true)
+      const res = await api.get("/reporting/data-entry/", {
+        params: {
+          report_type: dataset.id,
+          org_unit: org.id,
+          reporting_period: period.startDate,
+        },
+      })
 
-        const report = res.data
-        if (!report?.values || !Array.isArray(report.values)) return
+      const report = res.data
+      if (!report?.values || !Array.isArray(report.values)) return
 
-        if (layout) {
-          const byCode: Record<string, number | string | null> = {}
-          for (const v of report.values) {
-            byCode[v.data_element_code] = v.value
-            if (v.remark) byCode[`remark.${v.data_element_code}`] = v.remark
-          }
-          setValuesByCode(byCode)
-        } else {
-          const byId: Record<string, number | null> = {}
-          for (const v of report.values) {
-            byId[String(v.data_element)] = v.value
-          }
-          setValuesById(byId)
+      if (layout) {
+        const byCode: Record<string, number | string | null> = {}
+        for (const v of report.values) {
+          byCode[v.data_element_code] = v.value
+          if (v.remark) byCode[`remark.${v.data_element_code}`] = v.remark
         }
-
-        toast.info("Existing report loaded.")
-      } catch (err: any) {
-        const status = err?.response?.status
-        if (status === 404) {
-          setValuesByCode({})
-          setValuesById({})
-          return
+        setValuesByCode(byCode)
+      } else {
+        const byId: Record<string, number | null> = {}
+        for (const v of report.values) {
+          byId[String(v.data_element)] = v.value
         }
-        console.error("Error loading report:", err)
-        toast.error("Failed to load existing report data.")
-      } finally {
-        setSaving(false)
+        setValuesById(byId)
       }
-    }
 
-    fetchExistingReport()
+      toast.info("Existing report loaded.")
+    } catch (err: unknown) {
+      const error = err as { response?: { status?: number } };
+      const status = error?.response?.status;
+      if (status === 404) {
+        setValuesByCode({})
+        setValuesById({})
+        return
+      }
+      console.error("Error loading report:", err)
+      toast.error("Failed to load existing report data.")
+    } finally {
+      setSaving(false)
+    }
   }, [dataset?.id, org?.id, period?.startDate, layout])
+
+  React.useEffect(() => {
+    fetchExistingReport()
+  }, [fetchExistingReport])
 
   /* ---------------- PURE COMPUTATION: computedValuesMap ----------------
      This is the crucial change:
@@ -224,11 +217,10 @@ export default function DataEntryPage() {
 
       for (const section of layout.sections) {
         if (section.type !== "table") continue
-        const table = section as any
-        const rows = Array.isArray(table.rows) ? table.rows : []
-        const rowCount = rows.length
-        const colCount =
-          rows.reduce((m: number, r: any) => Math.max(m, Array.isArray(r.cells) ? r.cells.length : 0), 0) || 0
+        const table = section as TableArraySection;
+        const rows = Array.isArray(table.rows) ? table.rows : [];
+        const rowCount = rows.length;
+        const colCount = rows.reduce((m: number, r) => Math.max(m, Array.isArray(r.cells) ? r.cells.length : 0), 0) || 0;
 
         // Build a small accessor to satisfy FormulaContext
         const context = {
@@ -316,7 +308,7 @@ export default function DataEntryPage() {
 
     // return only computed values (do NOT mix base here)
     return computed
-  }, [layout, JSON.stringify(valuesByCode)]) // recompute when layout or base values change
+  }, [layout, valuesByCode]) // recompute when layout or base values change
 
   // Combined values to pass to the UI: base user inputs override computed when present.
   const displayValues = React.useMemo(() => {

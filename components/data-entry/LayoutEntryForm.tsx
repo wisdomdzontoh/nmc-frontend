@@ -18,7 +18,7 @@ type TableArrayHeaderCell = {
   bold?: boolean
 }
 
-type TableArrayRowCell = {
+export type TableArrayRowCell = {
   text?: string
   bind?: string
   compute?: string
@@ -28,7 +28,7 @@ type TableArrayRowCell = {
   bold?: boolean
 }
 
-type TableArraySection = {
+export type TableArraySection = {
   id?: string | number
   type: "table"
   columnWidths?: number[]

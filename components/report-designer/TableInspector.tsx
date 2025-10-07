@@ -38,11 +38,11 @@ export default function TableInspector({
     setSelectedCell({ sectionIndex, rowIndex: r, colIndex: c })
   }
 
-  function getSelected(): CellDef | null {
-    if (!selectedCell || selectedCell.sectionIndex !== sectionIndex) return null
-    const { rowIndex, colIndex } = selectedCell
-    return table.rows[rowIndex]?.cells[colIndex] ?? null
-  }
+  const getSelected = React.useCallback((): CellDef | null => {
+    if (!selectedCell || selectedCell.sectionIndex !== sectionIndex) return null;
+    const { rowIndex, colIndex } = selectedCell;
+    return table.rows[rowIndex]?.cells[colIndex] ?? null;
+  }, [selectedCell, sectionIndex, table]);
 
   function patchSelected(patch: Partial<CellDef>) {
     if (!selectedCell || selectedCell.sectionIndex !== sectionIndex) return
@@ -191,13 +191,12 @@ export default function TableInspector({
   const [computeVal, setComputeVal] = React.useState(sel?.compute ?? "")
 
   // keep inputs in sync with selection changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => {
-    const s = getSelected()
-    setTextVal(s?.text ?? "")
-    setBindVal((s?.bind as string) ?? "")
-    setComputeVal(s?.compute ?? "")
-  }, [selectedCell, table])
+    const s = getSelected();
+    setTextVal(s?.text ?? "");
+    setBindVal((s?.bind as string) ?? "");
+    setComputeVal(s?.compute ?? "");
+  }, [selectedCell, table, getSelected]);
 
   return (
     <div className="space-y-3">

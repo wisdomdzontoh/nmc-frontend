@@ -1,5 +1,5 @@
 /**
- * Reports Viewing Page - DHIS2 Style
+ * Reports Viewing Page - DHIS2 Style with Data Table
  * Shows submitted reports and their status
  */
 
@@ -19,6 +19,26 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
+import {
+  ColumnDef,
+  ColumnFiltersState,
+  SortingState,
+  VisibilityState,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { 
   FileText, 
   Calendar, 
@@ -29,8 +49,15 @@ import {
   Loader2,
   CheckCircle,
   Clock,
-  
+  ChevronDown,
+  ArrowUpDown,
 } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import api from "@/lib/api"
 
 interface Report {
@@ -57,8 +84,161 @@ const ReportsPage: React.FC = () => {
   const [reports, setReports] = useState<Report[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState("")
+  const [sorting, setSorting] = useState<SortingState>([])
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = useState({})
   const [periodFilter, setPeriodFilter] = useState("all")
+
+  // Define columns for the data table
+  const columns: ColumnDef<Report>[] = [
+    {
+      accessorKey: "report_type_name",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="hover:bg-transparent px-0"
+          >
+            <FileText className="mr-2 h-4 w-4" />
+            Report Type
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        )
+      },
+      cell: ({ row }) => (
+        <div className="flex items-center">
+          <FileText className="mr-2 h-4 w-4 text-blue-600" />
+          <span className="font-medium">{row.getValue("report_type_name")}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "org_unit_name",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="hover:bg-transparent px-0"
+          >
+            <Building2 className="mr-2 h-4 w-4" />
+            Organization
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        )
+      },
+      cell: ({ row }) => (
+        <div className="flex items-center">
+          <Building2 className="mr-2 h-4 w-4 text-gray-500" />
+          {row.getValue("org_unit_name")}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "reporting_period",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="hover:bg-transparent px-0"
+          >
+            <Calendar className="mr-2 h-4 w-4" />
+            Period
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        )
+      },
+      cell: ({ row }) => {
+        const period = row.getValue("reporting_period") as string
+        return (
+          <div className="flex items-center">
+            <Calendar className="mr-2 h-4 w-4 text-gray-500" />
+            {new Date(period).toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'long' 
+            })}
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "submitted_at",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="hover:bg-transparent px-0"
+          >
+            <Clock className="mr-2 h-4 w-4" />
+            Submitted
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        )
+      },
+      cell: ({ row }) => {
+        const date = row.getValue("submitted_at") as string
+        return (
+          <div className="flex items-center">
+            <Clock className="mr-2 h-4 w-4 text-gray-500" />
+            {new Date(date).toLocaleDateString()}
+          </div>
+        )
+      },
+    },
+    {
+      id: "values_count",
+      header: "Data Elements",
+      cell: ({ row }) => {
+        const valuesCount = row.original.values.length
+        return (
+          <Badge variant="secondary">
+            {valuesCount} {valuesCount === 1 ? 'value' : 'values'}
+          </Badge>
+        )
+      },
+    },
+    {
+      id: "status",
+      header: "Status",
+      cell: () => (
+        <Badge variant="default" className="bg-green-100 text-green-800">
+          <CheckCircle className="mr-1 h-3 w-3" />
+          Submitted
+        </Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => {
+        const report = row.original
+        return (
+          <div className="flex items-center space-x-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => handleViewReport(report)}
+            >
+              <Eye className="h-4 w-4 mr-1" />
+              View
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => handleDownloadReport(report)}
+            >
+              <Download className="h-4 w-4 mr-1" />
+              Export
+            </Button>
+          </div>
+        )
+      },
+    },
+  ]
 
   // Load reports
   useEffect(() => {
@@ -79,16 +259,31 @@ const ReportsPage: React.FC = () => {
     loadReports()
   }, [])
 
-  // Filter reports
+  // Filter reports by period
   const filteredReports = reports.filter(report => {
-    const matchesSearch = 
-      report.report_type_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.org_unit_name.toLowerCase().includes(searchTerm.toLowerCase())
-    
     const matchesPeriod = periodFilter === "all" || 
       report.reporting_period.startsWith(periodFilter)
+    return matchesPeriod
+  })
 
-    return matchesSearch && matchesPeriod
+  // Initialize table
+  const table = useReactTable({
+    data: filteredReports,
+    columns,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+      rowSelection,
+    },
   })
 
   // Generate period options (last 12 months)
@@ -109,14 +304,16 @@ const ReportsPage: React.FC = () => {
     return periods
   }
 
-  // Get status badge (simplified - all reports are "submitted")
-  const getStatusBadge = (report: Report) => {
-    return (
-      <Badge variant="default" className="bg-green-100 text-green-800">
-        <CheckCircle className="mr-1 h-3 w-3" />
-        Submitted
-      </Badge>
-    )
+  // Handle view report
+  const handleViewReport = (report: Report) => {
+    console.log("Viewing report:", report)
+    // Implement view logic here
+  }
+
+  // Handle download report
+  const handleDownloadReport = (report: Report) => {
+    console.log("Downloading report:", report)
+    // Implement download logic here
   }
 
   if (loading) {
@@ -162,18 +359,20 @@ const ReportsPage: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
+          <div className="flex items-center space-x-4">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
-                placeholder="Search reports..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                placeholder="Filter by report type or organization..."
+                value={(table.getColumn("report_type_name")?.getFilterValue() as string) ?? ""}
+                onChange={(event) =>
+                  table.getColumn("report_type_name")?.setFilterValue(event.target.value)
+                }
+                className="pl-10 max-w-sm"
               />
             </div>
             <Select value={periodFilter} onValueChange={setPeriodFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Filter by period" />
               </SelectTrigger>
               <SelectContent>
@@ -185,78 +384,174 @@ const ReportsPage: React.FC = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="outline" onClick={() => {
-              setSearchTerm("")
-              setPeriodFilter("all")
-            }}>
-              Clear Filters
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  Columns <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {table
+                  .getAllColumns()
+                  .filter((column) => column.getCanHide())
+                  .map((column) => {
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={column.id}
+                        className="capitalize"
+                        checked={column.getIsVisible()}
+                        onCheckedChange={(value) =>
+                          column.toggleVisibility(!!value)
+                        }
+                      >
+                        {column.id.replace(/_/g, ' ')}
+                      </DropdownMenuCheckboxItem>
+                    )
+                  })}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardContent>
       </Card>
 
-      {/* Reports List */}
-      <div className="space-y-4">
-        {filteredReports.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-12">
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No reports found
-              </h3>
-              <p className="text-gray-500 mb-4">
-                {searchTerm || periodFilter !== "all" 
-                  ? "Try adjusting your search or filter criteria." 
-                  : "No reports have been submitted yet."}
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredReports.map((rpt) => (
-            <Card key={rpt.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <FileText className="h-5 w-5 text-blue-600" />
-                      <h3 className="text-lg font-semibold">{rpt.report_type_name}</h3>
-                      {getStatusBadge(rpt)}
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                      <div className="flex items-center">
-                        <Building2 className="h-4 w-4 mr-2" />
-                        {rpt.org_unit_name}
+      {/* Data Table */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                      return (
+                        <TableHead key={header.id}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                        </TableHead>
+                      )
+                    })}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      data-state={row.getIsSelected() && "selected"}
+                      className="hover:bg-muted/50"
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="h-24 text-center"
+                    >
+                      <div className="flex flex-col items-center justify-center py-8">
+                        <FileText className="h-12 w-12 text-gray-400 mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                          No reports found
+                        </h3>
+                        <p className="text-gray-500">
+                          {periodFilter !== "all" || table.getColumn("report_type_name")?.getFilterValue()
+                            ? "Try adjusting your search or filter criteria." 
+                            : "No reports have been submitted yet."}
+                        </p>
                       </div>
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        {new Date(rpt.reporting_period).toLocaleDateString('en-US', { 
-                          year: 'numeric', 
-                          month: 'long' 
-                        })}
-                      </div>
-                      <div className="flex items-center">
-                        <Clock className="h-4 w-4 mr-2" />
-                        {new Date(rpt.submitted_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="text-sm text-gray-500 mt-2">
-                      Data elements: {rpt.values.length} values submitted
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between px-6 py-4">
+            <div className="flex-1 text-sm text-muted-foreground">
+              {table.getFilteredSelectedRowModel().rows.length} of{" "}
+              {table.getFilteredRowModel().rows.length} row(s) selected.
+            </div>
+            <div className="flex items-center space-x-6 lg:space-x-8">
+              <div className="flex items-center space-x-2">
+                <p className="text-sm font-medium">Rows per page</p>
+                <Select
+                  value={`${table.getState().pagination.pageSize}`}
+                  onValueChange={(value) => {
+                    table.setPageSize(Number(value))
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-[70px]">
+                    <SelectValue placeholder={table.getState().pagination.pageSize} />
+                  </SelectTrigger>
+                  <SelectContent side="top">
+                    {[10, 20, 30, 40, 50].map((pageSize) => (
+                      <SelectItem key={pageSize} value={`${pageSize}`}>
+                        {pageSize}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                Page {table.getState().pagination.pageIndex + 1} of{" "}
+                {table.getPageCount()}
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                  onClick={() => table.setPageIndex(0)}
+                  disabled={!table.getCanPreviousPage()}
+                >
+                  <span className="sr-only">Go to first page</span>
+                  {"<<"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                  onClick={() => table.previousPage()}
+                  disabled={!table.getCanPreviousPage()}
+                >
+                  <span className="sr-only">Go to previous page</span>
+                  {"<"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                  onClick={() => table.nextPage()}
+                  disabled={!table.getCanNextPage()}
+                >
+                  <span className="sr-only">Go to next page</span>
+                  {">"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                  onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+                  disabled={!table.getCanNextPage()}
+                >
+                  <span className="sr-only">Go to last page</span>
+                  {">>"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
