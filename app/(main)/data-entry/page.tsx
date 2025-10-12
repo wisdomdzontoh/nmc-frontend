@@ -107,47 +107,64 @@ export default function DataEntryPage() {
   }, [dataset?.id])
 
   /* ---------------- FETCH PUBLISHED LAYOUT ---------------- */
-  const loadLayoutData = React.useCallback(async () => {
-    if (!dataset) return
-    
-    try {
-      setLoadingLayout(true)
-      const resp = await api.get(
-        `/reporting/report-layouts/?report_type=${dataset.id}&status=published`,
-        { timeout: 30000 }
-      )
-
-      const arr = Array.isArray(resp.data)
-        ? resp.data
-        : resp.data?.results
-        ? resp.data.results
-        : resp.data
-        ? [resp.data]
-        : []
-
-      const published = arr.find((l: { status?: string }) => l?.status === "published")
-      const schema = published?.schema
-
-      if (schema?.sections && Array.isArray(schema.sections)) {
-        // Convert the schema to ensure compatibility with LayoutEntryForm
-        const convertedSchema = convertLayoutSchema(schema)
-        setLayout(convertedSchema)
-        toast.success("Layout loaded")
-      } else {
-        setLayout(null)
-        toast.info("No published layout found.")
-      }
-    } catch (e) {
-      console.warn("[entry] layout fetch failed:", e)
-      setLayout(null)
-    } finally {
-      setLoadingLayout(false)
-    }
-  }, [dataset])
-
   React.useEffect(() => {
+    if (!dataset) {
+      setLayout(null)
+      setValuesByCode({})
+      setValuesById({})
+      return
+    }
+    
+    // Clear existing values when dataset changes
+    setValuesByCode({})
+    setValuesById({})
+    
+    const loadLayoutData = async () => {
+      try {
+        setLoadingLayout(true)
+        console.log(`[DEBUG] Loading layout for dataset: ${dataset.name} (ID: ${dataset.id})`)
+        
+        const resp = await api.get(
+          `/reporting/report-layouts/by_report_type/?report_type=${dataset.id}&status=published`,
+          { timeout: 30000 }
+        )
+
+        console.log(`[DEBUG] Layout API response:`, resp.data)
+
+        // by_report_type returns a single layout object, not an array
+        const layout = resp.data
+        console.log(`[DEBUG] Found layout:`, layout)
+        
+        const schema = layout?.schema
+
+        if (schema?.sections && Array.isArray(schema.sections)) {
+          // Convert the schema to ensure compatibility with LayoutEntryForm
+          const convertedSchema = convertLayoutSchema(schema)
+          setLayout(convertedSchema)
+          console.log(`[DEBUG] Layout set successfully for: ${dataset.name}`)
+          toast.success(`Layout loaded for ${dataset.name}`)
+        } else {
+          setLayout(null)
+          console.log(`[DEBUG] No valid schema found for: ${dataset.name}`)
+          toast.info("No published layout found.")
+        }
+      } catch (e) {
+        console.warn("[entry] layout fetch failed:", e)
+        const error = e as { response?: { status?: number } }
+        if (error?.response?.status === 404) {
+          console.log(`[DEBUG] No published layout found for dataset: ${dataset.name}`)
+          toast.info(`No published layout found for ${dataset.name}`)
+        } else {
+          toast.error("Failed to load layout")
+        }
+        setLayout(null)
+      } finally {
+        setLoadingLayout(false)
+      }
+    }
+
     loadLayoutData()
-  }, [loadLayoutData])
+  }, [dataset?.id, dataset])
 
   /* ---------------- CLEAR FORM ---------------- */
   const onClear = () => {
@@ -172,56 +189,60 @@ export default function DataEntryPage() {
   }, [dataset?.data_elements])
 
   /* ---------------- LOAD EXISTING REPORT ---------------- */
-  const fetchExistingReport = React.useCallback(async () => {
-    if (!dataset?.id || !org?.id || !period?.startDate) return
-
-    try {
-      setSaving(true)
-      const res = await api.get("/reporting/data-entry/", {
-        params: {
-          report_type: dataset.id,
-          org_unit: org.id,
-          reporting_period: period.startDate,
-        },
-      })
-
-      const report = res.data
-      if (!report?.values || !Array.isArray(report.values)) return
-
-      if (layout) {
-        const byCode: Record<string, number | string | null> = {}
-        for (const v of report.values) {
-          byCode[v.data_element_code] = v.value
-          if (v.remark) byCode[`remark.${v.data_element_code}`] = v.remark
-        }
-        setValuesByCode(byCode)
-      } else {
-        const byId: Record<string, number | null> = {}
-        for (const v of report.values) {
-          byId[String(v.data_element)] = v.value
-        }
-        setValuesById(byId)
-      }
-
-      toast.info("Existing report loaded.")
-    } catch (err: unknown) {
-      const error = err as { response?: { status?: number } };
-      const status = error?.response?.status;
-      if (status === 404) {
-        setValuesByCode({})
-        setValuesById({})
-        return
-      }
-      console.error("Error loading report:", err)
-      toast.error("Failed to load existing report data.")
-    } finally {
-      setSaving(false)
-    }
-  }, [dataset?.id, org?.id, period?.startDate, layout])
-
   React.useEffect(() => {
-    fetchExistingReport()
-  }, [fetchExistingReport])
+    const fetchExistingReport = async () => {
+      if (!dataset?.id || !org?.id || !period?.startDate) return
+
+      try {
+        setSaving(true)
+        const res = await api.get("/reporting/data-entry/", {
+          params: {
+            report_type: dataset.id,
+            org_unit: org.id,
+            reporting_period: period.startDate,
+          },
+        })
+
+        const report = res.data
+        if (!report?.values || !Array.isArray(report.values)) return
+
+        if (layout) {
+          const byCode: Record<string, number | string | null> = {}
+          for (const v of report.values) {
+            byCode[v.data_element_code] = v.value
+            if (v.remark) byCode[`remark.${v.data_element_code}`] = v.remark
+          }
+          setValuesByCode(byCode)
+        } else {
+          const byId: Record<string, number | null> = {}
+          for (const v of report.values) {
+            byId[String(v.data_element)] = v.value
+          }
+          setValuesById(byId)
+        }
+
+        toast.info("Existing report loaded.")
+      } catch (err: unknown) {
+        const error = err as { response?: { status?: number } };
+        const status = error?.response?.status;
+        if (status === 404) {
+          setValuesByCode({})
+          setValuesById({})
+          return
+        }
+        console.error("Error loading report:", err)
+        toast.error("Failed to load existing report data.")
+      } finally {
+        setSaving(false)
+      }
+    }
+
+    // Only fetch existing report if we have all required data AND layout is loaded
+    if (dataset?.id && org?.id && period?.startDate && layout) {
+      console.log(`[DEBUG] Fetching existing report for: ${dataset.name} (ID: ${dataset.id}), Org: ${org.name}, Period: ${period.startDate}`)
+      fetchExistingReport()
+    }
+  }, [dataset?.id, org?.id, period?.startDate, layout, dataset?.name, org?.name])
 
   /* ---------------- PURE COMPUTATION: computedValuesMap ----------------
      This is the crucial change:
