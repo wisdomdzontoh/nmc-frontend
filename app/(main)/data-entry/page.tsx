@@ -20,6 +20,38 @@ import { evaluateFormula } from "@/lib/formula-evaluator"
 type ValuesById = Record<string, number | null>
 type ValuesByCode = Record<string, number | string | null>
 
+// Schema conversion function to ensure compatibility between report designer and data entry
+function convertLayoutSchema(schema: LayoutSchema): LayoutSchema {
+  if (!schema?.sections) return schema
+  
+  const convertedSections = schema.sections.map((section) => {
+    if (section.type === "table" && 'rows' in section && section.rows) {
+      // Convert table sections to ensure bind properties are preserved
+      const convertedRows = section.rows.map((row) => ({
+        ...row,
+        cells: row.cells?.map((cell) => ({
+          ...cell,
+          // Ensure bind property is preserved for remarks fields
+          bind: cell.bind || undefined,
+          text: cell.text || undefined,
+          compute: cell.compute || undefined
+        })) || []
+      }))
+      
+      return {
+        ...section,
+        rows: convertedRows
+      }
+    }
+    return section
+  })
+  
+  return {
+    ...schema,
+    sections: convertedSections
+  }
+}
+
 export default function DataEntryPage() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { djangoUser } = useAuth()
@@ -97,7 +129,9 @@ export default function DataEntryPage() {
       const schema = published?.schema
 
       if (schema?.sections && Array.isArray(schema.sections)) {
-        setLayout(schema)
+        // Convert the schema to ensure compatibility with LayoutEntryForm
+        const convertedSchema = convertLayoutSchema(schema)
+        setLayout(convertedSchema)
         toast.success("Layout loaded")
       } else {
         setLayout(null)

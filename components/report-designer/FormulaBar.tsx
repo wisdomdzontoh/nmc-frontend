@@ -40,8 +40,8 @@ export default function FormulaBar({ cell, cellReference, onUpdate }: FormulaBar
     if (value.startsWith("=")) {
       // Formula: remove = prefix and store in compute
       onUpdate({ compute: value.slice(1), text: undefined, bind: undefined })
-    } else if (value.includes(".") && !value.includes(" ")) {
-      // Data binding path
+    } else if (value.startsWith("remark.") || (value.includes(".") && !value.includes(" "))) {
+      // Data binding path (including remarks fields)
       onUpdate({ bind: value, text: undefined, compute: undefined })
     } else {
       // Plain text

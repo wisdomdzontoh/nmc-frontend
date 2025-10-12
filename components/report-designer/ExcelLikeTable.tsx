@@ -109,8 +109,8 @@ export default function ExcelLikeTable({
       if (editValue.startsWith("=")) {
         // Remove the = prefix and store as compute
         updateCell(rowIndex, colIndex, { compute: editValue.slice(1), text: undefined, bind: undefined })
-      } else if (editValue.includes(".") && !editValue.includes(" ")) {
-        // Looks like a data binding path
+      } else if (editValue.startsWith("remark.") || (editValue.includes(".") && !editValue.includes(" "))) {
+        // Looks like a data binding path (including remarks fields)
         updateCell(rowIndex, colIndex, { bind: editValue, text: undefined, compute: undefined })
       } else {
         // Plain text
