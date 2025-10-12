@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Home, BarChart, FileText, Database, Users, Settings } from "lucide-react";
+import { Home, BarChart, FileText, Database, Users, Settings, TrendingUp } from "lucide-react";
 import { useAuth } from "@/context/AuthContext"; // Import useAuth
 
 const navigation = [
@@ -11,6 +11,7 @@ const navigation = [
   { name: "Data Entry", href: "/data-entry", icon: FileText },
   { name: "Reports", href: "/reports", icon: BarChart },
   { name: "Analytics", href: "/analytics", icon: BarChart },
+  { name: "Indicators", href: "/indicators", icon: TrendingUp, admin: true },
   { name: "Metadata", href: "/metadata", icon: Database, admin: true },
   { name: "Users", href: "/users", icon: Users, admin: true },
   { name: "Settings", href: "/settings", icon: Settings },

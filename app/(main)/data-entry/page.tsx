@@ -11,11 +11,13 @@ import { toast } from "sonner"
 import { Toaster } from "@/components/ui/sonner"
 import DataEntryTopBar from "@/components/data-entry/DataEntryTopBar"
 import DataEntryForm from "@/components/data-entry/DataEntryForm"
-import LayoutEntryForm, { type LayoutSchema, type TableArraySection } from "@/components/data-entry/LayoutEntryForm"
+import EnhancedLayoutEntryForm, { type LayoutSchema, type TableArraySection } from "@/components/data-entry/EnhancedLayoutEntryForm"
 import type { ReportType } from "@/components/data-entry/DatasetInlineDropdown"
 import type { OrgNode } from "@/components/data-entry/OrgUnitInlineDropdown"
 import type { Period } from "@/components/data-entry/PeriodInlineDropdown"
 import { evaluateFormula } from "@/lib/formula-evaluator"
+import { ApiClient } from "@/lib/api"
+import type { IndicatorDefinition } from "@/lib/advanced-formula-evaluator"
 
 type ValuesById = Record<string, number | null>
 type ValuesByCode = Record<string, number | string | null>
@@ -73,6 +75,10 @@ export default function DataEntryPage() {
   // layout schema (published)
   const [layout, setLayout] = React.useState<LayoutSchema | null>(null)
 
+  // Enhanced calculation system
+  const [dataElements, setDataElements] = React.useState<Array<{ id: string; code: string; name: string }>>([])
+  const [indicators, setIndicators] = React.useState<IndicatorDefinition[]>([])
+
   const hasValues = React.useMemo(() => {
     if (layout) {
       return Object.values(valuesByCode).some((v) => v !== null && v !== undefined && v !== "")
@@ -82,14 +88,62 @@ export default function DataEntryPage() {
 
   const canSubmit = !!dataset && !!period && !!org && hasValues
 
+
   /* ---------------- INITIAL LOAD ---------------- */
   React.useEffect(() => {
     ;(async () => {
       try {
         setLoading(true)
-        const [rtRes, treeRes] = await Promise.all([api.get("/metadata/report-types/"), api.get("/org/tree/")])
+        const [rtRes, treeRes, deRes, indRes] = await Promise.all([
+          api.get("/metadata/report-types/"), 
+          api.get("/org/tree/"),
+          ApiClient.getDataElements(),
+          ApiClient.getIndicators()
+        ])
         setDatasets(rtRes.data)
         setOrgTree(treeRes.data || [])
+        
+        // Load data elements
+        const deData = deRes.data?.results || deRes.data || []
+        setDataElements(deData.map((de: { id: number; code: string; name: string }) => ({
+          id: String(de.id),
+          code: de.code,
+          name: de.name
+        })))
+        
+        // Load indicators
+        const indData = indRes.data?.results || indRes.data || []
+        setIndicators(indData.map((ind: { 
+          id: number; 
+          code: string; 
+          name: string; 
+          description?: string; 
+          numerator_formula: string; 
+          numerator_description?: string; 
+          denominator_formula?: string; 
+          denominator_description?: string; 
+          factor: number 
+        }) => ({
+          id: String(ind.id),
+          code: ind.code,
+          name: ind.name,
+          description: ind.description,
+          numerator: {
+            formula: ind.numerator_formula,
+            description: ind.numerator_description || "",
+            dataElements: []
+          },
+          denominator: ind.denominator_formula ? {
+            formula: ind.denominator_formula,
+            description: ind.denominator_description || "",
+            dataElements: []
+          } : undefined,
+          factor: ind.factor || 1,
+          unit: ind.factor === 100 ? "%" : ind.factor === 1000 ? "per 1000" : "ratio",
+          aggregationType: "sum" as const,
+          category: ""
+        })))
+        
       } catch (e) {
         console.error("[entry] init error:", e)
         toast.error("Failed to load data. Please refresh.")
@@ -138,7 +192,7 @@ export default function DataEntryPage() {
         const schema = layout?.schema
 
         if (schema?.sections && Array.isArray(schema.sections)) {
-          // Convert the schema to ensure compatibility with LayoutEntryForm
+          // Convert the schema to ensure compatibility with EnhancedLayoutEntryForm
           const convertedSchema = convertLayoutSchema(schema)
           setLayout(convertedSchema)
           console.log(`[DEBUG] Layout set successfully for: ${dataset.name}`)
@@ -177,7 +231,7 @@ export default function DataEntryPage() {
   }
 
   const setIdValue = (id: string, v: number | null) => setValuesById((p) => ({ ...p, [id]: v }))
-  // NOTE: onChange from LayoutEntryForm should only update user-entered (base) values
+  // NOTE: onChange from EnhancedLayoutEntryForm should only update user-entered (base) values
   const setCodeValue = (code: string, v: number | string | null) =>
     setValuesByCode((p) => ({ ...p, [code]: v }))
 
@@ -490,7 +544,13 @@ export default function DataEntryPage() {
                   Layout loaded: {layout.sections?.length ?? 0} sections
                 </div>
                 {/* Pass the combined displayValues (computed + base) */}
-                <LayoutEntryForm layout={layout} values={displayValues} onChange={setCodeValue} />
+                <EnhancedLayoutEntryForm 
+                  schema={layout} 
+                  values={displayValues} 
+                  onChange={setCodeValue}
+                  dataElements={dataElements}
+                  indicators={indicators}
+                />
               </>
             ) : (
               <>

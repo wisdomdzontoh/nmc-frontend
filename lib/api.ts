@@ -193,6 +193,25 @@ export const ApiClient = {
   getAnalyticsUsers: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/analytics/users/", { params }),
   getAnalyticsOrgUnits: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/analytics/org-units/", { params }),
   
+  // Data Elements endpoints
+  getDataElements: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/metadata/data-elements/", { params }),
+  getDataElement: (id: number) => api.get(`/metadata/data-elements/${id}/`),
+  createDataElement: (data: unknown) => api.post("/metadata/data-elements/", data),
+  updateDataElement: (id: number, data: unknown) => api.patch(`/metadata/data-elements/${id}/`, data),
+  deleteDataElement: (id: number) => api.delete(`/metadata/data-elements/${id}/`),
+  
+  // Indicators endpoints
+  getIndicators: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/metadata/indicators/", { params }),
+  getIndicator: (id: number) => api.get(`/metadata/indicators/${id}/`),
+  createIndicator: (data: unknown) => api.post("/metadata/indicators/", data),
+  updateIndicator: (id: number, data: unknown) => api.patch(`/metadata/indicators/${id}/`, data),
+  deleteIndicator: (id: number) => api.delete(`/metadata/indicators/${id}/`),
+  
+  // Enhanced calculation endpoints
+  evaluateIndicator: (data: { indicator_id: number; values: Record<string, number> }) => api.post("/metadata/indicators/evaluate/", data),
+  validateFormula: (data: { formula: string; data_elements: string[] }) => api.post("/metadata/formulas/validate/", data),
+  getIndicatorStatistics: () => api.get("/metadata/indicators/statistics/"),
+  
   // Export endpoints
   exportData: (type: string, format: string = "csv", params?: Record<string, string | number | boolean | null | undefined>) => api.get(`/exports/${type}/`, {
     params: { format, ...params },

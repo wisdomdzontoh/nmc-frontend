@@ -19,6 +19,7 @@ import {
   LogOut,
   ChevronRight,
   Sparkles,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,6 +85,13 @@ const APPS: AppItem[] = [
     icon: BarChart3, 
     group: "Top apps",
     description: "Data visualization and insights",
+  },
+  { 
+    label: "Indicators", 
+    href: "/indicators", 
+    icon: TrendingUp, 
+    group: "All apps",
+    description: "Manage calculation indicators",
   },
   { 
     label: "Organizations", 
