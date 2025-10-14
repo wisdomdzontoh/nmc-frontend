@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
 import { ApiClient } from "@/lib/api"
+import { useAuth } from "@/context/AuthContext"
 
 interface ReportType {
   id: number
@@ -53,11 +54,15 @@ export default function ReportTypeAssignmentModal({
   onClose, 
   onAssignmentChange 
 }: Props) {
+  const { djangoUser } = useAuth()
   const [reportTypes, setReportTypes] = React.useState<ReportType[]>([])
   const [assignments, setAssignments] = React.useState<ReportTypeAssignment[]>([])
   const [loading, setLoading] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
+
+  // Check if user has permission to assign reports
+  const canAssignReports = djangoUser?.is_staff || djangoUser?.is_superuser
 
   const loadData = React.useCallback(async () => {
     try {
@@ -136,7 +141,20 @@ export default function ReportTypeAssignmentModal({
     rt.code.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  // Check permissions - if user doesn't have permission, show error and close
+  React.useEffect(() => {
+    if (isOpen && !canAssignReports) {
+      toast.error("You don't have permission to assign reports to organization units.")
+      onClose()
+    }
+  }, [isOpen, canAssignReports, onClose])
+
   if (!isOpen) return null
+
+  // If user doesn't have permission, don't render the modal
+  if (!canAssignReports) {
+    return null
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

@@ -63,6 +63,7 @@ type Props = {
   readOnly?: boolean
   dataElements?: Array<{ id: string; code: string; name: string }>
   indicators?: IndicatorDefinition[]
+  dataSaved?: boolean
 }
 
 /* ---------------- ENHANCED CELL INPUT ---------------- */
@@ -404,7 +405,8 @@ export default function EnhancedLayoutEntryForm({
   onChange,
   readOnly = false,
   dataElements = [],
-  indicators = []
+  indicators = [],
+  dataSaved = false
 }: Props) {
 
   const handleSaveIndicator = (indicator: IndicatorDefinition) => {
@@ -423,6 +425,12 @@ export default function EnhancedLayoutEntryForm({
           </h2>
           <p className="text-gray-600 mt-1">
             Enter data and view real-time calculations
+            {dataSaved && (
+              <span className="ml-2 inline-flex items-center gap-1 text-green-600">
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                Data saved
+              </span>
+            )}
           </p>
         </div>
         

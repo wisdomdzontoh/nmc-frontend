@@ -28,6 +28,7 @@ interface DjangoUser {
   last_name: string
   full_name: string
   is_staff: boolean
+  is_superuser: boolean
   is_active: boolean
   org_unit: number | null
   org_unit_name: string | null

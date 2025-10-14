@@ -61,6 +61,7 @@ export default function DataEntryPage() {
   const [loading, setLoading] = React.useState(true)
   const [loadingLayout, setLoadingLayout] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
+  const [dataSaved, setDataSaved] = React.useState(false)
 
   const [datasets, setDatasets] = React.useState<ReportType[]>([])
   const [dataset, setDataset] = React.useState<ReportType | null>(null)
@@ -158,6 +159,7 @@ export default function DataEntryPage() {
     setValuesById({})
     setValuesByCode({})
     setLayout(null)
+    setDataSaved(false)
   }, [dataset?.id])
 
   /* ---------------- FETCH PUBLISHED LAYOUT ---------------- */
@@ -230,10 +232,16 @@ export default function DataEntryPage() {
     setLayout(null)
   }
 
-  const setIdValue = (id: string, v: number | null) => setValuesById((p) => ({ ...p, [id]: v }))
+  const setIdValue = (id: string, v: number | null) => {
+    setValuesById((p) => ({ ...p, [id]: v }))
+    setDataSaved(false) // Reset saved state when user edits
+  }
+  
   // NOTE: onChange from EnhancedLayoutEntryForm should only update user-entered (base) values
-  const setCodeValue = (code: string, v: number | string | null) =>
+  const setCodeValue = (code: string, v: number | string | null) => {
     setValuesByCode((p) => ({ ...p, [code]: v }))
+    setDataSaved(false) // Reset saved state when user edits
+  }
 
   /* ---------------- CODE → ID MAP ---------------- */
   const codeToId = React.useMemo(() => {
@@ -471,8 +479,8 @@ export default function DataEntryPage() {
       )
 
       toast.success("Report submitted successfully!")
-      setValuesById({})
-      setValuesByCode({})
+      setDataSaved(true)
+      // Keep the form values to show they are saved
     } catch (e) {
       console.error("[entry] submit error:", e)
       toast.error("Failed to submit report.")
@@ -550,6 +558,7 @@ export default function DataEntryPage() {
                   onChange={setCodeValue}
                   dataElements={dataElements}
                   indicators={indicators}
+                  dataSaved={dataSaved}
                 />
               </>
             ) : (
@@ -559,23 +568,31 @@ export default function DataEntryPage() {
               </>
             )}
 
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={onClear}>
-                Cancel
-              </Button>
-              <Button onClick={submit} disabled={!canSubmit || saving} className="min-w-[140px]">
-                {saving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Submitting…
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Submit Report
-                  </>
-                )}
-              </Button>
+            <div className="flex justify-between items-center">
+              {dataSaved && (
+                <div className="flex items-center gap-2 text-green-600">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm font-medium">Data saved successfully</span>
+                </div>
+              )}
+              <div className="flex gap-3 ml-auto">
+                <Button variant="outline" onClick={onClear}>
+                  Cancel
+                </Button>
+                <Button onClick={submit} disabled={!canSubmit || saving} className="min-w-[140px]">
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Submitting…
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Submit Report
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         ) : !loadingLayout ? (

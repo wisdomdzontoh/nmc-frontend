@@ -31,8 +31,10 @@ interface ReportTypeAssignment {
 }
 
 const OrganizationsPage: React.FC = () => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { djangoUser } = useAuth()
+  
+  // Check if user has permission to assign reports (staff or superuser)
+  const canAssignReports = djangoUser?.is_staff || djangoUser?.is_superuser
   const [orgTree, setOrgTree] = useState<OrgUnit[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Record<number, boolean>>({})
@@ -59,6 +61,10 @@ const OrganizationsPage: React.FC = () => {
   const toggle = (id: number) => setExpanded((p) => ({ ...p, [id]: !p[id] }))
 
   const handleOpenAssignmentModal = (orgUnit: OrgUnit) => {
+    // Double-check permissions before opening modal
+    if (!canAssignReports) {
+      return
+    }
     setSelectedOrgUnit(orgUnit)
     setShowAssignmentModal(true)
   }
@@ -117,15 +123,17 @@ const OrganizationsPage: React.FC = () => {
                   </Badge>
                 )}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleOpenAssignmentModal(node)}
-                className="ml-2"
-              >
-                <Settings className="h-4 w-4 mr-1" />
-                Assign Reports
-              </Button>
+              {canAssignReports && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleOpenAssignmentModal(node)}
+                  className="ml-2"
+                >
+                  <Settings className="h-4 w-4 mr-1" />
+                  Assign Reports
+                </Button>
+              )}
             </div>
           </div>
           {node.children && node.children.length > 0 && expanded[node.id] && (
@@ -141,8 +149,18 @@ const OrganizationsPage: React.FC = () => {
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-2">Organization Units</h1>
         <p className="text-muted-foreground">
-          Manage organization units and assign report types for data entry access.
+          {canAssignReports 
+            ? "Manage organization units and assign report types for data entry access."
+            : "View organization units and their assigned report types."
+          }
         </p>
+        {!canAssignReports && (
+          <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-sm text-blue-700">
+              <strong>Note:</strong> Only staff and superuser accounts can assign or modify report types for organization units.
+            </p>
+          </div>
+        )}
       </div>
       
       {loading ? (
