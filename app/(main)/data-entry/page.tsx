@@ -6,7 +6,7 @@ import api from "@/lib/api"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Loader2, Target, Save } from "lucide-react"
+import { Loader2, Target, Save, Download, FileSpreadsheet, FileText } from "lucide-react"
 import { toast } from "sonner"
 import { Toaster } from "@/components/ui/sonner"
 import DataEntryTopBar from "@/components/data-entry/DataEntryTopBar"
@@ -18,6 +18,7 @@ import type { Period } from "@/components/data-entry/PeriodInlineDropdown"
 import { evaluateFormula } from "@/lib/formula-evaluator"
 import { ApiClient } from "@/lib/api"
 import type { IndicatorDefinition } from "@/lib/advanced-formula-evaluator"
+import { exportToExcel, exportToPDF, exportLayoutAsPDF, getExportFilename } from "@/lib/export-utils"
 
 type ValuesById = Record<string, number | null>
 type ValuesByCode = Record<string, number | string | null>
@@ -62,6 +63,7 @@ export default function DataEntryPage() {
   const [loadingLayout, setLoadingLayout] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
   const [dataSaved, setDataSaved] = React.useState(false)
+  const [exporting, setExporting] = React.useState(false)
 
   const [datasets, setDatasets] = React.useState<ReportType[]>([])
   const [dataset, setDataset] = React.useState<ReportType | null>(null)
@@ -88,6 +90,73 @@ export default function DataEntryPage() {
   }, [layout, valuesByCode, valuesById])
 
   const canSubmit = !!dataset && !!period && !!org && hasValues
+  const canExport = !!dataset && !!period && !!org && hasValues
+
+  /* ---------------- EXPORT FUNCTIONS ---------------- */
+  const handleExportExcel = async () => {
+    if (!canExport) return
+    
+    try {
+      setExporting(true)
+      
+      const exportData = {
+        reportType: dataset!.name,
+        orgUnit: org!.name,
+        period: period!.name,
+        values: displayValues,
+        computedValues: computedValuesMap
+      }
+      
+      await exportToExcel(exportData)
+      toast.success("Report exported to Excel successfully!")
+    } catch (error) {
+      console.error("Export error:", error)
+      toast.error("Failed to export to Excel")
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const handleExportPDF = async () => {
+    if (!canExport) return
+    
+    try {
+      setExporting(true)
+      
+      const exportData = {
+        reportType: dataset!.name,
+        orgUnit: org!.name,
+        period: period!.name,
+        values: displayValues,
+        computedValues: computedValuesMap
+      }
+      
+      await exportToPDF(exportData)
+      toast.success("Report exported to PDF successfully!")
+    } catch (error) {
+      console.error("Export error:", error)
+      toast.error("Failed to export to PDF")
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const handleExportLayoutPDF = async () => {
+    if (!canExport) return
+    
+    try {
+      setExporting(true)
+      
+      const filename = getExportFilename(dataset!.name, org!.name, period!.name, 'pdf')
+      await exportLayoutAsPDF('data-entry-form', filename)
+      toast.success("Report layout exported to PDF successfully!")
+    } catch (error) {
+      console.error("Export error:", error)
+      toast.error("Failed to export layout to PDF")
+    } finally {
+      setExporting(false)
+    }
+  }
 
 
   /* ---------------- INITIAL LOAD ---------------- */
@@ -552,14 +621,16 @@ export default function DataEntryPage() {
                   Layout loaded: {layout.sections?.length ?? 0} sections
                 </div>
                 {/* Pass the combined displayValues (computed + base) */}
-                <EnhancedLayoutEntryForm 
-                  schema={layout} 
-                  values={displayValues} 
-                  onChange={setCodeValue}
-                  dataElements={dataElements}
-                  indicators={indicators}
-                  dataSaved={dataSaved}
-                />
+                <div id="data-entry-form">
+                  <EnhancedLayoutEntryForm 
+                    schema={layout} 
+                    values={displayValues} 
+                    onChange={setCodeValue}
+                    dataElements={dataElements}
+                    indicators={indicators}
+                    dataSaved={dataSaved}
+                  />
+                </div>
               </>
             ) : (
               <>
@@ -569,13 +640,53 @@ export default function DataEntryPage() {
             )}
 
             <div className="flex justify-between items-center">
-              {dataSaved && (
-                <div className="flex items-center gap-2 text-green-600">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm font-medium">Data saved successfully</span>
-                </div>
-              )}
-              <div className="flex gap-3 ml-auto">
+              <div className="flex items-center gap-4">
+                {dataSaved && (
+                  <div className="flex items-center gap-2 text-green-600">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-sm font-medium">Data saved successfully</span>
+                  </div>
+                )}
+                
+                {/* Export buttons */}
+                {canExport && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Export:</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleExportExcel}
+                      disabled={exporting}
+                      className="h-8"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 mr-1" />
+                      Excel
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleExportPDF}
+                      disabled={exporting}
+                      className="h-8"
+                    >
+                      <FileText className="h-4 w-4 mr-1" />
+                      PDF
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleExportLayoutPDF}
+                      disabled={exporting}
+                      className="h-8"
+                    >
+                      <Download className="h-4 w-4 mr-1" />
+                      Layout PDF
+                    </Button>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex gap-3">
                 <Button variant="outline" onClick={onClear}>
                   Cancel
                 </Button>
