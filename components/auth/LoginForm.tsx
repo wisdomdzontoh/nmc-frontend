@@ -94,22 +94,24 @@ const LoginForm: React.FC = () => {
   return (
     <AuthLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="relative w-10 h-10">
-            <Image 
-              src="/logo.png" 
-              alt="NMC Logo" 
-              fill 
-              className="object-contain" 
-            />
+        {/* Header - Hidden on mobile, shown on desktop */}
+        <div className="hidden lg:block text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <div className="relative w-16 h-16 bg-white rounded-full p-3 shadow-lg border border-gray-100">
+              <Image 
+                src="/logo.png" 
+                alt="NMC Logo" 
+                fill 
+                className="object-contain" 
+              />
+            </div>
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 className="text-xl font-bold tracking-tight text-gray-900">
               Nursing and Midwifery Council
             </h1>
             <p className="text-sm text-muted-foreground">
-              Reporting System
+              Republic of Ghana • Reporting System
             </p>
           </div>
         </div>
