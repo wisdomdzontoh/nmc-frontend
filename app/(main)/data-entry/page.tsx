@@ -104,7 +104,8 @@ export default function DataEntryPage() {
         orgUnit: org!.name,
         period: period!.name,
         values: displayValues,
-        computedValues: computedValuesMap
+        computedValues: computedValuesMap,
+        layout: layout
       }
       
       await exportToExcel(exportData)
@@ -128,7 +129,8 @@ export default function DataEntryPage() {
         orgUnit: org!.name,
         period: period!.name,
         values: displayValues,
-        computedValues: computedValuesMap
+        computedValues: computedValuesMap,
+        layout: layout
       }
       
       await exportToPDF(exportData)

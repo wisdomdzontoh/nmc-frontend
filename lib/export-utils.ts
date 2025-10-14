@@ -2,6 +2,7 @@
  * Export utilities for generating Excel and PDF reports
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
@@ -11,12 +12,13 @@ export interface ExportData {
   orgUnit: string
   period: string
   values: Record<string, number | string | null>
-  layout?: unknown
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  layout?: any
   computedValues?: Record<string, number | string | null>
 }
 
 /**
- * Export data to Excel format
+ * Export data to Excel format with proper table structure
  */
 export async function exportToExcel(data: ExportData): Promise<void> {
   try {
@@ -33,25 +35,78 @@ export async function exportToExcel(data: ExportData): Promise<void> {
     worksheetData.push(['Generated:', new Date().toLocaleString()])
     worksheetData.push([]) // Empty row
     
-    // Add data section
-    worksheetData.push(['Data Elements', 'Values', 'Remarks'])
-    
-    // Add data rows
-    Object.entries(data.values).forEach(([key, value]) => {
-      if (key.startsWith('remark.')) {
-        // Skip remark keys as they'll be handled with their main values
-        return
-      }
+    // Process layout sections if available
+    if (data.layout?.sections) {
+      data.layout.sections.forEach((section: any) => {
+        if (section.type === 'heading') {
+          worksheetData.push([section.text || ''])
+          worksheetData.push([]) // Empty row after heading
+        } else if (section.type === 'text') {
+          worksheetData.push([section.content || ''])
+          worksheetData.push([]) // Empty row after text
+        } else if (section.type === 'table') {
+          // Process table structure
+          if (section.header?.rows) {
+            // Add table headers
+            section.header.rows.forEach((headerRow: any) => {
+              const row: (string | number)[] = []
+              headerRow.forEach((headerCell: any) => {
+                row.push(headerCell.label || '')
+                // Add empty cells for colspan if needed
+                if (headerCell.colSpan && headerCell.colSpan > 1) {
+                  for (let i = 1; i < headerCell.colSpan; i++) {
+                    row.push('')
+                  }
+                }
+              })
+              worksheetData.push(row)
+            })
+          }
+          
+          // Add table data rows
+          if (section.rows) {
+            section.rows.forEach((row: any) => {
+              const dataRow: (string | number)[] = []
+              row.cells.forEach((cell: any) => {
+                if (cell.bind) {
+                  // This is a data input cell
+                  const value = data.values[cell.bind]
+                  dataRow.push(value !== null && value !== undefined ? value : '')
+                } else if (cell.compute) {
+                  // This is a computed cell
+                  const value = data.values[cell.compute]
+                  dataRow.push(value !== null && value !== undefined ? value : '')
+                } else {
+                  // This is a text cell
+                  dataRow.push(cell.text || '')
+                }
+              })
+              worksheetData.push(dataRow)
+            })
+          }
+          
+          worksheetData.push([]) // Empty row after table
+        }
+      })
+    } else {
+      // Fallback to simple list format if no layout
+      worksheetData.push(['Data Elements', 'Values', 'Remarks'])
       
-      const remarkKey = `remark.${key}`
-      const remark = data.values[remarkKey] || ''
-      
-      worksheetData.push([
-        key,
-        typeof value === 'number' ? value : (value || ''),
-        remark
-      ])
-    })
+      Object.entries(data.values).forEach(([key, value]) => {
+        if (key.startsWith('remark.')) {
+          return
+        }
+        
+        const remarkKey = `remark.${key}`
+        const remark = data.values[remarkKey] || ''
+        
+        worksheetData.push([
+          key,
+          typeof value === 'number' ? value : (value || ''),
+          remark
+        ])
+      })
+    }
     
     // Add computed values if available
     if (data.computedValues && Object.keys(data.computedValues).length > 0) {
@@ -69,12 +124,9 @@ export async function exportToExcel(data: ExportData): Promise<void> {
     // Create worksheet
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData)
     
-    // Set column widths
-    const columnWidths = [
-      { wch: 30 }, // Data Elements column
-      { wch: 15 }, // Values column
-      { wch: 30 }  // Remarks column
-    ]
+    // Set column widths - make them wider for better readability
+    const maxColumns = Math.max(...worksheetData.map(row => row.length))
+    const columnWidths = Array(maxColumns).fill(null).map(() => ({ wch: 20 }))
     worksheet['!cols'] = columnWidths
     
     // Add worksheet to workbook
@@ -93,7 +145,7 @@ export async function exportToExcel(data: ExportData): Promise<void> {
 }
 
 /**
- * Export data to PDF format
+ * Export data to PDF format with proper table structure
  */
 export async function exportToPDF(data: ExportData): Promise<void> {
   try {
@@ -116,48 +168,129 @@ export async function exportToPDF(data: ExportData): Promise<void> {
     
     let yPosition = 85
     
-    // Add data section
-    pdf.setFontSize(14)
-    pdf.setFont('helvetica', 'bold')
-    pdf.text('Data Elements', 20, yPosition)
-    yPosition += 10
-    
-    // Add data table
-    pdf.setFontSize(10)
-    pdf.setFont('helvetica', 'normal')
-    
-    // Table headers
-    pdf.setFont('helvetica', 'bold')
-    pdf.text('Element', 20, yPosition)
-    pdf.text('Value', 100, yPosition)
-    pdf.text('Remarks', 140, yPosition)
-    yPosition += 5
-    
-    // Add line under headers
-    pdf.line(20, yPosition, 190, yPosition)
-    yPosition += 8
-    
-    // Add data rows
-    pdf.setFont('helvetica', 'normal')
-    Object.entries(data.values).forEach(([key, value]) => {
-      if (key.startsWith('remark.')) {
-        return // Skip remark keys
-      }
+    // Process layout sections if available
+    if (data.layout?.sections) {
+      data.layout.sections.forEach((section: any) => {
+        if (section.type === 'heading') {
+          // Check if we need a new page
+          if (yPosition > 270) {
+            pdf.addPage()
+            yPosition = 20
+          }
+          
+          pdf.setFontSize(14)
+          pdf.setFont('helvetica', 'bold')
+          pdf.text(section.text || '', 20, yPosition)
+          yPosition += 10
+        } else if (section.type === 'text') {
+          // Check if we need a new page
+          if (yPosition > 270) {
+            pdf.addPage()
+            yPosition = 20
+          }
+          
+          pdf.setFontSize(10)
+          pdf.setFont('helvetica', 'normal')
+          pdf.text(section.content || '', 20, yPosition)
+          yPosition += 8
+        } else if (section.type === 'table') {
+          // Process table structure
+          if (section.header?.rows) {
+            // Add table headers
+            section.header.rows.forEach((headerRow: any) => {
+              if (yPosition > 270) {
+                pdf.addPage()
+                yPosition = 20
+              }
+              
+              pdf.setFontSize(10)
+              pdf.setFont('helvetica', 'bold')
+              
+              let xPosition = 20
+              headerRow.forEach((headerCell: any) => {
+                pdf.text(headerCell.label || '', xPosition, yPosition)
+                xPosition += 25 // Space between columns
+              })
+              yPosition += 8
+            })
+          }
+          
+          // Add table data rows
+          if (section.rows) {
+            section.rows.forEach((row: any) => {
+              if (yPosition > 270) {
+                pdf.addPage()
+                yPosition = 20
+              }
+              
+              pdf.setFontSize(10)
+              pdf.setFont('helvetica', 'normal')
+              
+              let xPosition = 20
+              row.cells.forEach((cell: any) => {
+                let cellValue = ''
+                if (cell.bind) {
+                  const value = data.values[cell.bind]
+                  cellValue = value !== null && value !== undefined ? String(value) : ''
+                } else if (cell.compute) {
+                  const value = data.values[cell.compute]
+                  cellValue = value !== null && value !== undefined ? String(value) : ''
+                } else {
+                  cellValue = cell.text || ''
+                }
+                
+                pdf.text(cellValue, xPosition, yPosition)
+                xPosition += 25 // Space between columns
+              })
+              yPosition += 6
+            })
+          }
+        }
+      })
+    } else {
+      // Fallback to simple list format if no layout
+      pdf.setFontSize(14)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('Data Elements', 20, yPosition)
+      yPosition += 10
       
-      const remarkKey = `remark.${key}`
-      const remark = data.values[remarkKey] || ''
+      // Add data table
+      pdf.setFontSize(10)
+      pdf.setFont('helvetica', 'normal')
       
-      // Check if we need a new page
-      if (yPosition > 270) {
-        pdf.addPage()
-        yPosition = 20
-      }
+      // Table headers
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('Element', 20, yPosition)
+      pdf.text('Value', 100, yPosition)
+      pdf.text('Remarks', 140, yPosition)
+      yPosition += 5
       
-      pdf.text(key, 20, yPosition)
-      pdf.text(String(value || ''), 100, yPosition)
-      pdf.text(String(remark), 140, yPosition)
-      yPosition += 6
-    })
+      // Add line under headers
+      pdf.line(20, yPosition, 190, yPosition)
+      yPosition += 8
+      
+      // Add data rows
+      pdf.setFont('helvetica', 'normal')
+      Object.entries(data.values).forEach(([key, value]) => {
+        if (key.startsWith('remark.')) {
+          return // Skip remark keys
+        }
+        
+        const remarkKey = `remark.${key}`
+        const remark = data.values[remarkKey] || ''
+        
+        // Check if we need a new page
+        if (yPosition > 270) {
+          pdf.addPage()
+          yPosition = 20
+        }
+        
+        pdf.text(key, 20, yPosition)
+        pdf.text(String(value || ''), 100, yPosition)
+        pdf.text(String(remark), 140, yPosition)
+        yPosition += 6
+      })
+    }
     
     // Add computed values if available
     if (data.computedValues && Object.keys(data.computedValues).length > 0) {
