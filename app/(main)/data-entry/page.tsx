@@ -95,7 +95,7 @@ export default function DataEntryPage() {
       try {
         setLoading(true)
         const [rtRes, treeRes, deRes, indRes] = await Promise.all([
-          api.get("/metadata/report-types/"), 
+          ApiClient.getAvailableReportTypes(), 
           api.get("/org/tree/"),
           ApiClient.getDataElements(),
           ApiClient.getIndicators()

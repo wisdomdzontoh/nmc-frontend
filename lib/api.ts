@@ -212,6 +212,15 @@ export const ApiClient = {
   validateFormula: (data: { formula: string; data_elements: string[] }) => api.post("/metadata/formulas/validate/", data),
   getIndicatorStatistics: () => api.get("/metadata/indicators/statistics/"),
   
+  // Report type assignment endpoints
+  getReportTypeAssignments: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/metadata/report-type-assignments/", { params }),
+  getReportTypeAssignment: (id: number) => api.get(`/metadata/report-type-assignments/${id}/`),
+  createReportTypeAssignment: (data: unknown) => api.post("/metadata/report-type-assignments/", data),
+  updateReportTypeAssignment: (id: number, data: unknown) => api.patch(`/metadata/report-type-assignments/${id}/`, data),
+  deleteReportTypeAssignment: (id: number) => api.delete(`/metadata/report-type-assignments/${id}/`),
+  getAvailableReportTypes: () => api.get("/metadata/available-report-types/"),
+  getOrgUnitAssignments: (orgUnitId: number) => api.get(`/metadata/org-units/${orgUnitId}/assignments/`),
+  
   // Export endpoints
   exportData: (type: string, format: string = "csv", params?: Record<string, string | number | boolean | null | undefined>) => api.get(`/exports/${type}/`, {
     params: { format, ...params },
