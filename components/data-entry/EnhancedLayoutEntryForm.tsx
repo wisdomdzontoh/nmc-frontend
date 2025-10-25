@@ -104,13 +104,13 @@ function EnhancedCellInput({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 w-full">
       {isRemark ? (
         <Textarea
           value={localValue}
           readOnly={readOnly}
           onChange={(e) => handleChange(e.target.value)}
-          className="min-h-[60px] text-sm resize-none bg-white"
+          className="min-h-[80px] text-sm resize-none bg-white w-full border-2 focus:ring-2 focus:ring-blue-100"
           placeholder="Enter remarks…"
         />
       ) : (
@@ -121,10 +121,10 @@ function EnhancedCellInput({
           readOnly={readOnly}
           onChange={(e) => handleChange(e.target.value)}
           className={cn(
-            "text-right h-12 text-lg font-semibold px-4 border-2 focus:ring-2 focus:ring-blue-100 bg-white",
+            "text-right h-14 text-lg font-semibold px-4 border-2 focus:ring-2 focus:ring-blue-100 bg-white w-full min-w-[100px]",
             readOnly
               ? "border-purple-200 text-purple-700 bg-purple-50/30 cursor-not-allowed"
-              : "border-blue-200 focus:border-blue-400"
+              : "border-blue-200 focus:border-blue-400 hover:border-blue-300"
           )}
           placeholder="0"
         />
@@ -267,17 +267,21 @@ function EnhancedTableArray({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto border rounded-lg">
-        <table className="w-full">
+      <div className="overflow-x-auto border rounded-lg shadow-sm">
+        <table className="w-full min-w-max">
           {section.header && (
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 sticky top-0 z-10">
               {section.header.rows.map((headerRow, hri) => (
                 <tr key={`header-${hri}`}>
                   {headerRow.map((cell, hci) => (
                     <th
                       key={`h-${hri}-${hci}`}
-                      className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b"
+                      className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b whitespace-nowrap"
                       colSpan={cell.colSpan || 1}
+                      style={{
+                        minWidth: '120px',
+                        width: section.columnWidths?.[hci] ? `${Math.max(section.columnWidths[hci], 120)}px` : 'auto'
+                      }}
                     >
                       {cell.label}
                     </th>
@@ -350,14 +354,15 @@ function EnhancedTableArray({
                     <td
                       key={`cell-${ri}-${ci}`}
                       className={cn(
-                        "px-4 py-3 border-b align-top",
+                        "px-4 py-4 border-b align-top",
                         extraClass,
                         c.backgroundColor && `bg-[${c.backgroundColor}]`,
                         c.alignment === "center" && "text-center",
                         c.alignment === "right" && "text-right"
                       )}
                       style={{
-                        width: section.columnWidths?.[ci] ? `${section.columnWidths[ci]}px` : undefined
+                        minWidth: '120px',
+                        width: section.columnWidths?.[ci] ? `${Math.max(section.columnWidths[ci], 120)}px` : 'auto'
                       }}
                     >
                       {content}

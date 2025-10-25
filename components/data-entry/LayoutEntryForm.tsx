@@ -101,7 +101,7 @@ function CellInput({
       value={localValue}
       readOnly={readOnly}
       onChange={(e) => handleChange(e.target.value)}
-      className="min-h-[60px] text-sm resize-none bg-white"
+      className="min-h-[80px] text-sm resize-none bg-white w-full border-2 focus:ring-2 focus:ring-blue-100"
       placeholder="Enter remarks…"
     />
   ) : (
@@ -112,10 +112,10 @@ function CellInput({
       readOnly={readOnly}
       onChange={(e) => handleChange(e.target.value)}
       className={cn(
-        "text-right h-12 text-lg font-semibold px-4 border-2 focus:ring-2 focus:ring-blue-100 bg-white",
+        "text-right h-14 text-lg font-semibold px-4 border-2 focus:ring-2 focus:ring-blue-100 bg-white w-full min-w-[100px]",
         readOnly
           ? "border-purple-200 text-purple-700 bg-purple-50/30 cursor-not-allowed"
-          : "border-blue-200 focus:border-blue-400"
+          : "border-blue-200 focus:border-blue-400 hover:border-blue-300"
       )}
       placeholder="0"
     />
@@ -140,18 +140,18 @@ function TableArray({
   const body = section.rows || []
 
   return (
-    <div className="overflow-x-auto max-w-full">
-      <table className="w-full border-collapse min-w-[700px]">
+    <div className="overflow-x-auto max-w-full border rounded-lg shadow-sm">
+      <table className="w-full border-collapse min-w-max">
         {Array.isArray(colWidths) && (
           <colgroup>
             {colWidths.map((w, i) => (
-              <col key={i} style={{ width: `${w}px` }} />
+              <col key={i} style={{ width: `${Math.max(w, 120)}px` }} />
             ))}
           </colgroup>
         )}
 
         {Array.isArray(header) && header.length > 0 && (
-          <thead className="bg-amber-50">
+          <thead className="bg-amber-50 sticky top-0 z-10">
             {header.map((hr, ri) => (
               <tr key={`th-${ri}`}>
                 {hr.map((hc, ci) => (
@@ -160,10 +160,14 @@ function TableArray({
                     colSpan={hc.colSpan || 1}
                     rowSpan={hc.rowSpan || 1}
                     className={cn(
-                      "border border-gray-300 px-2 py-2 text-left text-[14px] font-bold bg-blue-50",
+                      "border border-gray-300 px-4 py-3 text-left text-[14px] font-bold bg-blue-50 whitespace-nowrap",
                       hc.align === "center" && "text-center",
                       hc.align === "right" && "text-right"
                     )}
+                    style={{
+                      minWidth: '120px',
+                      width: colWidths?.[ci] ? `${Math.max(colWidths[ci], 120)}px` : 'auto'
+                    }}
                   >
                     {hc.label ?? ""}
                   </th>
@@ -219,12 +223,16 @@ function TableArray({
                     colSpan={c.colSpan || 1}
                     rowSpan={c.rowSpan || 1}
                     className={cn(
-                      "border border-gray-300 px-3 py-3 align-top min-w-[120px]",
+                      "border border-gray-300 px-4 py-4 align-top",
                       c.bold && "font-semibold",
                       c.align === "center" && "text-center",
                       c.align === "right" && "text-right",
                       extraClass
                     )}
+                    style={{
+                      minWidth: '120px',
+                      width: colWidths?.[ci] ? `${Math.max(colWidths[ci], 120)}px` : 'auto'
+                    }}
                   >
                     {content}
                   </td>
