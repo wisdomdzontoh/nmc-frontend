@@ -32,6 +32,8 @@ import {
   ChevronLeft,
   PanelLeftClose,
   PanelRightClose,
+  Copy,
+  GripVertical,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Toaster } from "@/components/ui/sonner"
@@ -65,6 +67,7 @@ export default function ReportDesignerPage() {
   const [activeTab, setActiveTab] = useState("design")
   const [leftPanelOpen, setLeftPanelOpen] = useState(true)
   const [rightPanelOpen, setRightPanelOpen] = useState(true)
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 
   const { selectedCell, setSelectedCell, copiedCell, setCopiedCell, pushHistory, undo, redo, canUndo, canRedo } =
     useDesignerStore()
@@ -170,6 +173,46 @@ export default function ReportDesignerPage() {
     const copy = schema.sections.filter((_, i) => i !== index)
     updateSchema({ ...schema, sections: copy })
     setSelectedCell(null)
+  }
+
+  const duplicateSection = (index: number) => {
+    const section = schema.sections[index]
+    if (!section) return
+
+    let duplicatedSection: TableSection | HeadingSection
+
+    if (section.type === "heading") {
+      const h = section as HeadingSection
+      duplicatedSection = { ...h, text: `${h.text} (Copy)` }
+    } else {
+      const t = section as TableSection
+      duplicatedSection = {
+        ...t,
+        id: `tbl_${Date.now()}`,
+        header: t.header ? {
+          rows: t.header.rows.map(row => 
+            row.map(cell => ({ ...cell, label: cell.label ? `${cell.label} (Copy)` : cell.label }))
+          )
+        } : undefined,
+        rows: t.rows.map(row => ({
+          cells: row.cells.map(cell => ({ ...cell, text: cell.text ? `${cell.text} (Copy)` : cell.text }))
+        }))
+      }
+    }
+
+    const newSections = [...schema.sections]
+    newSections.splice(index + 1, 0, duplicatedSection)
+    updateSchema({ ...schema, sections: newSections })
+    toast.success("Section duplicated")
+  }
+
+  const moveSection = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return
+    
+    const newSections = [...schema.sections]
+    const [movedSection] = newSections.splice(fromIndex, 1)
+    newSections.splice(toIndex, 0, movedSection)
+    updateSchema({ ...schema, sections: newSections })
   }
 
   const getSelectedCell = (): CellDef | null => {
@@ -386,11 +429,26 @@ export default function ReportDesignerPage() {
             <div className="flex-1 overflow-auto p-4 min-h-0">
               <div className="text-sm font-semibold mb-3 text-gray-700">Shortcuts</div>
               <div className="space-y-2 text-xs text-gray-600">
-                {/* shortcuts omitted for brevity - same as before */}
+                <div><strong>Ctrl+Z:</strong> Undo</div>
+                <div><strong>Ctrl+Y:</strong> Redo</div>
+                <div><strong>Ctrl+S:</strong> Save</div>
+                <div><strong>Enter:</strong> Add row</div>
+                <div><strong>Ctrl+=:</strong> Add column</div>
+                <div><strong>Del/Backspace:</strong> Clear cell</div>
+                <div><strong>Tab:</strong> Next cell</div>
+                <div><strong>Shift+Tab:</strong> Previous cell</div>
                 <div className="pt-2 mt-2 border-t border-gray-200">
                   <div className="text-xs text-gray-500">
                     <strong>Tip:</strong> Right-click on row numbers or column headers to insert/delete rows and columns
                   </div>
+                </div>
+                <div className="pt-2 mt-2 border-t border-gray-200">
+                  <div className="text-xs text-gray-500">
+                    <strong>Drag & Drop:</strong> Use the grip handle to reorder sections
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500">
+                  <strong>Duplicate:</strong> Click the copy icon to duplicate sections
                 </div>
               </div>
             </div>
@@ -436,8 +494,41 @@ export default function ReportDesignerPage() {
                       <div
                         id={`section-${sectionId}`}
                         key={sectionId}
-                        className="bg-white rounded-lg p-4 border-2 border-gray-200 group relative shadow-sm"
+                        className={`bg-white rounded-lg p-4 border-2 group relative shadow-sm transition-all ${
+                          draggedIndex === idx 
+                            ? "border-blue-400 shadow-lg opacity-50" 
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("text/plain", JSON.stringify({ type: "section", index: idx }))
+                          e.dataTransfer.effectAllowed = "move"
+                          setDraggedIndex(idx)
+                        }}
+                        onDragEnd={() => {
+                          setDraggedIndex(null)
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault()
+                          e.dataTransfer.dropEffect = "move"
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          try {
+                            const data = JSON.parse(e.dataTransfer.getData("text/plain"))
+                            if (data.type === "section" && data.index !== idx) {
+                              moveSection(data.index, idx)
+                            }
+                          } catch (err) {
+                            console.error("Failed to parse drop data", err)
+                          }
+                          setDraggedIndex(null)
+                        }}
                       >
+                        <div className="flex items-center gap-2 mb-2">
+                          <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
+                          <span className="text-xs text-gray-500 font-medium">HEADING</span>
+                        </div>
                         <Input
                           value={h.text}
                           onChange={(e) => {
@@ -448,14 +539,26 @@ export default function ReportDesignerPage() {
                           className="text-lg font-semibold border-0 focus-visible:ring-0 px-0"
                           placeholder="Enter heading text..."
                         />
+                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            onClick={() => duplicateSection(idx)}
+                            title="Duplicate section"
+                          >
+                            <Copy className="h-4 w-4 text-blue-600" />
+                          </Button>
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
+                            className="h-8 w-8 p-0"
                           onClick={() => deleteSection(idx)}
+                            title="Delete section"
                         >
                           <Trash2 className="h-4 w-4 text-red-600" />
                         </Button>
+                        </div>
                       </div>
                     )
                   }
@@ -465,16 +568,63 @@ export default function ReportDesignerPage() {
                     <div
                       id={`section-${sectionId}`}
                       key={sectionId}
-                      className="bg-white rounded-lg border-2 border-gray-200 overflow-hidden group relative shadow-sm"
+                      className={`bg-white rounded-lg border-2 overflow-hidden group relative shadow-sm transition-all ${
+                        draggedIndex === idx 
+                          ? "border-blue-400 shadow-lg opacity-50" 
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("text/plain", JSON.stringify({ type: "section", index: idx }))
+                        e.dataTransfer.effectAllowed = "move"
+                        setDraggedIndex(idx)
+                      }}
+                      onDragEnd={() => {
+                        setDraggedIndex(null)
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault()
+                        e.dataTransfer.dropEffect = "move"
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        try {
+                          const data = JSON.parse(e.dataTransfer.getData("text/plain"))
+                          if (data.type === "section" && data.index !== idx) {
+                            moveSection(data.index, idx)
+                          }
+                        } catch (err) {
+                          console.error("Failed to parse drop data", err)
+                        }
+                        setDraggedIndex(null)
+                      }}
                     >
+                      <div className="flex items-center justify-between p-3 border-b bg-gray-50">
+                        <div className="flex items-center gap-2">
+                          <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
+                          <span className="text-xs text-gray-500 font-medium">TABLE</span>
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            onClick={() => duplicateSection(idx)}
+                            title="Duplicate section"
+                          >
+                            <Copy className="h-4 w-4 text-blue-600" />
+                          </Button>
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0 bg-white shadow-sm"
+                            className="h-8 w-8 p-0"
                         onClick={() => deleteSection(idx)}
+                            title="Delete section"
                       >
                         <Trash2 className="h-4 w-4 text-red-600" />
                       </Button>
+                        </div>
+                      </div>
 
                       <CellFormatToolbar
                         cell={selectedCell?.sectionIndex === idx ? getSelectedCell() : null}
