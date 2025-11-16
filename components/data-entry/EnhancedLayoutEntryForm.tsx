@@ -267,25 +267,35 @@ function EnhancedTableArray({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto border rounded-lg shadow-sm">
-        <table className="w-full min-w-max">
+      <div className="border rounded-lg shadow-sm overflow-auto max-h-[calc(100vh-300px)]">
+        <table className="w-full min-w-max border-collapse">
           {section.header && (
-            <thead className="bg-gray-50 sticky top-0 z-10">
+            <thead>
               {section.header.rows.map((headerRow, hri) => (
                 <tr key={`header-${hri}`}>
-                  {headerRow.map((cell, hci) => (
-                    <th
-                      key={`h-${hri}-${hci}`}
-                      className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b whitespace-nowrap"
-                      colSpan={cell.colSpan || 1}
-                      style={{
-                        minWidth: '120px',
-                        width: section.columnWidths?.[hci] ? `${Math.max(section.columnWidths[hci], 120)}px` : 'auto'
-                      }}
-                    >
-                      {cell.label}
-                    </th>
-                  ))}
+                  {headerRow.map((cell, hci) => {
+                    const isFirstColumn = hci === 0
+                    return (
+                      <th
+                        key={`h-${hri}-${hci}`}
+                        className={cn(
+                          "px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b whitespace-nowrap bg-gray-50",
+                          "sticky top-0",
+                          isFirstColumn && "sticky left-0 z-30 shadow-[2px_0_4px_rgba(0,0,0,0.1)]"
+                        )}
+                        colSpan={cell.colSpan || 1}
+                        style={{
+                          minWidth: '120px',
+                          width: section.columnWidths?.[hci] ? `${Math.max(section.columnWidths[hci], 120)}px` : 'auto',
+                          position: 'sticky',
+                          top: 0,
+                          ...(isFirstColumn ? { left: 0, zIndex: 30 } : { zIndex: 20 })
+                        }}
+                      >
+                        {cell.label}
+                      </th>
+                    )
+                  })}
                 </tr>
               ))}
             </thead>
@@ -297,6 +307,7 @@ function EnhancedTableArray({
                 {row.cells.map((c, ci) => {
                   let content: React.ReactNode = c.text ?? ""
                   let extraClass = ""
+                  const isFirstColumn = ci === 0
 
                   if (c.bind) {
                     const code = String(c.bind)
@@ -350,6 +361,14 @@ function EnhancedTableArray({
                     )
                   }
 
+                  // Determine background color for first column
+                  const getFirstColumnBg = () => {
+                    if (c.backgroundColor) return c.backgroundColor
+                    if (extraClass.includes('bg-blue-50')) return 'rgb(239 246 255)'
+                    if (extraClass.includes('bg-purple-50')) return 'rgb(250 245 255)'
+                    return 'white'
+                  }
+
                   return (
                     <td
                       key={`cell-${ri}-${ci}`}
@@ -358,11 +377,18 @@ function EnhancedTableArray({
                         extraClass,
                         c.backgroundColor && `bg-[${c.backgroundColor}]`,
                         c.alignment === "center" && "text-center",
-                        c.alignment === "right" && "text-right"
+                        c.alignment === "right" && "text-right",
+                        isFirstColumn && "sticky left-0 z-10 shadow-[2px_0_4px_rgba(0,0,0,0.1)]"
                       )}
                       style={{
                         minWidth: '120px',
-                        width: section.columnWidths?.[ci] ? `${Math.max(section.columnWidths[ci], 120)}px` : 'auto'
+                        width: section.columnWidths?.[ci] ? `${Math.max(section.columnWidths[ci], 120)}px` : 'auto',
+                        ...(isFirstColumn ? { 
+                          position: 'sticky', 
+                          left: 0, 
+                          zIndex: 10, 
+                          backgroundColor: getFirstColumnBg() 
+                        } : {})
                       }}
                     >
                       {content}

@@ -140,7 +140,7 @@ function TableArray({
   const body = section.rows || []
 
   return (
-    <div className="overflow-x-auto max-w-full border rounded-lg shadow-sm">
+    <div className="border rounded-lg shadow-sm overflow-auto max-h-[calc(100vh-300px)]">
       <table className="w-full border-collapse min-w-max">
         {Array.isArray(colWidths) && (
           <colgroup>
@@ -151,27 +151,35 @@ function TableArray({
         )}
 
         {Array.isArray(header) && header.length > 0 && (
-          <thead className="bg-amber-50 sticky top-0 z-10">
+          <thead>
             {header.map((hr, ri) => (
               <tr key={`th-${ri}`}>
-                {hr.map((hc, ci) => (
-                  <th
-                    key={`thc-${ri}-${ci}`}
-                    colSpan={hc.colSpan || 1}
-                    rowSpan={hc.rowSpan || 1}
-                    className={cn(
-                      "border border-gray-300 px-4 py-3 text-left text-[14px] font-bold bg-blue-50 whitespace-nowrap",
-                      hc.align === "center" && "text-center",
-                      hc.align === "right" && "text-right"
-                    )}
-                    style={{
-                      minWidth: '120px',
-                      width: colWidths?.[ci] ? `${Math.max(colWidths[ci], 120)}px` : 'auto'
-                    }}
-                  >
-                    {hc.label ?? ""}
-                  </th>
-                ))}
+                {hr.map((hc, ci) => {
+                  const isFirstColumn = ci === 0
+                  return (
+                    <th
+                      key={`thc-${ri}-${ci}`}
+                      colSpan={hc.colSpan || 1}
+                      rowSpan={hc.rowSpan || 1}
+                      className={cn(
+                        "border border-gray-300 px-4 py-3 text-left text-[14px] font-bold bg-blue-50 whitespace-nowrap",
+                        "sticky top-0",
+                        hc.align === "center" && "text-center",
+                        hc.align === "right" && "text-right",
+                        isFirstColumn && "sticky left-0 z-30 shadow-[2px_0_4px_rgba(0,0,0,0.1)]"
+                      )}
+                      style={{
+                        minWidth: '120px',
+                        width: colWidths?.[ci] ? `${Math.max(colWidths[ci], 120)}px` : 'auto',
+                        position: 'sticky',
+                        top: 0,
+                        ...(isFirstColumn ? { left: 0, zIndex: 30 } : { zIndex: 20 })
+                      }}
+                    >
+                      {hc.label ?? ""}
+                    </th>
+                  )
+                })}
               </tr>
             ))}
           </thead>
@@ -183,6 +191,7 @@ function TableArray({
               {row.cells.map((c, ci) => {
                 let content: React.ReactNode = c.text ?? ""
                 let extraClass = ""
+                const isFirstColumn = ci === 0
 
                 if (c.bind) {
                   const code = String(c.bind)
@@ -217,6 +226,13 @@ function TableArray({
                   content = <span className="text-sm font-semibold">{c.text}</span>
                 }
 
+                // Determine background color for first column
+                const getFirstColumnBg = () => {
+                  if (extraClass.includes('bg-blue-50')) return 'rgb(239 246 255)'
+                  if (extraClass.includes('bg-purple-50')) return 'rgb(250 245 255)'
+                  return 'white'
+                }
+
                 return (
                   <td
                     key={`td-${ri}-${ci}`}
@@ -227,11 +243,18 @@ function TableArray({
                       c.bold && "font-semibold",
                       c.align === "center" && "text-center",
                       c.align === "right" && "text-right",
-                      extraClass
+                      extraClass,
+                      isFirstColumn && "sticky left-0 z-10 shadow-[2px_0_4px_rgba(0,0,0,0.1)]"
                     )}
                     style={{
                       minWidth: '120px',
-                      width: colWidths?.[ci] ? `${Math.max(colWidths[ci], 120)}px` : 'auto'
+                      width: colWidths?.[ci] ? `${Math.max(colWidths[ci], 120)}px` : 'auto',
+                      ...(isFirstColumn ? { 
+                        position: 'sticky', 
+                        left: 0, 
+                        zIndex: 10, 
+                        backgroundColor: getFirstColumnBg() 
+                      } : {})
                     }}
                   >
                     {content}
