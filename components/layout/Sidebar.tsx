@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Home, BarChart, FileText, Database, Users, Settings, TrendingUp } from "lucide-react";
@@ -24,8 +25,20 @@ export default function Sidebar() {
   return (
     <div className="hidden md:flex md:flex-col md:w-64 md:fixed md:inset-y-0 z-50">
       <div className="flex flex-col flex-grow bg-gray-800 pt-5 overflow-y-auto">
-        <div className="flex items-center flex-shrink-0 px-4">
-          <span className="text-white text-2xl font-bold">NMC DMS</span>
+        <div className="flex items-center flex-shrink-0 px-4 mb-2">
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden p-1.5">
+              <Image
+                src="/logo.png"
+                alt="NMC Logo"
+                width={32}
+                height={32}
+                className="object-contain"
+                priority
+              />
+            </div>
+            <span className="text-white text-lg font-bold">NMC DMS</span>
+          </Link>
         </div>
         <div className="mt-5 flex-1 flex flex-col">
           <nav className="flex-1 px-2 pb-4 space-y-1">

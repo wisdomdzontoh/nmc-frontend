@@ -36,7 +36,6 @@ import {
   GripVertical,
 } from "lucide-react"
 import { toast } from "sonner"
-import { Toaster } from "@/components/ui/sonner"
 
 type ReportType = { id: number; name: string; code: string; data_elements?: DataElement[] }
 
@@ -330,8 +329,6 @@ export default function ReportDesignerPage() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
-      <Toaster />
-
       {/* Header */}
       <div className="bg-white border-b">
         <div className="px-4 py-3 flex items-center gap-3 border-b">

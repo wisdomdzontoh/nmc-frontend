@@ -12,7 +12,6 @@ export interface ExportData {
   orgUnit: string
   period: string
   values: Record<string, number | string | null>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   layout?: any
   computedValues?: Record<string, number | string | null>
 }

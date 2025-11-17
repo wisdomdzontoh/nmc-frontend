@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useMemo, useState } from "react";
@@ -152,8 +153,15 @@ export default function Header() {
         {/* Left: Brand and title */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <Link href="/dashboard" className="flex-shrink-0 group">
-            <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center shadow-md transition-transform group-hover:scale-105">
-              <span className="text-blue-900 font-bold text-base">NMC</span>
+            <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center shadow-md transition-transform group-hover:scale-105 overflow-hidden p-1">
+              <Image
+                src="/logo.png"
+                alt="NMC Logo"
+                width={32}
+                height={32}
+                className="object-contain"
+                priority
+              />
             </div>
           </Link>
           <div className="min-w-0 flex-1">
