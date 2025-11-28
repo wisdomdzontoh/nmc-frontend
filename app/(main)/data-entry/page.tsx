@@ -17,7 +17,6 @@ import type { OrgNode } from "@/components/data-entry/OrgUnitInlineDropdown"
 import type { Period } from "@/components/data-entry/PeriodInlineDropdown"
 import { evaluateFormula } from "@/lib/formula-evaluator"
 import { ApiClient } from "@/lib/api"
-import type { IndicatorDefinition } from "@/lib/advanced-formula-evaluator"
 import { exportToExcel, exportToPDF, exportLayoutAsPDF, getExportFilename } from "@/lib/export-utils"
 
 type ValuesById = Record<string, number | null>
@@ -80,7 +79,6 @@ export default function DataEntryPage() {
 
   // Enhanced calculation system
   const [dataElements, setDataElements] = React.useState<Array<{ id: string; code: string; name: string }>>([])
-  const [indicators, setIndicators] = React.useState<IndicatorDefinition[]>([])
 
   const hasValues = React.useMemo(() => {
     if (layout) {
@@ -166,11 +164,10 @@ export default function DataEntryPage() {
     ;(async () => {
       try {
         setLoading(true)
-        const [rtRes, treeRes, deRes, indRes] = await Promise.all([
+        const [rtRes, treeRes, deRes] = await Promise.all([
           ApiClient.getAvailableReportTypes(), 
           api.get("/org/tree/"),
-          ApiClient.getDataElements(),
-          ApiClient.getIndicators()
+          ApiClient.getDataElements()
         ])
         setDatasets(rtRes.data)
         setOrgTree(treeRes.data || [])
@@ -181,39 +178,6 @@ export default function DataEntryPage() {
           id: String(de.id),
           code: de.code,
           name: de.name
-        })))
-        
-        // Load indicators
-        const indData = indRes.data?.results || indRes.data || []
-        setIndicators(indData.map((ind: { 
-          id: number; 
-          code: string; 
-          name: string; 
-          description?: string; 
-          numerator_formula: string; 
-          numerator_description?: string; 
-          denominator_formula?: string; 
-          denominator_description?: string; 
-          factor: number 
-        }) => ({
-          id: String(ind.id),
-          code: ind.code,
-          name: ind.name,
-          description: ind.description,
-          numerator: {
-            formula: ind.numerator_formula,
-            description: ind.numerator_description || "",
-            dataElements: []
-          },
-          denominator: ind.denominator_formula ? {
-            formula: ind.denominator_formula,
-            description: ind.denominator_description || "",
-            dataElements: []
-          } : undefined,
-          factor: ind.factor || 1,
-          unit: ind.factor === 100 ? "%" : ind.factor === 1000 ? "per 1000" : "ratio",
-          aggregationType: "sum" as const,
-          category: ""
         })))
         
       } catch (e) {
@@ -629,7 +593,6 @@ export default function DataEntryPage() {
                     values={displayValues} 
                     onChange={setCodeValue}
                     dataElements={dataElements}
-                    indicators={indicators}
                     dataSaved={dataSaved}
                   />
                 </div>

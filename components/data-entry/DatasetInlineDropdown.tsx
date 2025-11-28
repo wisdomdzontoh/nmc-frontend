@@ -3,7 +3,9 @@
 import * as React from "react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
-import { ChevronDown } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { ChevronDown, Check } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export interface DataElement {
   id: number
@@ -26,6 +28,19 @@ type Props = {
 
 export default function DatasetInlineDropdown({ value, onChange, items }: Props) {
   const [open, setOpen] = React.useState(false)
+  const [query, setQuery] = React.useState("")
+
+  const filteredItems = React.useMemo(() => {
+    if (!query) return items
+    
+    const lowerQuery = query.toLowerCase()
+    return items.filter(
+      (rt) =>
+        rt.name.toLowerCase().includes(lowerQuery) ||
+        rt.code.toLowerCase().includes(lowerQuery) ||
+        rt.description?.toLowerCase().includes(lowerQuery)
+    )
+  }, [items, query])
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -37,23 +52,52 @@ export default function DatasetInlineDropdown({ value, onChange, items }: Props)
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent align="start" className="p-0 w-[420px] h-[520px] overflow-auto" sideOffset={6}>
-        <div className="divide-y">
-          {items.map((rt) => (
-            <button
-              key={rt.id}
-              className={`w-full text-left px-4 py-3 hover:bg-gray-50 ${value?.id === rt.id ? "bg-blue-50" : ""}`}
-              onClick={() => {
-                onChange(rt)
-                setOpen(false)
-              }}
-            >
-              <div className="font-medium">{rt.name}</div>
-              <div className="text-xs text-gray-500">
-                {rt.code} • {rt.data_elements?.length ?? 0} data elements
-              </div>
-            </button>
-          ))}
+      <PopoverContent align="start" className="p-0 w-[420px]" sideOffset={6}>
+        <div className="p-3 border-b">
+          <Input 
+            placeholder="Search report types" 
+            value={query} 
+            onChange={(e) => setQuery(e.target.value)} 
+          />
+        </div>
+        <div className="h-[520px] overflow-auto">
+          {filteredItems.length === 0 ? (
+            <div className="p-4 text-center text-sm text-gray-500">
+              {query ? "No report types match your search." : "No report types available."}
+            </div>
+          ) : (
+            <div className="divide-y">
+              {filteredItems.map((rt) => (
+                <button
+                  key={rt.id}
+                  className={cn(
+                    "w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center justify-between",
+                    value?.id === rt.id && "bg-blue-50"
+                  )}
+                  onClick={() => {
+                    onChange(rt)
+                    setOpen(false)
+                  }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium">{rt.name}</div>
+                    <div className="text-xs text-gray-500">
+                      {rt.code} • {rt.data_elements?.length ?? 0} data elements
+                    </div>
+                  </div>
+                  {value?.id === rt.id && <Check className="h-4 w-4 text-blue-600 flex-shrink-0 ml-2" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="p-3 border-t flex justify-between">
+          <Button variant="outline" size="sm" onClick={() => onChange(null)}>
+            Clear
+          </Button>
+          <Button size="sm" onClick={() => setOpen(false)}>
+            Done
+          </Button>
         </div>
       </PopoverContent>
     </Popover>

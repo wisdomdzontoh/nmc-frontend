@@ -1,15 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { Calculator, TrendingUp } from "lucide-react"
+import { Calculator } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { CalculationDisplay, CalculationSummary } from "./CalculationDisplay"
-import { IndicatorBuilder } from "./IndicatorBuilder"
-import { evaluateAdvancedFormula, type AdvancedFormulaContext, type CalculationResult, type IndicatorDefinition } from "@/lib/advanced-formula-evaluator"
+import { evaluateAdvancedFormula, type AdvancedFormulaContext, type CalculationResult } from "@/lib/advanced-formula-evaluator"
 
 /* ---------------- TYPES ---------------- */
 
@@ -62,7 +61,6 @@ type Props = {
   onChange: (code: string, val: number | string | null) => void
   readOnly?: boolean
   dataElements?: Array<{ id: string; code: string; name: string }>
-  indicators?: IndicatorDefinition[]
   dataSaved?: boolean
 }
 
@@ -147,17 +145,14 @@ function EnhancedTableArray({
   onChange,
   readOnly,
   dataElements = [],
-  indicators = [],
 }: {
   section: TableArraySection
   values: ValuesByCode
   onChange: (code: string, val: number | string | null) => void
   readOnly?: boolean
   dataElements?: Array<{ id: string; code: string; name: string }>
-  indicators?: IndicatorDefinition[]
 }) {
   const [showCalculations, setShowCalculations] = React.useState(false)
-  const [showIndicators, setShowIndicators] = React.useState(false)
 
   // Create context for formula evaluation
   const context: AdvancedFormulaContext = React.useMemo(() => ({
@@ -209,37 +204,6 @@ function EnhancedTableArray({
     return computed
   }, [section, context])
 
-  // Calculate indicators
-  const indicatorResults = React.useMemo(() => {
-    const results: Record<string, CalculationResult> = {}
-    
-    indicators.forEach(indicator => {
-      try {
-        const result = evaluateAdvancedFormula(
-          indicator.denominator 
-            ? `${indicator.numerator.formula} / ${indicator.denominator.formula} * ${indicator.factor}`
-            : `${indicator.numerator.formula} * ${indicator.factor}`,
-          context
-        )
-        results[indicator.code] = {
-          ...result,
-          formatted: `${result.formatted} ${indicator.unit}`,
-          calculationType: 'indicator' as const
-        }
-      } catch (err) {
-        results[indicator.code] = {
-          value: null,
-          formatted: "#ERROR",
-          isValid: false,
-          error: String(err),
-          dependencies: [],
-          calculationType: 'indicator' as const
-        }
-      }
-    })
-    
-    return results
-  }, [indicators, context])
 
   const body = section.rows || []
 
@@ -254,15 +218,6 @@ function EnhancedTableArray({
         >
           <Calculator className="h-4 w-4 mr-2" />
           {showCalculations ? "Hide" : "Show"} Calculations
-        </Button>
-        
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowIndicators(!showIndicators)}
-        >
-          <TrendingUp className="h-4 w-4 mr-2" />
-          {showIndicators ? "Hide" : "Show"} Indicators
         </Button>
       </div>
 
@@ -412,18 +367,6 @@ function EnhancedTableArray({
           title="Table Calculations"
         />
       )}
-
-      {/* Indicators Summary */}
-      {showIndicators && (
-        <CalculationSummary
-          results={Object.entries(indicatorResults).map(([key, result]) => ({
-            label: indicators.find(i => i.code === key)?.name || key,
-            result,
-            type: 'indicator' as const
-          }))}
-          title="Indicators"
-        />
-      )}
     </div>
   )
 }
@@ -436,16 +379,8 @@ export default function EnhancedLayoutEntryForm({
   onChange,
   readOnly = false,
   dataElements = [],
-  indicators = [],
   dataSaved = false
 }: Props) {
-
-  const handleSaveIndicator = (indicator: IndicatorDefinition) => {
-    // This would typically save to backend
-    console.log("Saving indicator:", indicator)
-    // You would implement the actual save logic here
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -463,14 +398,6 @@ export default function EnhancedLayoutEntryForm({
               </span>
             )}
           </p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <IndicatorBuilder
-            dataElements={dataElements}
-            onSave={handleSaveIndicator}
-            existingIndicators={indicators}
-          />
         </div>
       </div>
 
@@ -502,7 +429,6 @@ export default function EnhancedLayoutEntryForm({
                   onChange={onChange}
                   readOnly={readOnly}
                   dataElements={dataElements}
-                  indicators={indicators}
                 />
               </CardContent>
             </Card>
