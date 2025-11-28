@@ -13,8 +13,6 @@ import {
   Users,
   Settings,
   Grid,
-  Bell,
-  Mail,
   Circle,
   Search,
   LogOut,
@@ -184,37 +182,6 @@ export default function Header() {
 
           <Separator orientation="vertical" className="h-6 bg-white/20 hidden lg:block" />
 
-          {/* Messages */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="relative text-white/90 hover:bg-white/10 hover:text-white transition-all"
-          >
-            <Mail className="h-5 w-5" />
-            {mailCount > 0 && (
-              <Badge 
-                className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-500 hover:bg-red-500 border-2 border-blue-900"
-              >
-                <span className="text-[10px]">{mailCount > 9 ? '9+' : mailCount}</span>
-              </Badge>
-            )}
-          </Button>
-
-          {/* Notifications */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="relative text-white/90 hover:bg-white/10 hover:text-white transition-all"
-          >
-            <Bell className="h-5 w-5" />
-            {notificationCount > 0 && (
-              <Badge 
-                className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-orange-500 hover:bg-orange-500 border-2 border-blue-900"
-              >
-                <span className="text-[10px]">{notificationCount > 9 ? '9+' : notificationCount}</span>
-              </Badge>
-            )}
-          </Button>
 
           <Separator orientation="vertical" className="h-6 bg-white/20" />
 
