@@ -219,6 +219,7 @@ export const ApiClient = {
   updateReportTypeAssignment: (id: number, data: unknown) => api.patch(`/metadata/report-type-assignments/${id}/`, data),
   deleteReportTypeAssignment: (id: number) => api.delete(`/metadata/report-type-assignments/${id}/`),
   getAvailableReportTypes: () => api.get("/metadata/available-report-types/"),
+  getAvailableReportTypesForEntry: () => api.get("/metadata/available-report-types-for-entry/"),
   getOrgUnitAssignments: (orgUnitId: number) => api.get(`/metadata/org-units/${orgUnitId}/assignments/`),
   
   // Export endpoints

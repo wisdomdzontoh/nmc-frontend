@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +28,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
+import { useAuth } from "@/context/AuthContext"
+import type { DjangoUser } from "@/context/AuthContext"
 import { ApiClient } from "@/lib/api"
 import type { IndicatorDefinition } from "@/lib/advanced-formula-evaluator"
 import { IndicatorModal } from "@/components/indicators/IndicatorModal"
@@ -41,6 +44,12 @@ interface DataElement {
 }
 
 export default function IndicatorsPage() {
+  const { djangoUser } = useAuth() as { djangoUser: DjangoUser | null }
+  
+  // Check if user is staff or superuser
+  const isSuperuser = Boolean((djangoUser as unknown as { is_superuser?: boolean })?.is_superuser)
+  const isStaff = Boolean((djangoUser as unknown as { is_staff?: boolean })?.is_staff)
+  
   const [activeTab, setActiveTab] = React.useState<"indicators" | "data-elements">("indicators")
   const [indicators, setIndicators] = React.useState<IndicatorDefinition[]>([])
   const [dataElements, setDataElements] = React.useState<DataElement[]>([])
@@ -251,6 +260,21 @@ export default function IndicatorsPage() {
     de.name.toLowerCase().includes(dataElementSearch.toLowerCase()) ||
     de.code.toLowerCase().includes(dataElementSearch.toLowerCase())
   )
+
+  // Show error if user is not staff or superuser
+  if (!isSuperuser && !isStaff) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto text-center">
+        <h1 className="text-2xl font-bold mb-2">Indicators & Data Elements</h1>
+        <Alert>
+          <AlertDescription>
+            Indicators and data elements management is only available to staff and administrators. 
+            Contact your administrator if you need access.
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
 
   if (loading) {
     return (

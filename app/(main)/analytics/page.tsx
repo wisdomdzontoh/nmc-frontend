@@ -1,6 +1,8 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
+import { useAuth } from "@/context/AuthContext"
+import type { DjangoUser } from "@/context/AuthContext"
 import { ApiClient } from "@/lib/api"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -52,6 +54,12 @@ interface AnalyticsData {
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"]
 
 const AnalyticsPage: React.FC = () => {
+  const { djangoUser } = useAuth() as { djangoUser: DjangoUser | null }
+  
+  // Check if user is staff or superuser
+  const isSuperuser = Boolean((djangoUser as unknown as { is_superuser?: boolean })?.is_superuser)
+  const isStaff = Boolean((djangoUser as unknown as { is_staff?: boolean })?.is_staff)
+  
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -96,6 +104,21 @@ const AnalyticsPage: React.FC = () => {
     link.download = `analytics-${selectedPeriod}-${Date.now()}.json`
     link.click()
     URL.revokeObjectURL(url)
+  }
+
+  // Show error if user is not staff or superuser
+  if (!isSuperuser && !isStaff) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto text-center">
+        <h1 className="text-2xl font-bold mb-2">Analytics Dashboard</h1>
+        <Alert>
+          <AlertDescription>
+            Analytics dashboard is only available to staff and administrators. 
+            Contact your administrator if you need access.
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
   }
 
   if (loading) {

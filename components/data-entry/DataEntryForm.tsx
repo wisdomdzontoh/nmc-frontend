@@ -10,9 +10,10 @@ type Props = {
   reportType: ReportType
   values: Values
   onChange: (id: string, val: number | null) => void
+  readOnly?: boolean
 }
 
-export default function DataEntryForm({ reportType, values, onChange }: Props) {
+export default function DataEntryForm({ reportType, values, onChange, readOnly = false }: Props) {
   return (
     <Card>
       <CardHeader>
@@ -36,12 +37,18 @@ export default function DataEntryForm({ reportType, values, onChange }: Props) {
                     type="number"
                     step="0.01"
                     placeholder="0"
-                    className="text-right"
+                    readOnly={readOnly}
+                    className={readOnly ? "text-right bg-gray-50 cursor-not-allowed opacity-60" : "text-right"}
                     value={values[String(de.id)] ?? ""}
                     onChange={(e) => {
+                      if (readOnly) {
+                        e.preventDefault()
+                        return
+                      }
                       const v = e.target.value.trim()
                       onChange(String(de.id), v === "" ? null : Number(v))
                     }}
+                    disabled={readOnly}
                   />
                 </div>
               </div>

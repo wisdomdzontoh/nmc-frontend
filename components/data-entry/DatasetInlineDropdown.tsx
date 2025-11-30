@@ -18,6 +18,7 @@ export interface ReportType {
   name: string
   description?: string
   data_elements: DataElement[]
+  lock_period_days?: number
 }
 
 type Props = {
@@ -52,15 +53,24 @@ export default function DatasetInlineDropdown({ value, onChange, items }: Props)
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent align="start" className="p-0 w-[420px]" sideOffset={6}>
-        <div className="p-3 border-b">
+      <PopoverContent 
+        align="start" 
+        className="p-0 w-[420px]" 
+        sideOffset={6}
+        side="bottom"
+        alignOffset={0}
+        avoidCollisions={true}
+        collisionPadding={8}
+      >
+        <div className="p-3 border-b bg-white sticky top-0 z-10">
           <Input 
             placeholder="Search report types" 
             value={query} 
             onChange={(e) => setQuery(e.target.value)} 
+            className="w-full"
           />
         </div>
-        <div className="h-[520px] overflow-auto">
+        <div className="max-h-[calc(100vh-250px)] min-h-[200px] overflow-y-auto overscroll-contain">
           {filteredItems.length === 0 ? (
             <div className="p-4 text-center text-sm text-gray-500">
               {query ? "No report types match your search." : "No report types available."}
@@ -71,7 +81,7 @@ export default function DatasetInlineDropdown({ value, onChange, items }: Props)
                 <button
                   key={rt.id}
                   className={cn(
-                    "w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center justify-between",
+                    "w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center justify-between transition-colors",
                     value?.id === rt.id && "bg-blue-50"
                   )}
                   onClick={() => {
@@ -80,8 +90,8 @@ export default function DatasetInlineDropdown({ value, onChange, items }: Props)
                   }}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium">{rt.name}</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="font-medium text-sm">{rt.name}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">
                       {rt.code} • {rt.data_elements?.length ?? 0} data elements
                     </div>
                   </div>
@@ -91,7 +101,7 @@ export default function DatasetInlineDropdown({ value, onChange, items }: Props)
             </div>
           )}
         </div>
-        <div className="p-3 border-t flex justify-between">
+        <div className="p-3 border-t bg-white sticky bottom-0 z-10 flex justify-between">
           <Button variant="outline" size="sm" onClick={() => onChange(null)}>
             Clear
           </Button>

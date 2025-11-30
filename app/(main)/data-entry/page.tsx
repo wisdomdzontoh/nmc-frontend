@@ -65,6 +65,7 @@ export default function DataEntryPage() {
   const [exporting, setExporting] = React.useState(false)
 
   const [datasets, setDatasets] = React.useState<ReportType[]>([])
+  const [editableReportTypes, setEditableReportTypes] = React.useState<ReportType[]>([]) // Report types user can actually edit
   const [dataset, setDataset] = React.useState<ReportType | null>(null)
   const [orgTree, setOrgTree] = React.useState<OrgNode[]>([])
   const [org, setOrg] = React.useState<OrgNode | null>(null)
@@ -79,6 +80,10 @@ export default function DataEntryPage() {
 
   // Enhanced calculation system
   const [dataElements, setDataElements] = React.useState<Array<{ id: string; code: string; name: string }>>([])
+  
+  // Report metadata
+  const [lastSubmittedBy, setLastSubmittedBy] = React.useState<string | null>(null)
+  const [lastSubmittedAt, setLastSubmittedAt] = React.useState<string | null>(null)
 
   const hasValues = React.useMemo(() => {
     if (layout) {
@@ -87,7 +92,83 @@ export default function DataEntryPage() {
     return Object.values(valuesById).some((v) => v !== null && v !== undefined)
   }, [layout, valuesByCode, valuesById])
 
-  const canSubmit = !!dataset && !!period && !!org && hasValues
+  // Check if user can edit
+  // User can only edit if:
+  // 1. Selected org unit is user's org unit, AND
+  // 2. Selected report type is assigned to user's org unit, AND
+  // 3. Period is not locked (unless user is staff/superuser)
+  const userOrgUnitId = djangoUser?.org_unit ?? null
+  const isViewingOwnOrg = userOrgUnitId !== null && org?.id === userOrgUnitId
+  const isReportTypeEditable = dataset ? editableReportTypes.some(rt => rt.id === dataset.id) : false
+  
+  // Check if period is locked
+  const isPeriodLocked = React.useMemo(() => {
+    if (!dataset || !period) {
+      return false
+    }
+    
+    // Check if locking is configured
+    const lockDays = dataset.lock_period_days
+    console.log('[Lock Check] Starting lock check', {
+      datasetName: dataset.name,
+      lockDays,
+      periodName: period.name,
+      periodEndDate: period.endDate,
+      hasLockDays: !!lockDays
+    })
+    
+    if (!lockDays || lockDays === 0) {
+      return false // No locking configured
+    }
+    
+    const isStaff = djangoUser?.is_staff || djangoUser?.is_superuser
+    if (isStaff) {
+      console.log('[Lock Check] User is staff/superuser - bypassing lock')
+      return false // Staff/superusers can always edit
+    }
+    
+    try {
+      // Parse period end date (YYYY-MM-DD format)
+      const periodEndDateStr = period.endDate
+      if (!periodEndDateStr) {
+        console.warn("[Lock Check] Period end date is missing")
+        return false
+      }
+      
+      // Create date from YYYY-MM-DD string (local timezone, end of day)
+      const [year, month, day] = periodEndDateStr.split('-').map(Number)
+      const periodEndDate = new Date(year, month - 1, day, 23, 59, 59) // End of the day
+      
+      // Calculate lock date: period end date + lock_period_days
+      const lockDate = new Date(periodEndDate)
+      lockDate.setDate(lockDate.getDate() + lockDays)
+      
+      // Get current date/time
+      const now = new Date()
+      
+      // Compare: if current time is past the lock date, it's locked
+      const locked = now > lockDate
+      
+      console.log(`[Lock Check] Period ${period.name}`, {
+        periodEndDate: periodEndDateStr,
+        periodEndDateTime: periodEndDate.toISOString(),
+        lockDays,
+        lockDate: lockDate.toISOString(),
+        now: now.toISOString(),
+        locked,
+        daysPastLock: locked ? Math.floor((now.getTime() - lockDate.getTime()) / (1000 * 60 * 60 * 24)) : 0
+      })
+      
+      return locked
+    } catch (error) {
+      console.error("[Lock Check] Error calculating lock date:", error, { period, dataset })
+      return false // Default to not locked if there's an error
+    }
+  }, [dataset, period, djangoUser])
+  
+  const isReadOnly = !isViewingOwnOrg || !isReportTypeEditable || isPeriodLocked || org === null
+
+  const canSubmit = !!dataset && !!period && !!org && hasValues && isViewingOwnOrg && isReportTypeEditable && !isPeriodLocked
   const canExport = !!dataset && !!period && !!org && hasValues
 
   /* ---------------- EXPORT FUNCTIONS ---------------- */
@@ -164,12 +245,27 @@ export default function DataEntryPage() {
     ;(async () => {
       try {
         setLoading(true)
-        const [rtRes, treeRes, deRes] = await Promise.all([
-          ApiClient.getAvailableReportTypes(), 
+        const [rtRes, editableRes, treeRes, deRes] = await Promise.all([
+          ApiClient.getAvailableReportTypes(), // All report types (including descendants) for viewing
+          ApiClient.getAvailableReportTypesForEntry(), // Report types user can actually edit
           api.get("/org/tree/"),
           ApiClient.getDataElements()
         ])
-        setDatasets(rtRes.data)
+        const allReportTypes = rtRes.data || []
+        const editableTypes = editableRes.data || []
+        
+        // Ensure lock_period_days is included (default to 60 if missing)
+        const processedDatasets = allReportTypes.map((rt: ReportType) => ({
+          ...rt,
+          lock_period_days: rt.lock_period_days ?? 60 // Default to 60 if not set
+        }))
+        const processedEditable = editableTypes.map((rt: ReportType) => ({
+          ...rt,
+          lock_period_days: rt.lock_period_days ?? 60
+        }))
+        
+        setDatasets(processedDatasets)
+        setEditableReportTypes(processedEditable)
         setOrgTree(treeRes.data || [])
         
         // Load data elements
@@ -195,6 +291,8 @@ export default function DataEntryPage() {
     setValuesByCode({})
     setLayout(null)
     setDataSaved(false)
+    setLastSubmittedBy(null)
+    setLastSubmittedAt(null)
   }, [dataset?.id])
 
   /* ---------------- FETCH PUBLISHED LAYOUT ---------------- */
@@ -301,7 +399,16 @@ export default function DataEntryPage() {
         })
 
         const report = res.data
-        if (!report?.values || !Array.isArray(report.values)) return
+        if (!report?.values || !Array.isArray(report.values)) {
+          // Clear metadata if no report found
+          setLastSubmittedBy(null)
+          setLastSubmittedAt(null)
+          return
+        }
+
+        // Store submission metadata
+        setLastSubmittedBy(report.submitted_by_name || null)
+        setLastSubmittedAt(report.submitted_at || null)
 
         if (layout) {
           const byCode: Record<string, number | string | null> = {}
@@ -325,6 +432,8 @@ export default function DataEntryPage() {
         if (status === 404) {
           setValuesByCode({})
           setValuesById({})
+          setLastSubmittedBy(null)
+          setLastSubmittedAt(null)
           return
         }
         console.error("Error loading report:", err)
@@ -515,6 +624,10 @@ export default function DataEntryPage() {
 
       toast.success("Report submitted successfully!")
       setDataSaved(true)
+      // Update last submitted info
+      const userFullName = djangoUser?.full_name || (djangoUser?.first_name && djangoUser?.last_name ? `${djangoUser.first_name} ${djangoUser.last_name}` : null) || "You"
+      setLastSubmittedBy(userFullName)
+      setLastSubmittedAt(new Date().toISOString())
       // Keep the form values to show they are saved
     } catch (e) {
       console.error("[entry] submit error:", e)
@@ -564,7 +677,7 @@ export default function DataEntryPage() {
           <div className="space-y-4">
             <Card className="bg-white">
               <CardContent className="pt-6">
-                <div className="grid grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-3 gap-4 text-sm mb-4">
                   <div>
                     <span className="text-gray-500">Dataset:</span>
                     <p className="font-medium">{dataset!.name}</p>
@@ -578,8 +691,60 @@ export default function DataEntryPage() {
                     <p className="font-medium">{period!.name}</p>
                   </div>
                 </div>
+                {lastSubmittedBy && (
+                  <div className="pt-4 border-t text-sm">
+                    <span className="text-gray-500">Last submitted by: </span>
+                    <span className="font-medium">{lastSubmittedBy}</span>
+                    {lastSubmittedAt && (
+                      <>
+                        <span className="text-gray-500 ml-2">on </span>
+                        <span className="font-medium">
+                          {new Date(lastSubmittedAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
+
+            {isReadOnly && (
+              <Alert className="bg-amber-50 border-amber-200">
+                <AlertDescription className="text-amber-800">
+                  <strong>View-only mode:</strong>{" "}
+                  {isPeriodLocked ? (
+                    <>
+                      This reporting period <strong>({period!.name})</strong> is locked. 
+                      Data cannot be modified after {dataset!.lock_period_days} days from the period end date. 
+                      Please contact an administrator if you need to make changes.
+                    </>
+                  ) : !isViewingOwnOrg ? (
+                    <>
+                      You are viewing data for <strong>{org!.name}</strong>. 
+                      You can only make entries for your assigned organization unit.
+                      {userOrgUnitId && (
+                        <span className="block mt-1 text-sm">
+                          To make entries, select your organization unit from the dropdown above.
+                        </span>
+                      )}
+                    </>
+                  ) : !isReportTypeEditable ? (
+                    <>
+                      The report type <strong>{dataset!.name}</strong> is not assigned to your organization unit. 
+                      You can only make entries for report types directly assigned to your org unit.
+                    </>
+                  ) : (
+                    "You cannot make entries for this selection."
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
 
             {layout ? (
               <>
@@ -587,20 +752,28 @@ export default function DataEntryPage() {
                   Layout loaded: {layout.sections?.length ?? 0} sections
                 </div>
                 {/* Pass the combined displayValues (computed + base) */}
-                <div id="data-entry-form">
+                <div id="data-entry-form" className={isReadOnly ? "opacity-60" : ""}>
                   <EnhancedLayoutEntryForm 
                     schema={layout} 
                     values={displayValues} 
                     onChange={setCodeValue}
                     dataElements={dataElements}
                     dataSaved={dataSaved}
+                    readOnly={isReadOnly}
                   />
                 </div>
               </>
             ) : (
               <>
                 <div className="text-xs text-gray-500 px-2">Using default form (no layout available)</div>
-                <DataEntryForm reportType={dataset!} values={valuesById} onChange={setIdValue} />
+                <div className={isReadOnly ? "opacity-60" : ""}>
+                  <DataEntryForm 
+                    reportType={dataset!} 
+                    values={valuesById} 
+                    onChange={setIdValue}
+                    readOnly={isReadOnly}
+                  />
+                </div>
               </>
             )}
 

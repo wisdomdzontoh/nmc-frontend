@@ -93,6 +93,7 @@ function EnhancedCellInput({
   }, [numberValue, textValue, isRemark])
 
   const handleChange = (newValue: string) => {
+    if (readOnly) return // Prevent changes when read-only
     setLocalValue(newValue)
     if (isRemark) onChange(code, newValue)
     else {
@@ -107,8 +108,12 @@ function EnhancedCellInput({
         <Textarea
           value={localValue}
           readOnly={readOnly}
+          disabled={readOnly}
           onChange={(e) => handleChange(e.target.value)}
-          className="min-h-[80px] text-sm resize-none bg-white w-full border-2 focus:ring-2 focus:ring-blue-100"
+          className={cn(
+            "min-h-[80px] text-sm resize-none bg-white w-full border-2 focus:ring-2 focus:ring-blue-100",
+            readOnly && "bg-gray-50 cursor-not-allowed opacity-60"
+          )}
           placeholder="Enter remarks…"
         />
       ) : (
@@ -117,11 +122,12 @@ function EnhancedCellInput({
           step="0.01"
           value={localValue}
           readOnly={readOnly}
+          disabled={readOnly}
           onChange={(e) => handleChange(e.target.value)}
           className={cn(
             "text-right h-14 text-lg font-semibold px-4 border-2 focus:ring-2 focus:ring-blue-100 bg-white w-full min-w-[100px]",
             readOnly
-              ? "border-purple-200 text-purple-700 bg-purple-50/30 cursor-not-allowed"
+              ? "border-gray-300 text-gray-600 bg-gray-50 cursor-not-allowed opacity-60"
               : "border-blue-200 focus:border-blue-400 hover:border-blue-300"
           )}
           placeholder="0"
