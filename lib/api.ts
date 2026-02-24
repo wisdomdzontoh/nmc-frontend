@@ -192,7 +192,15 @@ export const ApiClient = {
   getAnalyticsReports: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/analytics/reports/", { params }),
   getAnalyticsUsers: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/analytics/users/", { params }),
   getAnalyticsOrgUnits: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/analytics/org-units/", { params }),
-  
+  getPivotData: (body: {
+    org_units: "all" | number[];
+    data_elements: number[];
+    indicators?: number[];
+    period_type: string;
+    start_date: string;
+    end_date: string;
+  }) => api.post("/analytics/pivot/", body),
+
   // Data Elements endpoints
   getDataElements: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/metadata/data-elements/", { params }),
   getDataElement: (id: number) => api.get(`/metadata/data-elements/${id}/`),

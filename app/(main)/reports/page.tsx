@@ -1,36 +1,24 @@
-/**
- * Reports Viewing Page - DHIS2 Style with Data Table
- * Shows submitted reports and their status
- */
-
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/context/AuthContext"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select"
 import {
-  ColumnDef,
-  ColumnFiltersState,
-  SortingState,
-  VisibilityState,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table"
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Table,
   TableBody,
@@ -39,26 +27,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { 
-  FileText, 
-  Calendar, 
-  Building2, 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  FileText,
+  Calendar,
+  Building2,
   Download,
   Eye,
   Search,
   Loader2,
   CheckCircle,
   Clock,
-  ChevronDown,
-  ArrowUpDown,
 } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import api from "@/lib/api"
+import { Badge } from "@/components/ui/badge"
+import { ApiClient } from "@/lib/api"
+import * as XLSX from "xlsx"
 
 interface Report {
   id: number
@@ -67,9 +56,9 @@ interface Report {
   org_unit: number
   org_unit_name: string
   reporting_period: string
-  submitted_by: number
+  submitted_by: number | null
+  submitted_by_name?: string | null
   submitted_at: string
-  values: ReportValue[]
 }
 
 interface ReportValue {
@@ -77,178 +66,67 @@ interface ReportValue {
   data_element: number
   data_element_name: string
   value: number | null
+  remark?: string | null
 }
+
+type SortField = "report_type_name" | "org_unit_name" | "reporting_period" | "submitted_at"
+type SortDirection = "asc" | "desc"
 
 const ReportsPage: React.FC = () => {
   const { djangoUser } = useAuth()
+
+  const isSuperuser = Boolean((djangoUser as unknown as { is_superuser?: boolean })?.is_superuser)
+  const isStaff = Boolean((djangoUser as unknown as { is_staff?: boolean })?.is_staff)
+
   const [reports, setReports] = useState<Report[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [sorting, setSorting] = useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
-  const [rowSelection, setRowSelection] = useState({})
+  const [totalCount, setTotalCount] = useState(0)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+
+  const [searchText, setSearchText] = useState("")
   const [periodFilter, setPeriodFilter] = useState("all")
 
-  // Define columns for the data table
-  const columns: ColumnDef<Report>[] = [
-    {
-      accessorKey: "report_type_name",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="hover:bg-transparent px-0"
-          >
-            <FileText className="mr-2 h-4 w-4" />
-            Report Type
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
-      cell: ({ row }) => (
-        <div className="flex items-center">
-          <FileText className="mr-2 h-4 w-4 text-blue-600" />
-          <span className="font-medium">{row.getValue("report_type_name")}</span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "org_unit_name",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="hover:bg-transparent px-0"
-          >
-            <Building2 className="mr-2 h-4 w-4" />
-            Organization
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
-      cell: ({ row }) => (
-        <div className="flex items-center">
-          <Building2 className="mr-2 h-4 w-4 text-gray-500" />
-          {row.getValue("org_unit_name")}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "reporting_period",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="hover:bg-transparent px-0"
-          >
-            <Calendar className="mr-2 h-4 w-4" />
-            Period
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
-      cell: ({ row }) => {
-        const period = row.getValue("reporting_period") as string
-        return (
-          <div className="flex items-center">
-            <Calendar className="mr-2 h-4 w-4 text-gray-500" />
-            {new Date(period).toLocaleDateString('en-US', { 
-              year: 'numeric', 
-              month: 'long' 
-            })}
-          </div>
-        )
-      },
-    },
-    {
-      accessorKey: "submitted_at",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="hover:bg-transparent px-0"
-          >
-            <Clock className="mr-2 h-4 w-4" />
-            Submitted
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
-      cell: ({ row }) => {
-        const date = row.getValue("submitted_at") as string
-        return (
-          <div className="flex items-center">
-            <Clock className="mr-2 h-4 w-4 text-gray-500" />
-            {new Date(date).toLocaleDateString()}
-          </div>
-        )
-      },
-    },
-    {
-      id: "values_count",
-      header: "Data Elements",
-      cell: ({ row }) => {
-        const valuesCount = row.original.values.length
-        return (
-          <Badge variant="secondary">
-            {valuesCount} {valuesCount === 1 ? 'value' : 'values'}
-          </Badge>
-        )
-      },
-    },
-    {
-      id: "status",
-      header: "Status",
-      cell: () => (
-        <Badge variant="default" className="bg-green-100 text-green-800">
-          <CheckCircle className="mr-1 h-3 w-3" />
-          Submitted
-        </Badge>
-      ),
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      cell: ({ row }) => {
-        const report = row.original
-        return (
-          <div className="flex items-center space-x-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => handleViewReport(report)}
-            >
-              <Eye className="h-4 w-4 mr-1" />
-              View
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => handleDownloadReport(report)}
-            >
-              <Download className="h-4 w-4 mr-1" />
-              Export
-            </Button>
-          </div>
-        )
-      },
-    },
-  ]
+  const [sortField, setSortField] = useState<SortField>("submitted_at")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
 
-  // Load reports
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const [viewOpen, setViewOpen] = useState(false)
+  const [viewLoading, setViewLoading] = useState(false)
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null)
+  const [selectedValues, setSelectedValues] = useState<ReportValue[]>([])
+
+  const [exporting, setExporting] = useState(false)
+
+  const ordering = useMemo(() => {
+    const prefix = sortDirection === "desc" ? "-" : ""
+    if (sortField === "submitted_at" || sortField === "reporting_period") {
+      return `${prefix}${sortField}`
+    }
+    return "-submitted_at"
+  }, [sortField, sortDirection])
+
   useEffect(() => {
     const loadReports = async () => {
+      setLoading(true)
+      setError(null)
       try {
-        setLoading(true)
-        setError(null)
-        const response = await api.get("/reporting/reports/")
-        setReports(response.data.results || response.data)
-      } catch (err: unknown) {
+        const params: Record<string, string | number> = {
+          page,
+          page_size: pageSize,
+          ordering,
+        }
+        const res = await ApiClient.getReports(params)
+        const data = res.data
+        if (Array.isArray(data)) {
+          setReports(data)
+          setTotalCount(data.length)
+        } else {
+          setReports(data.results || [])
+          setTotalCount(typeof data.count === "number" ? data.count : (data.results || []).length)
+        }
+      } catch (err) {
         console.error("Failed to load reports:", err)
         setError("Failed to load reports. Please try again.")
       } finally {
@@ -257,63 +135,143 @@ const ReportsPage: React.FC = () => {
     }
 
     loadReports()
+  }, [page, pageSize, ordering])
+
+  const filteredReports = useMemo(() => {
+    let data = [...reports]
+    const q = searchText.trim().toLowerCase()
+    if (q) {
+      data = data.filter(
+        (r) =>
+          r.report_type_name.toLowerCase().includes(q) ||
+          r.org_unit_name.toLowerCase().includes(q)
+      )
+    }
+    if (periodFilter !== "all") {
+      data = data.filter((r) => r.reporting_period.startsWith(periodFilter))
+    }
+    if (sortField === "report_type_name" || sortField === "org_unit_name") {
+      data.sort((a, b) => {
+        const av = (a[sortField] || "").toString().toLowerCase()
+        const bv = (b[sortField] || "").toString().toLowerCase()
+        if (av < bv) return sortDirection === "asc" ? -1 : 1
+        if (av > bv) return sortDirection === "asc" ? 1 : -1
+        return 0
+      })
+    }
+    return data
+  }, [reports, searchText, periodFilter, sortField, sortDirection])
+
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize))
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"))
+    } else {
+      setSortField(field)
+      setSortDirection("asc")
+    }
+    setPage(1)
+  }
+
+  const periodOptions = useMemo(() => {
+    const periods: { value: string; label: string }[] = []
+    const now = new Date()
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const value = d.toISOString().slice(0, 7)
+      const label = d.toLocaleDateString("en-US", { year: "numeric", month: "long" })
+      periods.push({ value, label })
+    }
+    return periods
   }, [])
 
-  // Filter reports by period
-  const filteredReports = reports.filter(report => {
-    const matchesPeriod = periodFilter === "all" || 
-      report.reporting_period.startsWith(periodFilter)
-    return matchesPeriod
-  })
-
-  // Initialize table
-  const table = useReactTable({
-    data: filteredReports,
-    columns,
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
-    state: {
-      sorting,
-      columnFilters,
-      columnVisibility,
-      rowSelection,
-    },
-  })
-
-  // Generate period options (last 12 months)
-  const generatePeriodOptions = () => {
-    const periods = []
-    const now = new Date()
-    
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const period = date.toISOString().slice(0, 7) // YYYY-MM format
-      const label = date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long' 
-      })
-      periods.push({ value: period, label })
+  const handleView = async (report: Report) => {
+    setSelectedReport(report)
+    setSelectedValues([])
+    setViewOpen(true)
+    try {
+      setViewLoading(true)
+      const res = await ApiClient.getReport(report.id)
+      const full = res.data as Report & { values?: ReportValue[] }
+      setSelectedValues(full.values || [])
+    } catch (err) {
+      console.error("Failed to load report details:", err)
+    } finally {
+      setViewLoading(false)
     }
-    
-    return periods
   }
 
-  // Handle view report
-  const handleViewReport = (report: Report) => {
-    console.log("Viewing report:", report)
-    // Implement view logic here
+  const downloadReportAsXlsx = (
+    report: Report,
+    values: ReportValue[],
+    submittedAt?: string | null
+  ) => {
+    const rows: (string | number)[][] = [
+      ["Report Type", report.report_type_name],
+      ["Organisation Unit", report.org_unit_name],
+      ["Reporting Period", report.reporting_period],
+      ["Submitted At", submittedAt ? new Date(submittedAt).toLocaleString() : ""],
+      [],
+      ["Data element", "Value", "Remark"],
+    ]
+    values.forEach((v) => {
+      rows.push([
+        v.data_element_name,
+        v.value ?? "",
+        (v.remark || "").trim(),
+      ])
+    })
+    const ws = XLSX.utils.aoa_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Report")
+    const period = new Date(report.reporting_period).toISOString().slice(0, 10)
+    const safe = (s: string) => s.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 50)
+    const filename = `${safe(report.report_type_name)}_${safe(report.org_unit_name)}_${period}.xlsx`
+    XLSX.writeFile(wb, filename)
   }
 
-  // Handle download report
-  const handleDownloadReport = (report: Report) => {
-    console.log("Downloading report:", report)
-    // Implement download logic here
+  const handleExport = async (report: Report) => {
+    setExporting(true)
+    try {
+      const res = await ApiClient.exportReport(report.id, "xlsx")
+      const blob = new Blob([res.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      const period = new Date(report.reporting_period).toISOString().slice(0, 10)
+      a.download = `${report.report_type_name.replace(/[^a-zA-Z0-9]/g, "_")}_${report.org_unit_name.replace(/[^a-zA-Z0-9]/g, "_")}_${period}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      try {
+        const fullRes = await ApiClient.getReport(report.id)
+        const full = fullRes.data as Report & { values?: ReportValue[]; submitted_at?: string }
+        const values = full.values || []
+        downloadReportAsXlsx(report, values, full.submitted_at)
+      } catch (fallbackErr) {
+        console.error("Export and fallback failed:", err, fallbackErr)
+      }
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  if (!isSuperuser && !isStaff) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto text-center">
+        <h1 className="text-2xl font-bold mb-2">Submitted Reports</h1>
+        <Alert>
+          <AlertDescription>
+            Reports are only available to staff and administrators. Contact your administrator if you need access.
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
   }
 
   if (loading) {
@@ -321,20 +279,21 @@ const ReportsPage: React.FC = () => {
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading reports...</p>
+          <p className="text-muted-foreground">Loading reports…</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Submitted Reports</h1>
-          <p className="text-muted-foreground">
-            View and manage your submitted reports
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+            Submitted Reports
+          </h1>
+          <p className="text-sm text-slate-600 mt-1">
+            Efficiently browse, inspect and export submitted reports.
           </p>
         </div>
         <div className="flex items-center space-x-2 text-sm text-muted-foreground">
@@ -343,208 +302,236 @@ const ReportsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Error Alert */}
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      {/* Search and Filters */}
-      <Card>
+      <Card className="shadow-sm border-slate-200">
         <CardHeader>
-          <CardTitle>Search and Filter Reports</CardTitle>
+          <CardTitle>Search and filter</CardTitle>
           <CardDescription>
-            Find reports by name, organization, or period
+            Use search, period and sorting options to quickly find the report you need.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Filter by report type or organization..."
-                value={(table.getColumn("report_type_name")?.getFilterValue() as string) ?? ""}
-                onChange={(event) =>
-                  table.getColumn("report_type_name")?.setFilterValue(event.target.value)
-                }
-                className="pl-10 max-w-sm"
-              />
-            </div>
-            <Select value={periodFilter} onValueChange={setPeriodFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filter by period" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Periods</SelectItem>
-                {generatePeriodOptions().map((period) => (
-                  <SelectItem key={period.value} value={period.value}>
-                    {period.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  Columns <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {table
-                  .getAllColumns()
-                  .filter((column) => column.getCanHide())
-                  .map((column) => {
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={column.id}
-                        className="capitalize"
-                        checked={column.getIsVisible()}
-                        onCheckedChange={(value) =>
-                          column.toggleVisibility(!!value)
-                        }
-                      >
-                        {column.id.replace(/_/g, ' ')}
-                      </DropdownMenuCheckboxItem>
-                    )
-                  })}
-              </DropdownMenuContent>
-            </DropdownMenu>
+        <CardContent className="flex flex-wrap items-center gap-4">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder="Search by report type or organisation…"
+              value={searchText}
+              onChange={(e) => {
+                setSearchText(e.target.value)
+                setPage(1)
+              }}
+              className="pl-9 bg-white"
+            />
           </div>
+          <Select
+            value={periodFilter}
+            onValueChange={(v) => {
+              setPeriodFilter(v)
+              setPage(1)
+            }}
+          >
+            <SelectTrigger className="w-[220px] bg-white">
+              <SelectValue placeholder="Filter by period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All periods</SelectItem>
+              {periodOptions.map((p) => (
+                <SelectItem key={p.value} value={p.value}>
+                  {p.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
 
-      {/* Data Table */}
-      <Card>
+      <Card className="shadow-sm border-slate-200">
         <CardContent className="p-0">
-          <div className="rounded-md border">
+          <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
             <Table>
               <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      return (
-                        <TableHead key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
-                      )
-                    })}
-                  </TableRow>
-                ))}
+                <TableRow>
+                  <TableHead className="min-w-[220px]">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1"
+                      onClick={() => toggleSort("report_type_name")}
+                    >
+                      <FileText className="h-4 w-4 text-slate-500" />
+                      <span>Report type</span>
+                    </button>
+                  </TableHead>
+                  <TableHead className="min-w-[200px]">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1"
+                      onClick={() => toggleSort("org_unit_name")}
+                    >
+                      <Building2 className="h-4 w-4 text-slate-500" />
+                      <span>Organisation</span>
+                    </button>
+                  </TableHead>
+                  <TableHead className="min-w-[150px]">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1"
+                      onClick={() => toggleSort("reporting_period")}
+                    >
+                      <Calendar className="h-4 w-4 text-slate-500" />
+                      <span>Period</span>
+                    </button>
+                  </TableHead>
+                  <TableHead className="min-w-[140px]">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1"
+                      onClick={() => toggleSort("submitted_at")}
+                    >
+                      <Clock className="h-4 w-4 text-slate-500" />
+                      <span>Submitted</span>
+                    </button>
+                  </TableHead>
+                  <TableHead className="min-w-[110px]">Status</TableHead>
+                  <TableHead className="min-w-[140px] text-right">
+                    Actions
+                  </TableHead>
+                </TableRow>
               </TableHeader>
               <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                      className="hover:bg-muted/50"
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
+                {filteredReports.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
+                      colSpan={6}
+                      className="h-28 text-center text-sm text-slate-500"
                     >
-                      <div className="flex flex-col items-center justify-center py-8">
-                        <FileText className="h-12 w-12 text-gray-400 mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">
-                          No reports found
-                        </h3>
-                        <p className="text-gray-500">
-                          {periodFilter !== "all" || table.getColumn("report_type_name")?.getFilterValue()
-                            ? "Try adjusting your search or filter criteria." 
-                            : "No reports have been submitted yet."}
-                        </p>
-                      </div>
+                      No reports found. Try adjusting your search or filter.
                     </TableCell>
                   </TableRow>
+                ) : (
+                  filteredReports.map((r) => (
+                    <TableRow key={r.id} className="hover:bg-slate-50/60">
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-medium text-slate-900">
+                            {r.report_type_name}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{r.org_unit_name}</TableCell>
+                      <TableCell>
+                        {new Date(r.reporting_period).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "long",
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(r.submitted_at).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "2-digit",
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className="bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center gap-1"
+                        >
+                          <CheckCircle className="h-3.5 w-3.5" />
+                          Submitted
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleView(r)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleExport(r)}
+                          disabled={exporting}
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Export
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 )}
               </TableBody>
             </Table>
           </div>
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between px-6 py-4">
-            <div className="flex-1 text-sm text-muted-foreground">
-              {table.getFilteredSelectedRowModel().rows.length} of{" "}
-              {table.getFilteredRowModel().rows.length} row(s) selected.
+          <div className="flex items-center justify-between px-6 py-4 border-t bg-slate-50/60">
+            <div className="text-sm text-muted-foreground">
+              Showing {(page - 1) * pageSize + 1}–
+              {Math.min(page * pageSize, totalCount)} of {totalCount} report(s)
             </div>
-            <div className="flex items-center space-x-6 lg:space-x-8">
-              <div className="flex items-center space-x-2">
-                <p className="text-sm font-medium">Rows per page</p>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm">Rows per page</span>
                 <Select
-                  value={`${table.getState().pagination.pageSize}`}
-                  onValueChange={(value) => {
-                    table.setPageSize(Number(value))
+                  value={String(pageSize)}
+                  onValueChange={(v) => {
+                    setPage(1)
+                    setPageSize(Number(v))
                   }}
                 >
-                  <SelectTrigger className="h-8 w-[70px]">
-                    <SelectValue placeholder={table.getState().pagination.pageSize} />
+                  <SelectTrigger className="h-8 w-[80px]">
+                    <SelectValue />
                   </SelectTrigger>
-                  <SelectContent side="top">
-                    {[10, 20, 30, 40, 50].map((pageSize) => (
-                      <SelectItem key={pageSize} value={`${pageSize}`}>
-                        {pageSize}
+                  <SelectContent>
+                    {[10, 20, 30, 40, 50].map((size) => (
+                      <SelectItem key={size} value={String(size)}>
+                        {size}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                Page {table.getState().pagination.pageIndex + 1} of{" "}
-                {table.getPageCount()}
-              </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2 text-sm font-medium">
                 <Button
                   variant="outline"
                   className="h-8 w-8 p-0"
-                  onClick={() => table.setPageIndex(0)}
-                  disabled={!table.getCanPreviousPage()}
+                  onClick={() => setPage(1)}
+                  disabled={page === 1}
                 >
-                  <span className="sr-only">Go to first page</span>
                   {"<<"}
                 </Button>
                 <Button
                   variant="outline"
                   className="h-8 w-8 p-0"
-                  onClick={() => table.previousPage()}
-                  disabled={!table.getCanPreviousPage()}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
                 >
-                  <span className="sr-only">Go to previous page</span>
                   {"<"}
                 </Button>
+                <span>
+                  Page {page} of {pageCount}
+                </span>
                 <Button
                   variant="outline"
                   className="h-8 w-8 p-0"
-                  onClick={() => table.nextPage()}
-                  disabled={!table.getCanNextPage()}
+                  onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                  disabled={page >= pageCount}
                 >
-                  <span className="sr-only">Go to next page</span>
                   {">"}
                 </Button>
                 <Button
                   variant="outline"
                   className="h-8 w-8 p-0"
-                  onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                  disabled={!table.getCanNextPage()}
+                  onClick={() => setPage(pageCount)}
+                  disabled={page >= pageCount}
                 >
-                  <span className="sr-only">Go to last page</span>
                   {">>"}
                 </Button>
               </div>
@@ -552,8 +539,88 @@ const ReportsPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Report details</DialogTitle>
+            <DialogDescription>
+              {selectedReport
+                ? `${selectedReport.report_type_name} • ${selectedReport.org_unit_name}`
+                : "No report selected."}
+            </DialogDescription>
+          </DialogHeader>
+          {viewLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              <span className="text-sm text-slate-600">Loading values…</span>
+            </div>
+          ) : !selectedReport ? (
+            <p className="text-sm text-slate-600">No report selected.</p>
+          ) : (
+            <div className="flex flex-col gap-4 mt-2 min-h-0 overflow-hidden">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-lg bg-slate-50 border border-slate-200 shrink-0">
+                <div className="space-y-0.5">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Report type</p>
+                  <p className="text-sm font-medium text-slate-900">{selectedReport.report_type_name}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Organisation unit</p>
+                  <p className="text-sm font-medium text-slate-900">{selectedReport.org_unit_name}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Period</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    {new Date(selectedReport.reporting_period).toLocaleDateString("en-US", { year: "numeric", month: "long" })}
+                  </p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Submitted</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    {selectedReport.submitted_at
+                      ? new Date(selectedReport.submitted_at).toLocaleString("en-US", {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        })
+                      : "—"}
+                  </p>
+                </div>
+              </div>
+              {selectedValues.length === 0 ? (
+                <p className="text-sm text-slate-600 py-4">
+                  This report does not have any recorded values.
+                </p>
+              ) : (
+                <div className="border border-slate-200 rounded-lg overflow-auto max-h-[min(420px,50vh)] shrink-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50">
+                        <TableHead className="border-r border-slate-200 font-semibold w-[40%]">Data element</TableHead>
+                        <TableHead className="border-r border-slate-200 font-semibold w-[15%] text-right">Value</TableHead>
+                        <TableHead className="font-semibold">Remark</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedValues.map((v) => (
+                        <TableRow key={v.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                          <TableCell className="border-r border-slate-200 align-top">{v.data_element_name}</TableCell>
+                          <TableCell className="border-r border-slate-200 text-right align-top">
+                            {v.value ?? ""}
+                          </TableCell>
+                          <TableCell className="align-top text-slate-700">{v.remark || ""}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
 export default ReportsPage
+

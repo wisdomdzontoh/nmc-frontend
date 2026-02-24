@@ -46,6 +46,8 @@ type AppItem = {
   group?: "Top apps" | "All apps";
   description?: string;
   badge?: string;
+  /** Only show to staff/superuser */
+  staffOnly?: boolean;
 };
 
 const APPS: AppItem[] = [
@@ -70,6 +72,7 @@ const APPS: AppItem[] = [
     icon: FileText, 
     group: "Top apps",
     description: "Create report templates",
+    staffOnly: true,
   },
   { 
     label: "Reports", 
@@ -77,6 +80,7 @@ const APPS: AppItem[] = [
     icon: FileText, 
     group: "Top apps",
     description: "View submitted reports",
+    staffOnly: true,
   },
   { 
     label: "Analytics", 
@@ -84,6 +88,15 @@ const APPS: AppItem[] = [
     icon: BarChart3, 
     group: "Top apps",
     description: "Data visualization and insights",
+    staffOnly: true,
+  },
+  { 
+    label: "Visualizations", 
+    href: "/visualizations", 
+    icon: BarChart3, 
+    group: "Top apps",
+    description: "Pivot tables and data explorer",
+    staffOnly: true,
   },
   { 
     label: "Indicators", 
@@ -91,6 +104,7 @@ const APPS: AppItem[] = [
     icon: TrendingUp, 
     group: "All apps",
     description: "Manage calculation indicators",
+    staffOnly: true,
   },
   { 
     label: "Organizations", 
@@ -98,6 +112,7 @@ const APPS: AppItem[] = [
     icon: Database, 
     group: "All apps",
     description: "Manage organization units",
+    staffOnly: true,
   },
   { 
     label: "Users", 
@@ -105,6 +120,7 @@ const APPS: AppItem[] = [
     icon: Users, 
     group: "All apps",
     description: "User management",
+    staffOnly: true,
   },
   { 
     label: "Settings", 
@@ -124,14 +140,21 @@ export default function Header() {
   const [notificationCount] = useState(3);
   const [mailCount] = useState(5);
 
+  const isStaff = Boolean(djangoUser?.is_staff ?? (djangoUser as unknown as { is_staff?: boolean })?.is_staff);
+  const isSuperuser = Boolean(djangoUser?.is_superuser ?? (djangoUser as unknown as { is_superuser?: boolean })?.is_superuser);
+  const visibleApps = useMemo(
+    () => APPS.filter((app) => !app.staffOnly || isStaff || isSuperuser),
+    [isStaff, isSuperuser]
+  );
+
   const filteredApps = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return APPS;
-    return APPS.filter((app) => 
+    if (!query) return visibleApps;
+    return visibleApps.filter((app) => 
       app.label.toLowerCase().includes(query) || 
       app.description?.toLowerCase().includes(query)
     );
-  }, [searchQuery]);
+  }, [searchQuery, visibleApps]);
 
   const topApps = filteredApps.filter((app) => app.group === "Top apps").slice(0, 6);
 
@@ -163,11 +186,11 @@ export default function Header() {
             </div>
           </Link>
           <div className="min-w-0 flex-1">
-            <h1 className="text-sm sm:text-base font-semibold tracking-tight truncate">
-              Nursing and Midwifery Council
+            <h1 className="text-xl sm:text-lg font-semibold tracking-tight truncate">
+              Nursing and Midwifery Council - Ghana
             </h1>
             <p className="text-xs text-blue-200 hidden lg:block">
-              Health Information Management System
+              Data Entry and Management System
             </p>
           </div>
         </div>
