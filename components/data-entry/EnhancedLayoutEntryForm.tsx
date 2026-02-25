@@ -232,33 +232,45 @@ function EnhancedTableArray({
         <table className="w-full min-w-max border-collapse">
           {section.header && (
             <thead>
-              {section.header.rows.map((headerRow, hri) => (
-                <tr key={`header-${hri}`}>
-                  {headerRow.map((cell, hci) => {
-                    const isFirstColumn = hci === 0
-                    return (
-                      <th
-                        key={`h-${hri}-${hci}`}
-                        className={cn(
-                          "px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b whitespace-nowrap bg-gray-50",
-                          "sticky top-0",
-                          isFirstColumn && "sticky left-0 z-30 shadow-[2px_0_4px_rgba(0,0,0,0.1)]"
-                        )}
-                        colSpan={cell.colSpan || 1}
-                        style={{
-                          minWidth: '120px',
-                          width: section.columnWidths?.[hci] ? `${Math.max(section.columnWidths[hci], 120)}px` : 'auto',
-                          position: 'sticky',
-                          top: 0,
-                          ...(isFirstColumn ? { left: 0, zIndex: 30 } : { zIndex: 20 })
-                        }}
-                      >
-                        {cell.label}
-                      </th>
-                    )
-                  })}
-                </tr>
-              ))}
+              {section.header.rows.map((headerRow, hri) => {
+                const isLastHeaderRow = hri === section.header!.rows.length - 1
+                const span = (c: { colSpan?: number }) => c.colSpan ?? 1
+                let colIndex = 0
+                return (
+                  <tr key={`header-${hri}`}>
+                    {headerRow.map((cell, hci) => {
+                      const isFirstColumn = hci === 0
+                      const cellSpan = span(cell)
+                      const isSpanned = cellSpan > 1
+                      const widthStyle = isSpanned
+                        ? { width: 'auto' as const, minWidth: `${cellSpan * 80}px` }
+                        : (section.columnWidths && isLastHeaderRow && colIndex < section.columnWidths.length)
+                          ? { minWidth: '80px', width: `${Math.max(section.columnWidths[colIndex] ?? 120, 80)}px` }
+                          : { minWidth: isFirstColumn ? '200px' : '80px', width: 'auto' as const }
+                      colIndex += cellSpan
+                      return (
+                        <th
+                          key={`h-${hri}-${hci}`}
+                          className={cn(
+                            "px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b whitespace-nowrap bg-gray-50",
+                            "sticky top-0",
+                            isFirstColumn && "sticky left-0 z-30 shadow-[2px_0_4px_rgba(0,0,0,0.1)]"
+                          )}
+                          colSpan={cellSpan}
+                          style={{
+                            ...widthStyle,
+                            position: 'sticky',
+                            top: 0,
+                            ...(isFirstColumn ? { left: 0, zIndex: 30 } : { zIndex: 20 })
+                          }}
+                        >
+                          {cell.label}
+                        </th>
+                      )
+                    })}
+                  </tr>
+                )
+              })}
             </thead>
           )}
 
