@@ -1,5 +1,6 @@
 // app/design-reports/page.tsx
 "use client"
+import { useState } from "react"
 import Link from "next/link"
 import useSWR from "swr"
 import { useAuth } from "@/context/AuthContext"
@@ -7,11 +8,13 @@ import type { DjangoUser } from "@/context/AuthContext"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2 } from "lucide-react"
+import { ImportFromExcelModal } from "@/components/report-designer/ImportFromExcelModal"
+import { Loader2, FileSpreadsheet } from "lucide-react"
 
 export default function DesignReportsList() {
   const { djangoUser } = useAuth() as { djangoUser: DjangoUser | null }
-  const { data, error, isLoading } = useSWR("/reporting/report-layouts/", (url) => api.get(url).then((r) => r.data))
+  const [importModalOpen, setImportModalOpen] = useState(false)
+  const { data, error, isLoading, mutate } = useSWR("/reporting/report-layouts/", (url) => api.get(url).then((r) => r.data))
 
   // Check if user is staff or superuser
   const isSuperuser = Boolean((djangoUser as unknown as { is_superuser?: boolean })?.is_superuser)
@@ -58,10 +61,21 @@ export default function DesignReportsList() {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Report layouts</h2>
-        <Link href="/design-reports/new">
-          <Button>Create layout</Button>
-        </Link>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setImportModalOpen(true)}>
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Import from Excel
+          </Button>
+          <Link href="/design-reports/new">
+            <Button>Create layout</Button>
+          </Link>
+        </div>
       </div>
+      <ImportFromExcelModal
+        open={importModalOpen}
+        onOpenChange={setImportModalOpen}
+        onSuccess={() => mutate()}
+      />
       <div className="border rounded divide-y">
         {(data || []).map((l: { id: number; name: string; code: string; status?: string; version?: number }) => (
           <Link
