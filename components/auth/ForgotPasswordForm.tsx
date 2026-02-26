@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState } from "react"
-import { supabase } from "@/lib/supabaseClient"
 import Link from "next/link"
 import Image from "next/image"
 import { Input } from "@/components/ui/input"
@@ -19,21 +18,11 @@ export default function ForgotPasswordForm() {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    setMessage(null)
+    setMessage(
+      "Password reset is managed by the system administrator. Please contact your administrator to reset your password."
+    )
     setError(null)
-    setLoading(true)
-
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
-    })
-
     setLoading(false)
-
-    if (resetError) {
-      setError(resetError.message)
-    } else {
-      setMessage("Password reset link sent to your email.")
-    }
   }
 
   return (

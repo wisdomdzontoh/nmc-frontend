@@ -1,44 +1,17 @@
 // app/api/users/invite/route.ts
+// Supabase-based invitation is no longer used.
+// This route now returns a friendly message indicating that
+// user accounts should be created via the Django admin.
+
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY as string
-// NEVER expose SERVICE_ROLE_KEY to the browser.
-
-export async function POST(req: Request) {
-  try {
-    const { email, redirectTo } = await req.json()
-
-    if (!email) {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 })
-    }
-    if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-      return NextResponse.json({ error: "Supabase env not configured" }, { status: 500 })
-    }
-
-    const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    })
-
-    const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo, // optional: e.g. `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
-    })
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
-    }
-
-    // Set password_set flag to false for invited user
-    if (data?.user?.id) {
-      await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
-        user_metadata: { password_set: false },
-      })
-    }
-
-    return NextResponse.json({ ok: true, data })
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "Unknown error"
-    return NextResponse.json({ error: message }, { status: 500 })
-  }
+export async function POST() {
+  return NextResponse.json(
+    {
+      ok: false,
+      error:
+        "User invitations are now managed by the system administrator. Please create users via the Django admin interface.",
+    },
+    { status: 501 }
+  )
 }

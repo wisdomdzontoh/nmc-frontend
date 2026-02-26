@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState } from "react"
-import { supabase } from "@/lib/supabaseClient"
 import Link from "next/link"
 import Image from "next/image"
 import { Input } from "@/components/ui/input"
@@ -20,33 +19,11 @@ export default function ResetPasswordForm() {
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    setMessage(null)
-    setError(null)
-
-    if (password !== confirmPassword) {
-      setError("Passwords do not match")
-      return
-    }
-
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters")
-      return
-    }
-
-    setLoading(true)
-
-    const { error: updateError } = await supabase.auth.updateUser({ password })
-
     setLoading(false)
-
-    if (updateError) {
-      setError(updateError.message)
-    } else {
-      setMessage("Password updated successfully. Redirecting to login...")
-      setTimeout(() => {
-        window.location.href = "/auth/login"
-      }, 2000)
-    }
+    setMessage(
+      "Password reset is now handled by the system administrator. Please contact your administrator to update your password."
+    )
+    setError(null)
   }
 
   return (

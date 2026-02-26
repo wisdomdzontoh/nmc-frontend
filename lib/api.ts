@@ -1,16 +1,9 @@
 /**
- * Modern API Client for NMC Project
- * Clean, secure, and maintainable API communication
+ * API client for NMC Project
+ * Django backend + JWT authentication (no Supabase).
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig, AxiosHeaders } from "axios"
-import { createClient } from "@supabase/supabase-js"
-
-// Supabase client for token management
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 // API configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://nmc-backend-mr7q.onrender.com/api"
@@ -59,49 +52,45 @@ const TokenManager = {
   },
 }
 
-// Request interceptor
+// Request interceptor: attach JWT and refresh when expired
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     const token = TokenManager.getAccessToken()
-    
+
     if (token) {
-      // Check if token is expired
       if (TokenManager.isTokenExpired(token)) {
-        console.log("[API] Token expired, attempting refresh...")
-        
+        console.log("[API] Access token expired, attempting refresh...")
         const refreshToken = TokenManager.getRefreshToken()
         if (refreshToken) {
           try {
-            const { data, error } = await supabase.auth.refreshSession({
-              refresh_token: refreshToken,
-            })
-            
-    if (error) {
-              console.error("[API] Token refresh failed:", error)
-              TokenManager.clearTokens()
-              return config
-            }
-            
-            if (data.session) {
-              TokenManager.setTokens(data.session.access_token, data.session.refresh_token)
+            const refreshResponse = await axios.post(
+              `${API_BASE_URL}/users/auth/refresh/`,
+              { refresh: refreshToken },
+              { headers: { "Content-Type": "application/json" } }
+            )
+            const newAccess = refreshResponse.data?.access as string
+            if (newAccess) {
+              TokenManager.setTokens(newAccess, refreshToken)
               const headers = new AxiosHeaders(config.headers)
-              headers.set("Authorization", `Bearer ${data.session.access_token}`)
+              headers.set("Authorization", `Bearer ${newAccess}`)
               config.headers = headers
-              console.log("[API] Token refreshed successfully")
+            } else {
+              TokenManager.clearTokens()
             }
-          } catch (error) {
-            console.error("[API] Token refresh error:", error)
+          } catch (err) {
+            console.error("[API] Token refresh error:", err)
             TokenManager.clearTokens()
           }
+        } else {
+          TokenManager.clearTokens()
         }
       } else {
-        // Token is valid, add to request
         const headers = new AxiosHeaders(config.headers)
         headers.set("Authorization", `Bearer ${token}`)
         config.headers = headers
       }
     }
-    
+
     console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`)
     return config
   },
@@ -129,7 +118,6 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       console.log("[API] Unauthorized, clearing tokens")
       TokenManager.clearTokens()
-      // Optionally redirect to login
       if (typeof window !== "undefined") {
         window.location.href = "/auth/login"
       }

@@ -319,6 +319,8 @@ const UsersPage: React.FC = () => {
     org_unit: number | null
     org_unit_name?: string | null
     is_staff: boolean
+    password: string
+    confirmPassword: string
   }>({
     email: "",
     username: "",
@@ -327,6 +329,8 @@ const UsersPage: React.FC = () => {
     org_unit: null,
     org_unit_name: null,
     is_staff: false,
+    password: "",
+    confirmPassword: "",
   })
 
   // org-unit modal
@@ -411,34 +415,35 @@ async function handleCreate() {
     return
   }
 
+  if (!createData.password || createData.password.length < 8) {
+    setError("Password must be at least 8 characters long")
+    return
+  }
+
+  if (createData.password !== createData.confirmPassword) {
+    setError("Passwords do not match")
+    return
+  }
+
   try {
     setIsSubmitting(true)
     setError(null)
 
-    // 1) Create user in Django
-    await ApiClient.createUser(createData)
+    // 1) Create user in Django (with password)
+    await ApiClient.createUser({
+      email: createData.email,
+      username: createData.username,
+      first_name: createData.first_name,
+      last_name: createData.last_name,
+      org_unit: createData.org_unit,
+      is_staff: createData.is_staff,
+      password: createData.password,
+    })
 
     // 2) Refresh list so the new user shows up with server-computed fields
     await refetchUsers()
 
-    // 3) Fire the Supabase invite via server route (service role) — non-blocking for UX
-    try {
-      await fetch("/api/users/invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: createData.email,
-          // redirectTo is optional; add if you have a callback route:
-          // redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-        }),
-      })
-      // You can check response.ok and show a toast if desired.
-    } catch (inviteErr) {
-      // Don't fail the whole flow if email sending has an issue.
-      console.error("Invite failed:", inviteErr)
-    }
-
-    // 4) Reset form & close dialog
+    // 3) Reset form & close dialog
     setIsCreateDialogOpen(false)
     setCreateData({
       email: "",
@@ -448,6 +453,8 @@ async function handleCreate() {
       org_unit: null,
       org_unit_name: null,
       is_staff: false,
+      password: "",
+      confirmPassword: "",
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : ""
@@ -551,6 +558,30 @@ async function handleCreate() {
                   value={createData.last_name}
                   onChange={(e) => setCreateData((p) => ({ ...p, last_name: e.target.value }))}
                   placeholder="Enter last name"
+                />
+              </div>
+            </div>
+
+            {/* Password fields */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Password *</label>
+                <Input
+                  type="password"
+                  value={createData.password}
+                  onChange={(e) => setCreateData((p) => ({ ...p, password: e.target.value }))}
+                  placeholder="Set an initial password"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Confirm Password *</label>
+                <Input
+                  type="password"
+                  value={createData.confirmPassword}
+                  onChange={(e) =>
+                    setCreateData((p) => ({ ...p, confirmPassword: e.target.value }))
+                  }
+                  placeholder="Re-enter password"
                 />
               </div>
             </div>
