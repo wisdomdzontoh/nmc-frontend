@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
-  Building2,
+  Folder,
   ChevronRight,
   ChevronDown,
   Search,
@@ -22,6 +22,7 @@ import {
   AlertCircle,
   CheckCircle2,
 } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import api from "@/lib/api"
 
@@ -178,67 +179,63 @@ const OrgUnitSelectionModal: React.FC<OrgUnitSelectionModalProps> = ({
       return (
         <div key={node.id}>
           <div
-            className={`flex items-center py-2 px-2 rounded-md transition-colors ${
-              isChecked ? "bg-blue-50 border border-blue-200" : "hover:bg-gray-50"
-            } ${!isActive ? "opacity-70 pointer-events-none" : ""}`}
+            className={cn(
+              "flex items-center gap-2 py-2 px-2 rounded-md transition-colors",
+              isChecked ? "bg-primary/5" : "hover:bg-muted/50",
+              !isActive && "opacity-70 pointer-events-none"
+            )}
             style={{ paddingLeft: `${level * 20 + 8}px` }}
           >
             {hasChildren ? (
               <button
                 type="button"
                 onClick={() => toggleExpand(node.id)}
-                className="mr-2 p-1 hover:bg-gray-200 rounded transition-colors"
+                className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
                 aria-label={isOpen ? "Collapse" : "Expand"}
               >
                 {isOpen ? (
-                  <ChevronDown className="h-4 w-4 text-gray-600" />
+                  <ChevronDown className="h-4 w-4" />
                 ) : (
-                  <ChevronRight className="h-4 w-4 text-gray-600" />
+                  <ChevronRight className="h-4 w-4" />
                 )}
               </button>
             ) : (
-              <div className="w-6 mr-2" />
+              <div className="w-5 shrink-0" />
             )}
 
             <Checkbox
               checked={isChecked}
               onCheckedChange={() => isActive && selectOnly(node.id)}
-              className="mr-3 rounded-full"
+              className="h-4 w-4 rounded border-2 border-muted-foreground/40 data-[state=checked]:border-primary data-[state=checked]:bg-primary"
               aria-checked={isChecked}
               role="radio"
               aria-label={`Select ${node.name}`}
             />
 
-            <Building2
-              className={`h-4 w-4 mr-2 ${isChecked ? "text-blue-600" : "text-gray-500"}`}
-            />
-            <span
-              className={`text-sm flex-1 ${
-                isChecked ? "font-medium text-blue-900" : "text-gray-900"
-              }`}
-            >
+            <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className={cn("text-sm flex-1 truncate", isChecked ? "font-medium" : "")}>
               {node.name}
             </span>
 
             {isUserUnit && (
-              <Badge variant="secondary" className="ml-2 text-xs">
+              <Badge variant="secondary" className="ml-2 text-xs shrink-0">
                 Your Unit
               </Badge>
             )}
             {!isActive && (
-              <Badge variant="outline" className="ml-2 text-xs text-gray-500">
+              <Badge variant="outline" className="ml-2 text-xs text-muted-foreground shrink-0">
                 Inactive
               </Badge>
             )}
             {hasChildren && (
-              <Badge variant="outline" className="ml-2 text-xs">
+              <Badge variant="outline" className="ml-2 text-xs shrink-0">
                 {children.length}
               </Badge>
             )}
           </div>
 
           {isOpen && hasChildren && (
-            <div className="mt-1">{renderTree(children, level + 1)}</div>
+            <div className="mt-0.5">{renderTree(children, level + 1)}</div>
           )}
         </div>
       )
@@ -274,85 +271,53 @@ const OrgUnitSelectionModal: React.FC<OrgUnitSelectionModalProps> = ({
           rounded-none sm:rounded-lg
         "
       >
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-white border-b flex-shrink-0">
-          <DialogHeader className="p-5">
-            <DialogTitle className="flex items-center text-xl">
-              <Building2 className="mr-2 h-5 w-5 text-blue-600" />
-              Select Organisation Unit
-            </DialogTitle>
-            <DialogDescription className="text-base mt-1">
-              Choose exactly one organisation unit for this report
-            </DialogDescription>
+        {/* Header - title left, close right like reference */}
+        <div className="sticky top-0 z-10 bg-background border-b flex-shrink-0">
+          <DialogHeader className="flex flex-row items-center justify-between space-y-0 p-5">
+            <div>
+              <DialogTitle className="text-lg font-semibold">Organisation unit</DialogTitle>
+              <DialogDescription className="text-sm mt-0.5 text-muted-foreground">
+                Choose exactly one organisation unit for this report
+              </DialogDescription>
+            </div>
           </DialogHeader>
         </div>
 
         {/* Scrollable body */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar */}
-          <aside className="sm:w-80 flex-shrink-0 border-r bg-gradient-to-b from-gray-50 to-white p-5 overflow-y-auto">
-            <div className="space-y-6">
-              {/* Quick Selection */}
-              <div>
-                <div className="text-xs font-semibold text-gray-600 uppercase mb-3">
-                  Quick Selection
-                </div>
-                <label className="flex items-start space-x-3 p-3 rounded-lg border hover:border-blue-300 hover:bg-blue-50 cursor-pointer">
-                  <Checkbox
-                    checked={pickMyUnit}
-                    onCheckedChange={(c) => applyMyUnit(Boolean(c))}
-                    className="mt-0.5"
-                    disabled={!userOrgUnit}
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm font-medium text-gray-900">
-                      My organisation unit
-                    </span>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {userOrgUnit ? "Use your assigned unit" : "No unit assigned"}
-                    </p>
-                  </div>
-                </label>
-              </div>
+          {/* Sidebar - User org unit checkbox + search (like reference) */}
+          <aside className="sm:w-72 flex-shrink-0 border-r bg-muted/20 p-5 overflow-y-auto">
+            <div className="space-y-5">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <Checkbox
+                  checked={pickMyUnit}
+                  onCheckedChange={(c) => applyMyUnit(Boolean(c))}
+                  disabled={!userOrgUnit}
+                  className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                />
+                <span className="text-sm font-medium">User organisation unit</span>
+              </label>
 
-              {/* Search */}
-              <div>
-                <div className="text-xs font-semibold text-gray-600 uppercase mb-3">
-                  Search
-                </div>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search units..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search units..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
                 {search && (
-                  <p className="text-xs text-gray-500 mt-2">
-                    {filtered.length === 0
-                      ? "No matches found"
-                      : `${filtered.length} unit(s) found`}
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    {filtered.length === 0 ? "No matches found" : `${filtered.length} unit(s) found`}
                   </p>
                 )}
               </div>
 
-              {/* Selected */}
               {selectedId && (
-                <div>
-                  <div className="text-xs font-semibold text-gray-600 uppercase mb-3">
-                    Selected Unit
-                  </div>
-                  <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
-                    <div className="flex items-start space-x-2">
-                      <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-blue-900 break-words">
-                          {getSelectedName()}
-                        </p>
-                      </div>
-                    </div>
+                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                    <p className="text-sm font-medium break-words">{getSelectedName()}</p>
                   </div>
                 </div>
               )}
@@ -360,7 +325,7 @@ const OrgUnitSelectionModal: React.FC<OrgUnitSelectionModalProps> = ({
           </aside>
 
           {/* Tree Section (scrollable) */}
-          <section className="flex-1 overflow-y-auto bg-white">
+          <section className="flex-1 overflow-y-auto bg-background">
             {error ? (
               <div className="p-5">
                 <Alert variant="destructive">
@@ -370,47 +335,40 @@ const OrgUnitSelectionModal: React.FC<OrgUnitSelectionModalProps> = ({
               </div>
             ) : loading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-blue-600" />
-                <span className="text-sm text-gray-600">
-                  Loading organization units...
-                </span>
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Loading organisation units...</span>
               </div>
             ) : treeData.length === 0 ? (
-              <div className="flex items-center justify-center py-12 text-gray-600">
-                <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                {search
-                  ? "No units match your search"
-                  : "No organization units available"}
+              <div className="flex items-center justify-center py-12 text-muted-foreground">
+                <Folder className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                {search ? "No units match your search" : "No organisation units available"}
               </div>
             ) : (
-              <div className="p-4 space-y-1">{renderTree(treeData)}</div>
+              <div className="p-4 space-y-0.5">{renderTree(treeData)}</div>
             )}
           </section>
         </div>
 
-        {/* Sticky footer */}
-        <div className="sticky bottom-0 z-10 bg-white border-t shadow-lg flex-shrink-0">
-          <DialogFooter className="p-4 flex-row justify-between items-center space-x-2">
-            <div className="text-sm text-gray-600">
-              {selectedId ? (
-                <span className="flex items-center">
-                  <CheckCircle2 className="h-4 w-4 mr-1.5 text-green-600" />
-                  1 unit selected
-                </span>
-              ) : (
-                <span className="text-gray-400">No unit selected</span>
+        {/* Footer - Selected + Deselect, Hide + Update like reference */}
+        <div className="sticky bottom-0 z-10 bg-background border-t flex-shrink-0">
+          <DialogFooter className="p-4 flex-row justify-between items-center gap-4 flex-wrap">
+            <div className="text-sm text-muted-foreground">
+              Selected:{" "}
+              <span className="font-medium text-foreground">
+                {selectedId ? getSelectedName() ?? "1 unit selected" : "No unit selected"}
+              </span>
+              {selectedId && (
+                <Button variant="ghost" size="sm" className="ml-2 h-auto py-0 text-muted-foreground" onClick={() => setSelectedId(null)}>
+                  Deselect all
+                </Button>
               )}
             </div>
-            <div className="flex space-x-2">
+            <div className="flex gap-2">
               <Button variant="outline" onClick={handleCancel}>
-                Cancel
+                Hide
               </Button>
-              <Button
-                onClick={handleApply}
-                disabled={!selectedId}
-                className="min-w-[100px]"
-              >
-                {selectedId ? "Apply Selection" : "Select a Unit"}
+              <Button onClick={handleApply} disabled={!selectedId} className="min-w-[90px]">
+                Update
               </Button>
             </div>
           </DialogFooter>

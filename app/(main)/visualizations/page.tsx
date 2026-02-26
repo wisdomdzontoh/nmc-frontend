@@ -57,6 +57,9 @@ const VisualizationPage: React.FC = () => {
   const [dataItemsLoading, setDataItemsLoading] = useState(false);
   const [dataItemsError, setDataItemsError] = useState<string | null>(null);
 
+  const [datasets, setDatasets] = useState<{ id: number; name: string; code: string; data_elements: { id: number; code?: string; name?: string }[] }[]>([]);
+  const [selectedDatasetId, setSelectedDatasetId] = useState<number | null>(null);
+
   const [selectedData, setSelectedData] = useState<DataItem[]>([]);
   const [periodResult, setPeriodResult] = useState<VisualizationPeriodResult | null>(null);
   const [orgUnitIds, setOrgUnitIds] = useState<number[] | "all">("all");
@@ -70,9 +73,10 @@ const VisualizationPage: React.FC = () => {
     setDataItemsLoading(true);
     setDataItemsError(null);
     try {
-      const [deRes, indRes] = await Promise.all([
+      const [deRes, indRes, rtRes] = await Promise.all([
         ApiClient.getDataElements(),
         ApiClient.getIndicators(),
+        ApiClient.getReportTypes(),
       ]);
       const deList = deRes.data?.results ?? deRes.data ?? [];
       const indList = indRes.data?.results ?? indRes.data ?? [];
@@ -83,6 +87,13 @@ const VisualizationPage: React.FC = () => {
         (i) => ({ id: i.id, code: i.code, name: i.name, type: "indicator" })
       );
       setDataItems([...elements, ...indicators]);
+
+      const rtList = rtRes.data?.results ?? rtRes.data ?? [];
+      setDatasets(
+        (rtList as { id: number; name: string; code: string; data_elements?: { id: number; code?: string; name?: string }[] }[]).map(
+          (rt) => ({ id: rt.id, name: rt.name, code: rt.code, data_elements: rt.data_elements ?? [] })
+        )
+      );
     } catch (err) {
       console.error("Failed to load data elements and indicators:", err);
       setDataItemsError("Failed to load data elements and indicators. Please try again.");
@@ -95,6 +106,16 @@ const VisualizationPage: React.FC = () => {
   useEffect(() => {
     loadDataItems();
   }, [loadDataItems]);
+
+  const availableDataItems = useMemo(() => {
+    if (!selectedDatasetId) return dataItems;
+    const ds = datasets.find((d) => d.id === selectedDatasetId);
+    if (!ds?.data_elements?.length) return dataItems;
+    const allowedDeIds = new Set(ds.data_elements.map((de) => de.id));
+    return dataItems.filter(
+      (item) => item.type === "indicator" || (item.type === "data_element" && allowedDeIds.has(item.id))
+    );
+  }, [dataItems, datasets, selectedDatasetId]);
 
   const handleGenerate = async () => {
     setGenerateError(null);
@@ -360,11 +381,14 @@ const VisualizationPage: React.FC = () => {
       <DataSelectionModal
         open={dataModalOpen}
         onOpenChange={setDataModalOpen}
-        available={dataItems}
+        available={availableDataItems}
         selected={selectedData}
         onSelectedChange={setSelectedData}
         loading={dataItemsLoading}
         error={dataItemsError}
+        datasets={datasets}
+        selectedDatasetId={selectedDatasetId}
+        onDatasetChange={setSelectedDatasetId}
       />
 
       <VisualizationPeriodModal
