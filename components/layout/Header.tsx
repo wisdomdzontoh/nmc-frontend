@@ -69,7 +69,7 @@ export default function Header({
   };
 
   return (
-    <header className="w-full bg-slate-900 border-b border-slate-800 text-slate-50 shadow-sm">
+    <header className="w-full bg-gradient-to-r from-[#1e3a5f] to-[#2c5282] border-b border-[#16304a] text-white shadow-md">
       {/* Main header row */}
       <div className="h-14 flex items-center justify-between px-4 lg:px-6">
         {/* Left: Title and menu */}
@@ -78,14 +78,14 @@ export default function Header({
             <button
               type="button"
               onClick={onToggleSidebar}
-              className="mr-2 inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 focus-visible:ring-slate-500"
+              className="mr-2 inline-flex h-9 w-9 items-center justify-center rounded-md bg-white/10 hover:bg-white/20 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1e3a5f] focus-visible:ring-white"
               aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
             >
               <Menu className="h-5 w-5" />
             </button>
           )}
           <Link href="/dashboard" className="flex-shrink-0 flex items-center">
-            <div className="h-10 w-10 rounded-lg bg-white ring-2 ring-slate-700 flex items-center justify-center overflow-hidden shadow-md">
+            <div className="h-10 w-10 rounded-full bg-white ring-2 ring-[#1e3a5f] flex items-center justify-center overflow-hidden shadow-md">
               <Image
                 src="/logo.png"
                 alt="NMC Logo"
@@ -97,10 +97,10 @@ export default function Header({
             </div>
           </Link>
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl text-slate-50 sm:text-lg font-semibold tracking-tight truncate">
+            <h1 className="text-xl text-white sm:text-lg font-semibold tracking-tight truncate">
               Nursing and Midwifery Council - Ghana
             </h1>
-            <p className="text-xs text-slate-400 hidden lg:block">
+            <p className="text-xs text-blue-100 hidden lg:block">
               Monitoring and Evaluation Reporting System
             </p>
           </div>
@@ -109,14 +109,14 @@ export default function Header({
         {/* Right: Actions and user */}
         <div className="flex items-center gap-2">
           {/* Online status - desktop only */}
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800">
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10">
             <Circle className="h-2 w-2 fill-green-400 text-green-400 animate-pulse" />
-            <span className="text-xs font-medium text-slate-300">Online</span>
+            <span className="text-xs font-medium text-blue-50">Online</span>
           </div>
 
-          <Separator orientation="vertical" className="h-6 bg-slate-700 hidden lg:block" />
+          <Separator orientation="vertical" className="h-6 bg-white/20 hidden lg:block" />
 
-          <Separator orientation="vertical" className="h-6 bg-slate-700" />
+          <Separator orientation="vertical" className="h-6 bg-white/20" />
 
           {/* App Launcher */}
           <Popover open={appsOpen} onOpenChange={setAppsOpen}>
@@ -124,7 +124,7 @@ export default function Header({
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="text-slate-300 hover:bg-slate-800 hover:text-slate-50 transition-all"
+                className="text-blue-50 hover:bg-white/10 hover:text-white transition-all"
               >
                 <Grid className="h-5 w-5" />
               </Button>
@@ -294,23 +294,23 @@ export default function Header({
             </PopoverContent>
           </Popover>
 
-          <Separator orientation="vertical" className="h-6 bg-slate-700" />
+          <Separator orientation="vertical" className="h-6 bg-white/20" />
 
           {/* Profile menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-slate-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500">
-                <Avatar className="h-8 w-8 ring-2 ring-slate-700">
+              <button className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70">
+                <Avatar className="h-8 w-8 ring-2 ring-white/20">
                   <AvatarImage src="" alt={djangoUser?.full_name} />
-                  <AvatarFallback className="bg-slate-700 text-slate-200 text-xs font-semibold">
+                  <AvatarFallback className="bg-gradient-to-br from-[#1e3a5f] to-[#2c5282] text-white text-xs font-semibold">
                     {getUserInitials()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden lg:block text-left">
-                  <p className="text-xs font-medium leading-none text-slate-100">
+                  <p className="text-xs font-medium leading-none text-white">
                     {djangoUser?.full_name || "User"}
                   </p>
-                  <p className="text-[10px] text-slate-400 leading-none mt-0.5">
+                  <p className="text-[10px] text-blue-100 leading-none mt-0.5">
                     {djangoUser?.org_unit_name || "No unit"}
                   </p>
                 </div>
@@ -321,7 +321,7 @@ export default function Header({
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
                     <AvatarImage src="" alt={djangoUser?.full_name} />
-                    <AvatarFallback className="bg-slate-700 text-slate-200 font-semibold">
+                    <AvatarFallback className="bg-gradient-to-br from-[#1e3a5f] to-[#2c5282] text-white font-semibold">
                       {getUserInitials()}
                     </AvatarFallback>
                   </Avatar>
