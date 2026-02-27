@@ -5,21 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useMemo, useState } from "react";
-import {
-  LayoutDashboard,
-  FileText,
-  BarChart3,
-  Database,
-  Users,
-  Settings,
-  Grid,
-  Circle,
-  Search,
-  LogOut,
-  ChevronRight,
-  Sparkles,
-  TrendingUp,
-} from "lucide-react";
+import { Grid, Circle, Search, LogOut, ChevronRight, Sparkles, Menu, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -38,100 +24,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { NAV_ITEMS, type NavItem } from "./navConfig";
 
-type AppItem = {
-  label: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  group?: "Top apps" | "All apps";
-  description?: string;
-  badge?: string;
-  /** Only show to staff/superuser */
-  staffOnly?: boolean;
-};
-
-const APPS: AppItem[] = [
-  { 
-    label: "Dashboard", 
-    href: "/dashboard", 
-    icon: LayoutDashboard, 
-    group: "Top apps",
-    description: "Overview and key metrics",
-  },
-  { 
-    label: "Data Entry", 
-    href: "/data-entry", 
-    icon: FileText, 
-    group: "Top apps",
-    description: "Submit new reports",
-    badge: "New",
-  },
-  { 
-    label: "Design Reports", 
-    href: "/design-reports", 
-    icon: FileText, 
-    group: "Top apps",
-    description: "Create report templates",
-    staffOnly: true,
-  },
-  { 
-    label: "Reports", 
-    href: "/reports", 
-    icon: FileText, 
-    group: "Top apps",
-    description: "View submitted reports",
-    staffOnly: true,
-  },
-  { 
-    label: "Analytics", 
-    href: "/analytics", 
-    icon: BarChart3, 
-    group: "Top apps",
-    description: "Data visualization and insights",
-    staffOnly: true,
-  },
-  { 
-    label: "Visualizations", 
-    href: "/visualizations", 
-    icon: BarChart3, 
-    group: "Top apps",
-    description: "Pivot tables and data explorer",
-    staffOnly: true,
-  },
-  { 
-    label: "Indicators", 
-    href: "/indicators", 
-    icon: TrendingUp, 
-    group: "All apps",
-    description: "Manage calculation indicators",
-    staffOnly: true,
-  },
-  { 
-    label: "Organizations", 
-    href: "/organizations", 
-    icon: Database, 
-    group: "All apps",
-    description: "Manage organization units",
-    staffOnly: true,
-  },
-  { 
-    label: "Users", 
-    href: "/users", 
-    icon: Users, 
-    group: "All apps",
-    description: "User management",
-    staffOnly: true,
-  },
-  { 
-    label: "Settings", 
-    href: "/settings", 
-    icon: Settings, 
-    group: "All apps",
-    description: "System configuration",
-  },
-];
-
-export default function Header() {
+export default function Header({
+  sidebarOpen,
+  onToggleSidebar,
+}: {
+  sidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
+}) {
   const { djangoUser, logout } = useAuth();
   const pathname = usePathname();
 
@@ -142,8 +43,8 @@ export default function Header() {
 
   const isStaff = Boolean(djangoUser?.is_staff ?? (djangoUser as unknown as { is_staff?: boolean })?.is_staff);
   const isSuperuser = Boolean(djangoUser?.is_superuser ?? (djangoUser as unknown as { is_superuser?: boolean })?.is_superuser);
-  const visibleApps = useMemo(
-    () => APPS.filter((app) => !app.staffOnly || isStaff || isSuperuser),
+  const visibleApps: NavItem[] = useMemo(
+    () => NAV_ITEMS.filter((app) => !app.staffOnly || isStaff || isSuperuser),
     [isStaff, isSuperuser]
   );
 
@@ -168,28 +69,38 @@ export default function Header() {
   };
 
   return (
-    <header className="w-full bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900 text-white shadow-lg">
+    <header className="w-full bg-slate-900 border-b border-slate-800 text-slate-50 shadow-sm">
       {/* Main header row */}
       <div className="h-14 flex items-center justify-between px-4 lg:px-6">
-        {/* Left: Brand and title */}
+        {/* Left: Title and menu */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <Link href="/dashboard" className="flex-shrink-0 group">
-            <div className="w-40 h-12 lg:w-48 lg:h-14 transition-transform group-hover:scale-105">
+          {onToggleSidebar && (
+            <button
+              type="button"
+              onClick={onToggleSidebar}
+              className="mr-2 inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 focus-visible:ring-slate-500"
+              aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          )}
+          <Link href="/dashboard" className="flex-shrink-0 flex items-center">
+            <div className="h-10 w-10 rounded-lg bg-white ring-2 ring-slate-700 flex items-center justify-center overflow-hidden shadow-md">
               <Image
                 src="/logo.png"
                 alt="NMC Logo"
-                width={192}
-                height={56}
-                className="w-full h-full object-contain"
+                width={44}
+                height={44}
+                className="h-8 w-auto object-contain"
                 priority
               />
             </div>
           </Link>
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl text-white sm:text-lg font-semibold tracking-tight truncate">
+            <h1 className="text-xl text-slate-50 sm:text-lg font-semibold tracking-tight truncate">
               Nursing and Midwifery Council - Ghana
             </h1>
-            <p className="text-xs text-blue-200 hidden lg:block">
+            <p className="text-xs text-slate-400 hidden lg:block">
               Monitoring and Evaluation Reporting System
             </p>
           </div>
@@ -198,15 +109,14 @@ export default function Header() {
         {/* Right: Actions and user */}
         <div className="flex items-center gap-2">
           {/* Online status - desktop only */}
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm">
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800">
             <Circle className="h-2 w-2 fill-green-400 text-green-400 animate-pulse" />
-            <span className="text-xs font-medium">Online</span>
+            <span className="text-xs font-medium text-slate-300">Online</span>
           </div>
 
-          <Separator orientation="vertical" className="h-6 bg-white/20 hidden lg:block" />
+          <Separator orientation="vertical" className="h-6 bg-slate-700 hidden lg:block" />
 
-
-          <Separator orientation="vertical" className="h-6 bg-white/20" />
+          <Separator orientation="vertical" className="h-6 bg-slate-700" />
 
           {/* App Launcher */}
           <Popover open={appsOpen} onOpenChange={setAppsOpen}>
@@ -214,7 +124,7 @@ export default function Header() {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="text-white/90 hover:bg-white/10 hover:text-white transition-all"
+                className="text-slate-300 hover:bg-slate-800 hover:text-slate-50 transition-all"
               >
                 <Grid className="h-5 w-5" />
               </Button>
@@ -384,23 +294,23 @@ export default function Header() {
             </PopoverContent>
           </Popover>
 
-          <Separator orientation="vertical" className="h-6 bg-white/20" />
+          <Separator orientation="vertical" className="h-6 bg-slate-700" />
 
           {/* Profile menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70">
-                <Avatar className="h-8 w-8 ring-2 ring-white/20">
+              <button className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-slate-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500">
+                <Avatar className="h-8 w-8 ring-2 ring-slate-700">
                   <AvatarImage src="" alt={djangoUser?.full_name} />
-                  <AvatarFallback className="bg-gradient-to-br from-blue-600 to-blue-800 text-white text-xs font-semibold">
+                  <AvatarFallback className="bg-slate-700 text-slate-200 text-xs font-semibold">
                     {getUserInitials()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden lg:block text-left">
-                  <p className="text-xs font-medium leading-none">
+                  <p className="text-xs font-medium leading-none text-slate-100">
                     {djangoUser?.full_name || "User"}
                   </p>
-                  <p className="text-[10px] text-blue-200 leading-none mt-0.5">
+                  <p className="text-[10px] text-slate-400 leading-none mt-0.5">
                     {djangoUser?.org_unit_name || "No unit"}
                   </p>
                 </div>
@@ -411,7 +321,7 @@ export default function Header() {
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
                     <AvatarImage src="" alt={djangoUser?.full_name} />
-                    <AvatarFallback className="bg-gradient-to-br from-blue-600 to-blue-800 text-white font-semibold">
+                    <AvatarFallback className="bg-slate-700 text-slate-200 font-semibold">
                       {getUserInitials()}
                     </AvatarFallback>
                   </Avatar>

@@ -139,6 +139,7 @@ export const ApiClient = {
   createUser: (data: unknown) => api.post("/users/", data),
   updateUser: (id: number, data: unknown) => api.patch(`/users/${id}/`, data),
   deleteUser: (id: number) => api.delete(`/users/${id}/`),
+  resetUserPassword: (id: number, data: { new_password: string }) => api.post(`/users/${id}/reset-password/`, data),
   
   // Organization endpoints
   getOrgUnits: () => api.get("/org/tree/"),

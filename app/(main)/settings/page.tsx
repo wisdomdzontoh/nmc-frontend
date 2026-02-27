@@ -13,14 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
-  Switch 
-} from "@/components/ui/switch"
-import { 
-  
   User, 
-  Bell, 
-  Shield, 
-  
   Save,
   Loader2,
   CheckCircle
@@ -30,18 +23,6 @@ interface UserSettings {
   first_name: string
   last_name: string
   email: string
-  notifications: {
-    email_notifications: boolean
-    report_reminders: boolean
-    system_updates: boolean
-  }
-}
-
-interface SystemSettings {
-  maintenance_mode: boolean
-  allow_registration: boolean
-  session_timeout: number
-  max_file_size: number
 }
 
 const SettingsPage: React.FC = () => {
@@ -50,17 +31,6 @@ const SettingsPage: React.FC = () => {
     first_name: "",
     last_name: "",
     email: "",
-    notifications: {
-      email_notifications: true,
-      report_reminders: true,
-      system_updates: false
-    }
-  })
-  const [systemSettings, setSystemSettings] = useState<SystemSettings>({
-    maintenance_mode: false,
-    allow_registration: false,
-    session_timeout: 30,
-    max_file_size: 10
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -83,14 +53,6 @@ const SettingsPage: React.FC = () => {
             email: djangoUser.email || ""
           }))
         }
-        
-        // Load system settings (mock data for now)
-        setSystemSettings({
-          maintenance_mode: false,
-          allow_registration: false,
-          session_timeout: 30,
-          max_file_size: 10
-        })
       } catch (err: unknown) {
         console.error("Failed to load settings:", err)
         setError("Failed to load settings. Please try again.")
@@ -116,25 +78,6 @@ const SettingsPage: React.FC = () => {
     } catch (err: unknown) {
       console.error("Failed to save user settings:", err)
       setError("Failed to save user settings. Please try again.")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  // Save system settings
-  const handleSaveSystemSettings = async () => {
-    try {
-      setSaving(true)
-      setError(null)
-      setSuccess(null)
-      
-      // Mock API call - replace with actual API
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      setSuccess("System settings saved successfully!")
-    } catch (err: unknown) {
-      console.error("Failed to save system settings:", err)
-      setError("Failed to save system settings. Please try again.")
     } finally {
       setSaving(false)
     }
@@ -179,10 +122,8 @@ const SettingsPage: React.FC = () => {
 
       {/* Settings Tabs */}
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-1 max-w-xs">
           <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="system">System</TabsTrigger>
         </TabsList>
 
         {/* Profile Settings */}
@@ -221,171 +162,13 @@ const SettingsPage: React.FC = () => {
                 <Input
                   type="email"
                   value={userSettings.email}
-                  onChange={(e) => setUserSettings(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="Enter your email address"
+                  disabled
+                  className="bg-muted cursor-not-allowed"
+                  placeholder="Email address (managed by system)"
                 />
               </div>
               <div className="flex justify-end">
                 <Button onClick={handleSaveUserSettings} disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Changes
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Notification Settings */}
-        <TabsContent value="notifications" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Bell className="mr-2 h-5 w-5" />
-                Notification Preferences
-              </CardTitle>
-              <CardDescription>
-                Configure how you receive notifications
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-medium">Email Notifications</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Receive notifications via email
-                    </p>
-                  </div>
-                  <Switch
-                    checked={userSettings.notifications.email_notifications}
-                    onCheckedChange={(checked) => setUserSettings(prev => ({
-                      ...prev,
-                      notifications: { ...prev.notifications, email_notifications: checked }
-                    }))}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-medium">Report Reminders</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Get reminded about pending reports
-                    </p>
-                  </div>
-                  <Switch
-                    checked={userSettings.notifications.report_reminders}
-                    onCheckedChange={(checked) => setUserSettings(prev => ({
-                      ...prev,
-                      notifications: { ...prev.notifications, report_reminders: checked }
-                    }))}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-medium">System Updates</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Receive notifications about system updates
-                    </p>
-                  </div>
-                  <Switch
-                    checked={userSettings.notifications.system_updates}
-                    onCheckedChange={(checked) => setUserSettings(prev => ({
-                      ...prev,
-                      notifications: { ...prev.notifications, system_updates: checked }
-                    }))}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button onClick={handleSaveUserSettings} disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Changes
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* System Settings */}
-        <TabsContent value="system" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Shield className="mr-2 h-5 w-5" />
-                System Configuration
-              </CardTitle>
-              <CardDescription>
-                Configure system-wide settings and preferences
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-medium">Maintenance Mode</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Enable maintenance mode to restrict system access
-                    </p>
-                  </div>
-                  <Switch
-                    checked={systemSettings.maintenance_mode}
-                    onCheckedChange={(checked) => setSystemSettings(prev => ({ ...prev, maintenance_mode: checked }))}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-medium">Allow Registration</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Allow new users to register accounts
-                    </p>
-                  </div>
-                  <Switch
-                    checked={systemSettings.allow_registration}
-                    onCheckedChange={(checked) => setSystemSettings(prev => ({ ...prev, allow_registration: checked }))}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Session Timeout (minutes)</label>
-                  <Input
-                    type="number"
-                    value={systemSettings.session_timeout}
-                    onChange={(e) => setSystemSettings(prev => ({ ...prev, session_timeout: parseInt(e.target.value) }))}
-                    placeholder="30"
-                    min="5"
-                    max="480"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Max File Size (MB)</label>
-                  <Input
-                    type="number"
-                    value={systemSettings.max_file_size}
-                    onChange={(e) => setSystemSettings(prev => ({ ...prev, max_file_size: parseInt(e.target.value) }))}
-                    placeholder="10"
-                    min="1"
-                    max="100"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button onClick={handleSaveSystemSettings} disabled={saving}>
                   {saving ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />

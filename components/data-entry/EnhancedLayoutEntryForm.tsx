@@ -227,9 +227,9 @@ function EnhancedTableArray({
         </Button>
       </div>
 
-      {/* Table */}
-      <div className="border rounded-lg shadow-sm overflow-auto max-h-[calc(100vh-300px)]">
-        <table className="w-full min-w-max border-collapse">
+      {/* Table: first column sticky on horizontal scroll, gridlines, centered headers */}
+      <div className="border border-gray-200 rounded-lg shadow-sm overflow-auto max-h-[calc(100vh-300px)]">
+        <table className="w-full min-w-max border-separate border-spacing-0">
           {section.header && (
             <thead>
               {section.header.rows.map((headerRow, hri) => {
@@ -252,16 +252,16 @@ function EnhancedTableArray({
                         <th
                           key={`h-${hri}-${hci}`}
                           className={cn(
-                            "px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b whitespace-nowrap bg-gray-50",
+                            "px-4 py-3 text-center text-sm font-semibold text-gray-700 whitespace-nowrap border border-gray-200 bg-gray-50",
                             "sticky top-0",
-                            isFirstColumn && "sticky left-0 z-30 shadow-[2px_0_4px_rgba(0,0,0,0.1)]"
+                            isFirstColumn && "sticky left-0 z-[30] border-r-2 border-gray-300 shadow-[2px_0_4px_rgba(0,0,0,0.08)]"
                           )}
                           colSpan={cellSpan}
                           style={{
                             ...widthStyle,
                             position: 'sticky',
                             top: 0,
-                            ...(isFirstColumn ? { left: 0, zIndex: 30 } : { zIndex: 20 })
+                            ...(isFirstColumn ? { left: 0, zIndex: 30, backgroundColor: 'rgb(249 250 251)' } : { zIndex: 20 })
                           }}
                         >
                           {cell.label}
@@ -346,12 +346,12 @@ function EnhancedTableArray({
                     <td
                       key={`cell-${ri}-${ci}`}
                       className={cn(
-                        "px-4 py-4 border-b align-top",
+                        "px-4 py-4 align-top border border-gray-200",
                         extraClass,
                         c.backgroundColor && `bg-[${c.backgroundColor}]`,
                         c.alignment === "center" && "text-center",
                         c.alignment === "right" && "text-right",
-                        isFirstColumn && "sticky left-0 z-10 shadow-[2px_0_4px_rgba(0,0,0,0.1)]"
+                        isFirstColumn && "sticky left-0 z-[10] border-r-2 border-gray-300 shadow-[2px_0_4px_rgba(0,0,0,0.08)]"
                       )}
                       style={{
                         minWidth: '120px',

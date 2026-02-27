@@ -56,6 +56,7 @@ import {
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
+  getPaginationRowModel,
   SortingState,
   useReactTable,
   Column,
@@ -201,7 +202,9 @@ const columns: ColumnDef<UserRow>[] = [
     header: ({ column }) => <HeaderCell column={column} title="Last login" />,
     cell: ({ row }) => (
       <div className="text-sm text-gray-700">
-        {row.original.last_login ? new Date(row.original.last_login).toLocaleDateString() : "—"}
+        {row.original.last_login
+          ? new Date(row.original.last_login).toLocaleString()
+          : "Never"}
       </div>
     ),
   },
@@ -221,21 +224,83 @@ function HeaderCell({ column, title }: { column: Column<UserRow, unknown>; title
   )
 }
 
-function UsersDataTable({ data, search, onSearch }: {
+function UsersDataTable({
+  data,
+  search,
+  onSearch,
+  canManageUsers,
+  onResetPassword,
+}: {
   data: UserRow[]
   search: string
   onSearch: (v: string) => void
+  canManageUsers: boolean
+  onResetPassword: (user: UserRow) => void
 }) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "full_name", desc: false }])
+  const [roleFilter, setRoleFilter] = useState<"all" | "superuser" | "staff" | "user">("all")
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all")
+  const [pageIndex, setPageIndex] = useState(0)
+  const [pageSize, setPageSize] = useState(10)
+
+  const filteredData = React.useMemo(() => {
+    return data.filter((u) => {
+      if (roleFilter === "superuser" && !u.is_superuser) return false
+      if (roleFilter === "staff" && !u.is_staff) return false
+      if (roleFilter === "user" && (u.is_staff || u.is_superuser)) return false
+
+      if (statusFilter === "active" && !u.is_active) return false
+      if (statusFilter === "inactive" && u.is_active) return false
+
+      return true
+    })
+  }, [data, roleFilter, statusFilter])
+
+  const tableColumns = React.useMemo<ColumnDef<UserRow>[]>(() => {
+    if (!canManageUsers) return columns
+    return [
+      ...columns,
+      {
+        id: "actions",
+        header: () => (
+          <span className="text-xs uppercase tracking-wide text-gray-600">Actions</span>
+        ),
+        enableSorting: false,
+        cell: ({ row }) => (
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onResetPassword(row.original)}
+            >
+              Reset password
+            </Button>
+          </div>
+        ),
+      },
+    ]
+  }, [canManageUsers, onResetPassword])
 
   const table = useReactTable({
-    data,
-    columns,
-    state: { sorting },
+    data: filteredData,
+    columns: tableColumns,
+    state: { sorting, pagination: { pageIndex, pageSize } },
     onSortingChange: setSorting,
+    onPaginationChange: (updater) => {
+      const next =
+        typeof updater === "function" ? updater({ pageIndex, pageSize }) : updater
+      setPageIndex(next.pageIndex)
+      setPageSize(next.pageSize)
+    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
   })
+
+  const totalRows = table.getPrePaginationRowModel().rows.length
+  const pageCount = totalRows === 0 ? 1 : Math.ceil(totalRows / pageSize)
+  const pageStart = totalRows === 0 ? 0 : pageIndex * pageSize + 1
+  const pageEnd = totalRows === 0 ? 0 : Math.min(totalRows, (pageIndex + 1) * pageSize)
 
   return (
     <Card>
@@ -244,14 +309,56 @@ function UsersDataTable({ data, search, onSearch }: {
         <CardDescription>Search, sort and explore users</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="mb-3 relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="Search users by name, email, or username…"
-            value={search}
-            onChange={(e) => onSearch(e.target.value)}
-            className="pl-10"
-          />
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Search users by name, email, or username…"
+              value={search}
+              onChange={(e) => {
+                setPageIndex(0)
+                onSearch(e.target.value)
+              }}
+              className="pl-10"
+            />
+          </div>
+          <div className="flex flex-wrap gap-3 text-xs">
+            <div>
+              <label className="block text-[11px] uppercase text-gray-500 mb-1">
+                Role
+              </label>
+              <select
+                value={roleFilter}
+                onChange={(e) => {
+                  setPageIndex(0)
+                  setRoleFilter(e.target.value as typeof roleFilter)
+                }}
+                className="h-8 rounded-md border border-gray-300 bg-white px-2 text-xs"
+              >
+                <option value="all">All</option>
+                <option value="superuser">Superusers</option>
+                <option value="staff">Staff</option>
+                <option value="user">Users</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] uppercase text-gray-500 mb-1">
+                Status
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setPageIndex(0)
+                  setStatusFilter(e.target.value as typeof statusFilter)
+                }}
+                className="h-8 rounded-md border border-gray-300 bg-white px-2 text-xs"
+              >
+                <option value="all">All</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         <div className="rounded-md border">
@@ -283,7 +390,7 @@ function UsersDataTable({ data, search, onSearch }: {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <TableCell colSpan={tableColumns.length} className="h-24 text-center">
                     No users found.
                   </TableCell>
                 </TableRow>
@@ -291,7 +398,52 @@ function UsersDataTable({ data, search, onSearch }: {
             </TableBody>
           </Table>
         </div>
-        <TableCaption className="pt-4">Showing {table.getRowModel().rows.length} user(s)</TableCaption>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-xs text-gray-600">
+            {totalRows === 0
+              ? "No users to display"
+              : `Showing ${pageStart}–${pageEnd} of ${totalRows} user(s)`}
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 text-xs">
+              <span className="text-gray-600">Rows per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  const size = Number(e.target.value)
+                  setPageIndex(0)
+                  setPageSize(size)
+                }}
+                className="h-8 rounded-md border border-gray-300 bg-white px-2 text-xs"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-1 text-xs">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+              >
+                Previous
+              </Button>
+              <span className="px-2 text-gray-700">
+                Page {totalRows === 0 ? 0 : pageIndex + 1} of {pageCount}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   )
@@ -307,6 +459,11 @@ const UsersPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
+  const [resetUser, setResetUser] = useState<UserRow | null>(null)
+  const [resetPassword, setResetPassword] = useState("")
+  const [resetConfirmPassword, setResetConfirmPassword] = useState("")
+  const [isResetSubmitting, setIsResetSubmitting] = useState(false)
 
   // create dialog
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -464,6 +621,44 @@ async function handleCreate() {
   }
 }
 
+  const handleOpenResetDialog = (user: UserRow) => {
+    setResetUser(user)
+    setResetPassword("")
+    setResetConfirmPassword("")
+    setError(null)
+    setIsResetDialogOpen(true)
+  }
+
+  async function handleResetPassword() {
+    if (!resetUser) return
+
+    if (!resetPassword || resetPassword.length < 8) {
+      setError("New password must be at least 8 characters long")
+      return
+    }
+
+    if (resetPassword !== resetConfirmPassword) {
+      setError("Passwords do not match")
+      return
+    }
+
+    try {
+      setIsResetSubmitting(true)
+      setError(null)
+
+      await ApiClient.resetUserPassword(resetUser.id, { new_password: resetPassword })
+
+      setIsResetDialogOpen(false)
+      setResetUser(null)
+      setResetPassword("")
+      setResetConfirmPassword("")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : ""
+      setError("Failed to reset password. " + message)
+    } finally {
+      setIsResetSubmitting(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -507,7 +702,13 @@ async function handleCreate() {
       </div>
 
       {/* Users table */}
-      <UsersDataTable data={visibleUsers} search={searchTerm} onSearch={setSearchTerm} />
+      <UsersDataTable
+        data={visibleUsers}
+        search={searchTerm}
+        onSearch={setSearchTerm}
+        canManageUsers={canManageUsers}
+        onResetPassword={handleOpenResetDialog}
+      />
 
       {/* CREATE USER DIALOG */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -639,6 +840,64 @@ async function handleCreate() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* RESET PASSWORD DIALOG */}
+      {canManageUsers && (
+        <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+          <DialogContent className="z-[50] p-0 sm:max-w-md max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="border-b bg-white">
+              <DialogHeader className="p-4">
+                <DialogTitle>Reset Password</DialogTitle>
+                <DialogDescription>
+                  Set a new password for {resetUser?.full_name || resetUser?.email}.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+            <div className="p-4 space-y-4 flex-1 overflow-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">New Password</label>
+                  <Input
+                    type="password"
+                    value={resetPassword}
+                    onChange={(e) => setResetPassword(e.target.value)}
+                    placeholder="Enter new password"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Confirm Password</label>
+                  <Input
+                    type="password"
+                    value={resetConfirmPassword}
+                    onChange={(e) => setResetConfirmPassword(e.target.value)}
+                    placeholder="Re-enter password"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                Password must be at least 8 characters long. The user will need to use this
+                new password the next time they sign in.
+              </p>
+            </div>
+            <div className="border-t bg-white">
+              <DialogFooter className="p-3 sm:p-4">
+                <Button variant="outline" onClick={() => setIsResetDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleResetPassword} disabled={isResetSubmitting || !resetUser}>
+                  {isResetSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Updating...
+                    </>
+                  ) : (
+                    "Reset Password"
+                  )}
+                </Button>
+              </DialogFooter>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* ORG UNIT SELECTION MODAL */}
       <OrgUnitSelectionModal
