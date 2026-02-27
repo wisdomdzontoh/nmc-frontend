@@ -33,8 +33,8 @@ export default function DataEntryTopBar({
   return (
     <div className="w-full border-b bg-white">
       <div className="flex items-center">
-        <DatasetInlineDropdown value={dataset} onChange={onDatasetChange} items={datasets} />
         <OrgUnitInlineDropdown value={org} onChange={onOrgChange} tree={orgTree} />
+        <DatasetInlineDropdown value={dataset} onChange={onDatasetChange} items={datasets} />
         <PeriodInlineDropdown value={period} onChange={onPeriodChange} />
         <div className="ml-2">
           <Button variant="outline" size="sm" onClick={onClear}>
