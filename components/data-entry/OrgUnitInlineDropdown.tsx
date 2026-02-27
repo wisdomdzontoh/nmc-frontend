@@ -79,7 +79,7 @@ export default function OrgUnitInlineDropdown({ value, onChange, tree }: Props) 
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" className="px-3 h-10 rounded-none border-x">
-          <span className="text-sm text-muted-foreground mr-2">Select you department</span>
+          <span className="text-sm text-muted-foreground mr-2">Directorate</span>
           <span className="font-medium truncate max-w-[240px]">
             {value ? value.name : "Choose your department"}
           </span>

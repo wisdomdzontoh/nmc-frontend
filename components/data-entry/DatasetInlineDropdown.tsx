@@ -48,7 +48,7 @@ export default function DatasetInlineDropdown({ value, onChange, items }: Props)
       <PopoverTrigger asChild>
         <Button variant="ghost" className="px-3 h-10 rounded-none border-x">
           <span className="text-sm text-muted-foreground mr-2">Data set</span>
-          <span className="font-medium truncate max-w-[320px]">{value ? value.name : "Choose a data set"}</span>
+          <span className="font-medium truncate max-w-[320px]">{value ? value.name : "Choose a report"}</span>
           <ChevronDown className="ml-2 h-4 w-4" />
         </Button>
       </PopoverTrigger>

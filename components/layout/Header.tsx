@@ -174,23 +174,23 @@ export default function Header() {
         {/* Left: Brand and title */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <Link href="/dashboard" className="flex-shrink-0 group">
-            <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center shadow-md transition-transform group-hover:scale-105 overflow-hidden p-1">
+            <div className="w-40 h-12 lg:w-48 lg:h-14 transition-transform group-hover:scale-105">
               <Image
                 src="/logo.png"
                 alt="NMC Logo"
-                width={32}
-                height={32}
-                className="object-contain"
+                width={192}
+                height={56}
+                className="w-full h-full object-contain"
                 priority
               />
             </div>
           </Link>
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl sm:text-lg font-semibold tracking-tight truncate">
+            <h1 className="text-xl text-white sm:text-lg font-semibold tracking-tight truncate">
               Nursing and Midwifery Council - Ghana
             </h1>
             <p className="text-xs text-blue-200 hidden lg:block">
-              Data Entry and Management System
+              Monitoring and Evaluation Reporting System
             </p>
           </div>
         </div>
