@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { FileSpreadsheet, Upload, Loader2 } from "lucide-react"
+import { FileSpreadsheet, Upload, Loader2, X } from "lucide-react"
 import { toast } from "sonner"
 import api from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -91,6 +91,13 @@ export function ImportFromExcelModal({
     } else if (f) {
       setError("Please upload an Excel file (.xlsx or .xls)")
     }
+    e.target.value = ""
+  }
+
+  const handleClearFile = () => {
+    setFile(null)
+    setError(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
   const handleSubmit = async () => {
@@ -150,21 +157,23 @@ export function ImportFromExcelModal({
             Import report from Excel
           </DialogTitle>
           <DialogDescription>
-            Upload an Excel report template. The system will detect section titles (e.g. INDICATOR, SUPERVISION &amp;
-            ACCREDITATION) in column A, multi-row headers, and create a report layout with data elements for each cell.
+            Upload an Excel report template. The system will detect the INDICATOR column (including merged headers),
+            multi-row headers, and data rows. Multiple tables in one sheet are supported when separated by two or more
+            empty rows; each table becomes a section in the report layout.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div
             className={cn(
-              "border-2 border-dashed rounded-lg p-6 text-center transition-colors",
+              "border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer",
               isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50",
               file && "border-primary/50 bg-primary/5"
             )}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
           >
             <input
               ref={fileInputRef}
@@ -174,17 +183,29 @@ export function ImportFromExcelModal({
               onChange={handleFileSelect}
             />
             {file ? (
-              <p className="text-sm font-medium text-foreground">{file.name}</p>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">{file.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  Click here or drag another file to replace
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleClearFile()
+                  }}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Remove file
+                </Button>
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground">
                 Drag and drop an Excel file here, or{" "}
-                <button
-                  type="button"
-                  className="text-primary underline"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  browse
-                </button>
+                <span className="text-primary underline">browse</span>
               </p>
             )}
           </div>

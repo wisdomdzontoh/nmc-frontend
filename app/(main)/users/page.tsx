@@ -15,7 +15,7 @@ import { ApiClient } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-// import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
@@ -46,6 +46,7 @@ import {
   User as UserIcon,
   ChevronUp,
   ChevronDown,
+  Pencil,
 } from "lucide-react"
 
 import OrgUnitSelectionModal from "@/components/modals/OrgUnitSelectionModal"
@@ -230,14 +231,16 @@ function UsersDataTable({
   onSearch,
   canManageUsers,
   onResetPassword,
+  onEditUser,
 }: {
   data: UserRow[]
   search: string
   onSearch: (v: string) => void
   canManageUsers: boolean
   onResetPassword: (user: UserRow) => void
+  onEditUser: (user: UserRow) => void
 }) {
-  const [sorting, setSorting] = useState<SortingState>([{ id: "full_name", desc: false }])
+  const [sorting, setSorting] = useState<SortingState>([{ id: "date_joined", desc: true }])
   const [roleFilter, setRoleFilter] = useState<"all" | "superuser" | "staff" | "user">("all")
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all")
   const [pageIndex, setPageIndex] = useState(0)
@@ -267,7 +270,15 @@ function UsersDataTable({
         ),
         enableSorting: false,
         cell: ({ row }) => (
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onEditUser(row.original)}
+            >
+              <Pencil className="h-4 w-4 mr-1" />
+              Edit
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -279,7 +290,7 @@ function UsersDataTable({
         ),
       },
     ]
-  }, [canManageUsers, onResetPassword])
+  }, [canManageUsers, onResetPassword, onEditUser])
 
   const table = useReactTable({
     data: filteredData,
@@ -490,8 +501,34 @@ const UsersPage: React.FC = () => {
     confirmPassword: "",
   })
 
-  // org-unit modal
+  // org-unit modal (create vs edit)
   const [orgModalOpen, setOrgModalOpen] = useState(false)
+  const [orgModalFor, setOrgModalFor] = useState<"create" | "edit">("create")
+
+  // edit user dialog
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editUser, setEditUser] = useState<UserRow | null>(null)
+  const [editData, setEditData] = useState<{
+    first_name: string
+    last_name: string
+    username: string
+    email: string
+    org_unit: number | null
+    org_unit_name: string | null
+    is_staff: boolean
+    is_active: boolean
+  }>({
+    first_name: "",
+    last_name: "",
+    username: "",
+    email: "",
+    org_unit: null,
+    org_unit_name: null,
+    is_staff: false,
+    is_active: true,
+  })
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
 
   // initial load
   useEffect(() => {
@@ -621,6 +658,51 @@ async function handleCreate() {
   }
 }
 
+  const handleOpenEditDialog = (user: UserRow) => {
+    setEditUser(user)
+    setEditData({
+      first_name: user.first_name || "",
+      last_name: user.last_name || "",
+      username: user.username || "",
+      email: user.email || "",
+      org_unit: user.org_unit,
+      org_unit_name: user.org_unit_name,
+      is_staff: user.is_staff,
+      is_active: user.is_active,
+    })
+    setEditError(null)
+    setIsEditDialogOpen(true)
+  }
+
+  async function handleSaveEdit() {
+    if (!editUser) return
+    if (!editData.email?.trim()) {
+      setEditError("Email is required")
+      return
+    }
+    try {
+      setIsEditSubmitting(true)
+      setEditError(null)
+      await ApiClient.updateUser(editUser.id, {
+        first_name: editData.first_name,
+        last_name: editData.last_name,
+        username: editData.username || undefined,
+        email: editData.email,
+        org_unit: editData.org_unit,
+        is_staff: editData.is_staff,
+        is_active: editData.is_active,
+      })
+      await refetchUsers()
+      setIsEditDialogOpen(false)
+      setEditUser(null)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : ""
+      setEditError("Failed to update user. " + message)
+    } finally {
+      setIsEditSubmitting(false)
+    }
+  }
+
   const handleOpenResetDialog = (user: UserRow) => {
     setResetUser(user)
     setResetPassword("")
@@ -708,6 +790,7 @@ async function handleCreate() {
         onSearch={setSearchTerm}
         canManageUsers={canManageUsers}
         onResetPassword={handleOpenResetDialog}
+        onEditUser={handleOpenEditDialog}
       />
 
       {/* CREATE USER DIALOG */}
@@ -796,7 +879,7 @@ async function handleCreate() {
                     ? createData.org_unit_name || `Unit ID #${createData.org_unit}`
                     : "No organisation selected"}
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setOrgModalOpen(true)}>
+                <Button variant="outline" size="sm" onClick={() => { setOrgModalFor("create"); setOrgModalOpen(true); }}>
                   Choose organisation unit
                 </Button>
               </div>
@@ -840,6 +923,121 @@ async function handleCreate() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* EDIT USER DIALOG */}
+      {canManageUsers && (
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="z-[50] p-0 sm:max-w-xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="border-b bg-white">
+              <DialogHeader className="p-4">
+                <DialogTitle>Edit User</DialogTitle>
+                <DialogDescription>
+                  Update information for {editUser?.full_name || editUser?.email}.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+            <div className="p-4 space-y-4 flex-1 overflow-auto">
+              {editError && (
+                <Alert variant="destructive">
+                  <AlertDescription>{editError}</AlertDescription>
+                </Alert>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">First Name</label>
+                  <Input
+                    value={editData.first_name}
+                    onChange={(e) => setEditData((p) => ({ ...p, first_name: e.target.value }))}
+                    placeholder="First name"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Last Name</label>
+                  <Input
+                    value={editData.last_name}
+                    onChange={(e) => setEditData((p) => ({ ...p, last_name: e.target.value }))}
+                    placeholder="Last name"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Email *</label>
+                <Input
+                  type="email"
+                  value={editData.email}
+                  onChange={(e) => setEditData((p) => ({ ...p, email: e.target.value }))}
+                  placeholder="Email address"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Username</label>
+                <Input
+                  value={editData.username}
+                  onChange={(e) => setEditData((p) => ({ ...p, username: e.target.value }))}
+                  placeholder="Username (optional)"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Organization Unit</label>
+                <div className="flex items-center justify-between rounded border p-3 bg-gray-50">
+                  <div className="text-sm text-gray-700">
+                    {editData.org_unit
+                      ? editData.org_unit_name || `Unit ID #${editData.org_unit}`
+                      : "No organisation selected"}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setOrgModalFor("edit"); setOrgModalOpen(true); }}
+                  >
+                    Choose organisation unit
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="edit-is_staff"
+                  checked={editData.is_staff}
+                  onCheckedChange={(checked) =>
+                    setEditData((p) => ({ ...p, is_staff: !!checked }))
+                  }
+                />
+                <label htmlFor="edit-is_staff" className="text-sm font-medium leading-none">
+                  Staff access
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="edit-is_active"
+                  checked={editData.is_active}
+                  onCheckedChange={(checked) =>
+                    setEditData((p) => ({ ...p, is_active: !!checked }))
+                  }
+                />
+                <label htmlFor="edit-is_active" className="text-sm font-medium leading-none">
+                  Active
+                </label>
+              </div>
+            </div>
+            <div className="border-t bg-white">
+              <DialogFooter className="p-3 sm:p-4">
+                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveEdit} disabled={isEditSubmitting}>
+                  {isEditSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    "Save changes"
+                  )}
+                </Button>
+              </DialogFooter>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* RESET PASSWORD DIALOG */}
       {canManageUsers && (
@@ -906,11 +1104,19 @@ async function handleCreate() {
         userOrgUnit={djangoUser?.org_unit || undefined}
         onSelect={(units) => {
           const picked = units[0]
-          setCreateData((prev) => ({
-            ...prev,
-            org_unit: picked ? picked.id : null,
-            org_unit_name: picked ? picked.name : null,
-          }))
+          if (orgModalFor === "edit") {
+            setEditData((prev) => ({
+              ...prev,
+              org_unit: picked ? picked.id : null,
+              org_unit_name: picked ? picked.name : null,
+            }))
+          } else {
+            setCreateData((prev) => ({
+              ...prev,
+              org_unit: picked ? picked.id : null,
+              org_unit_name: picked ? picked.name : null,
+            }))
+          }
           setOrgModalOpen(false)
         }}
       />
