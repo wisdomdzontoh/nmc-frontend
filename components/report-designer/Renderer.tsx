@@ -18,8 +18,13 @@ export type CellDef = {
   /** HTML colspan/rowspan */
   colSpan?: number
   rowSpan?: number
-  /** Text alignment */
+  /** Text alignment (align used in designer, alignment from Excel import) */
   align?: "left" | "center" | "right"
+  alignment?: "left" | "center" | "right"
+  /** Preserved from Excel: background and text color (hex) */
+  backgroundColor?: string
+  textColor?: string
+  bold?: boolean
 }
 
 export type TableSection = {
@@ -161,20 +166,29 @@ export default function Renderer({ layout, data, remarks = {}, formatNumber }: R
                   <thead className="bg-accent/20">
                     {t.header.rows.map((r, ri) => (
                       <tr key={`h-${ri}`}>
-                        {r.map((c, ci) => (
-                          <th
-                            key={`h-${ri}-${ci}`}
-                            colSpan={c.colSpan || 1}
-                            rowSpan={c.rowSpan || 1}
-                            className={cn(
-                              "border border-border px-2 py-2 text-left text-[12px] font-semibold",
-                              c.align === "center" && "text-center",
-                              c.align === "right" && "text-right",
-                            )}
-                          >
-                            {c.label ?? ""}
-                          </th>
-                        ))}
+                        {r.map((c, ci) => {
+                          const align = c.alignment ?? c.align ?? "left"
+                          return (
+                            <th
+                              key={`h-${ri}-${ci}`}
+                              colSpan={c.colSpan || 1}
+                              rowSpan={c.rowSpan || 1}
+                              className={cn(
+                                "border border-border px-2 py-2 text-[12px] font-semibold",
+                                align === "center" && "text-center",
+                                align === "right" && "text-right",
+                                align === "left" && "text-left",
+                                c.bold && "font-bold",
+                              )}
+                              style={{
+                                ...(c.backgroundColor ? { backgroundColor: c.backgroundColor } : {}),
+                                ...(c.textColor ? { color: c.textColor } : {}),
+                              }}
+                            >
+                              {c.label ?? ""}
+                            </th>
+                          )
+                        })}
                       </tr>
                     ))}
                   </thead>
@@ -231,6 +245,7 @@ export default function Renderer({ layout, data, remarks = {}, formatNumber }: R
                             }
                           }
 
+                          const align = c.alignment ?? c.align ?? "left"
                           return (
                             <td
                               key={`c-${ri}-${ci}`}
@@ -238,9 +253,15 @@ export default function Renderer({ layout, data, remarks = {}, formatNumber }: R
                               rowSpan={c.rowSpan || 1}
                               className={cn(
                                 "border border-border px-2 py-2 align-top text-[13px]",
-                                c.align === "center" && "text-center",
-                                c.align === "right" && "text-right",
+                                align === "center" && "text-center",
+                                align === "right" && "text-right",
+                                align === "left" && "text-left",
+                                c.bold && "font-bold",
                               )}
+                              style={{
+                                ...(c.backgroundColor ? { backgroundColor: c.backgroundColor } : {}),
+                                ...(c.textColor ? { color: c.textColor } : {}),
+                              }}
                             >
                               {content}
                             </td>

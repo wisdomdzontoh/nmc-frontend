@@ -25,7 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { ImportFromExcelModal } from "@/components/report-designer/ImportFromExcelModal"
-import { Loader2, FileSpreadsheet } from "lucide-react"
+import { Loader2, FileSpreadsheet, Download } from "lucide-react"
 
 type LayoutStatus = "draft" | "published" | "archived"
 
@@ -42,6 +42,7 @@ type LayoutRow = {
 export default function DesignReportsList() {
   const { djangoUser } = useAuth() as { djangoUser: DjangoUser | null }
   const [importModalOpen, setImportModalOpen] = useState(false)
+  const [templateDownloading, setTemplateDownloading] = useState(false)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<"all" | LayoutStatus>("all")
   const [page, setPage] = useState(1)
@@ -91,6 +92,27 @@ export default function DesignReportsList() {
     setPage(1)
   }
 
+  const handleDownloadTemplate = async () => {
+    setTemplateDownloading(true)
+    try {
+      const { data } = await api.get<Blob>("/reporting/report-layouts/download-template/", {
+        responseType: "blob",
+      })
+      const url = URL.createObjectURL(data)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "report_import_template.xlsx"
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch {
+      // Error is visible via network; could add toast
+    } finally {
+      setTemplateDownloading(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -133,6 +155,18 @@ export default function DesignReportsList() {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Report layouts</h2>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleDownloadTemplate}
+            disabled={templateDownloading}
+          >
+            {templateDownloading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            Download template
+          </Button>
           <Button variant="outline" onClick={() => setImportModalOpen(true)}>
             <FileSpreadsheet className="h-4 w-4 mr-2" />
             Import from Excel

@@ -17,6 +17,12 @@ type ValuesByCode = Record<string, number | string | null>
 type TableArrayHeaderCell = {
   label?: string
   colSpan?: number
+  /** Preserved from Excel: background fill color (hex e.g. #1E3A5F) */
+  backgroundColor?: string
+  /** Preserved from Excel: text color (hex) */
+  textColor?: string
+  bold?: boolean
+  alignment?: "left" | "center" | "right"
 }
 
 type TableArrayRowCell = {
@@ -248,20 +254,28 @@ function EnhancedTableArray({
                           ? { minWidth: '80px', width: `${Math.max(section.columnWidths[colIndex] ?? 120, 80)}px` }
                           : { minWidth: isFirstColumn ? '200px' : '80px', width: 'auto' as const }
                       colIndex += cellSpan
+                      const headerBg = cell.backgroundColor ?? (isFirstColumn ? "rgb(249 250 251)" : undefined)
+                      const headerFg = cell.textColor ?? undefined
                       return (
                         <th
                           key={`h-${hri}-${hci}`}
                           className={cn(
-                            "px-4 py-3 text-center text-sm font-semibold text-gray-700 whitespace-nowrap border border-gray-200 bg-gray-50",
+                            "px-4 py-3 text-sm font-semibold whitespace-nowrap border border-gray-200",
+                            cell.alignment === "right" && "text-right",
+                            cell.alignment === "left" && "text-left",
+                            (cell.alignment === "center" || !cell.alignment) && "text-center",
+                            cell.bold && "font-bold",
                             "sticky top-0",
                             isFirstColumn && "sticky left-0 z-[30] border-r-2 border-gray-300 shadow-[2px_0_4px_rgba(0,0,0,0.08)]"
                           )}
                           colSpan={cellSpan}
                           style={{
                             ...widthStyle,
-                            position: 'sticky',
+                            position: "sticky",
                             top: 0,
-                            ...(isFirstColumn ? { left: 0, zIndex: 30, backgroundColor: 'rgb(249 250 251)' } : { zIndex: 20 })
+                            ...(isFirstColumn ? { left: 0, zIndex: 30 } : { zIndex: 20 }),
+                            ...(headerBg ? { backgroundColor: headerBg } : {}),
+                            ...(headerFg ? { color: headerFg } : {}),
                           }}
                         >
                           {cell.label}
@@ -324,23 +338,28 @@ function EnhancedTableArray({
                     extraClass = "bg-purple-50/30"
                   } else if (typeof c.text === "string" && c.text.trim() !== "") {
                     content = (
-                      <span className={cn(
-                        "text-sm",
-                        c.bold ? "font-bold" : "font-semibold",
-                        c.textColor && `text-[${c.textColor}]`
-                      )}>
+                      <span
+                        className={cn(
+                          "text-sm",
+                          c.bold ? "font-bold" : "font-semibold"
+                        )}
+                        style={c.textColor ? { color: c.textColor } : undefined}
+                      >
                         {c.text}
                       </span>
                     )
                   }
 
-                  // Determine background color for first column
-                  const getFirstColumnBg = () => {
+                  // Background/text from Excel format, or defaults for input/compute cells
+                  const getCellBg = () => {
                     if (c.backgroundColor) return c.backgroundColor
-                    if (extraClass.includes('bg-blue-50')) return 'rgb(239 246 255)'
-                    if (extraClass.includes('bg-purple-50')) return 'rgb(250 245 255)'
-                    return 'white'
+                    if (extraClass.includes("bg-blue-50")) return "rgb(239 246 255)"
+                    if (extraClass.includes("bg-purple-50")) return "rgb(250 245 255)"
+                    if (isFirstColumn) return "white"
+                    return undefined
                   }
+                  const cellBg = getCellBg()
+                  const cellFg = c.textColor ?? undefined
 
                   return (
                     <td
@@ -348,20 +367,17 @@ function EnhancedTableArray({
                       className={cn(
                         "px-4 py-4 align-top border border-gray-200",
                         extraClass,
-                        c.backgroundColor && `bg-[${c.backgroundColor}]`,
                         c.alignment === "center" && "text-center",
                         c.alignment === "right" && "text-right",
+                        c.bold && "font-bold",
                         isFirstColumn && "sticky left-0 z-[10] border-r-2 border-gray-300 shadow-[2px_0_4px_rgba(0,0,0,0.08)]"
                       )}
                       style={{
-                        minWidth: '120px',
-                        width: section.columnWidths?.[ci] ? `${Math.max(section.columnWidths[ci], 120)}px` : 'auto',
-                        ...(isFirstColumn ? { 
-                          position: 'sticky', 
-                          left: 0, 
-                          zIndex: 10, 
-                          backgroundColor: getFirstColumnBg() 
-                        } : {})
+                        minWidth: "120px",
+                        width: section.columnWidths?.[ci] ? `${Math.max(section.columnWidths[ci], 120)}px` : "auto",
+                        ...(isFirstColumn ? { position: "sticky", left: 0, zIndex: 10 } : {}),
+                        ...(cellBg ? { backgroundColor: cellBg } : {}),
+                        ...(cellFg ? { color: cellFg } : {}),
                       }}
                     >
                       {content}
