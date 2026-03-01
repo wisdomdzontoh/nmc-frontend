@@ -258,9 +258,9 @@ const PeriodSelectionModal: React.FC<PeriodSelectionModalProps> = ({
               <h3 className="text-sm font-medium mb-4">Selected Periods</h3>
               {selectedPeriod ? (
                 <div className="space-y-2">
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                     <div className="flex items-center">
-                      <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                      <CheckCircle className="h-4 w-4 text-red-500 mr-2" />
                       <span className="text-sm font-medium">{selectedPeriod.name}</span>
                     </div>
                     <div className="text-xs text-gray-600 mt-1">

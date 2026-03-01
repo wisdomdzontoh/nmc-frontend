@@ -70,7 +70,7 @@ const DashboardPage: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-3">
-          <Loader2 className="h-10 w-10 animate-spin mx-auto" style={{ color: "#1B5E3B" }} />
+          <Loader2 className="h-10 w-10 animate-spin mx-auto" style={{ color: "#C9433B" }} />
           <p className="text-gray-500 text-sm">Loading…</p>
         </div>
       </div>
@@ -103,11 +103,11 @@ const DashboardPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Hero / Welcome */}
       <section className="relative overflow-hidden px-6 pt-6 pb-8">
-        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 80% 60% at 50% -20%, rgba(27,94,59,0.10), transparent)" }} />
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 80% 60% at 50% -20%, rgba(201,67,59,0.08), transparent)" }} />
         <div className="relative max-w-6xl mx-auto">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
             <div>
-              <p className="flex items-center gap-2 text-sm font-semibold mb-2" style={{ color: "#1B5E3B" }}>
+              <p className="flex items-center gap-2 text-sm font-semibold mb-2 text-red-700">
                 <Sparkles className="h-4 w-4" />
                 Welcome back
               </p>
@@ -125,7 +125,7 @@ const DashboardPage: React.FC = () => {
                   asChild
                   size="lg"
                   className="gap-2 text-white shadow-sm"
-                  style={{ background: "linear-gradient(135deg, #1B5E3B, #2E7D52)" }}
+                  style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}
                 >
                   <Link href={href}>
                     <Icon className="h-4 w-4" />
@@ -157,15 +157,15 @@ const DashboardPage: React.FC = () => {
             <CardContent>
               {loading ? (
                 <div className="flex items-center justify-center h-[260px]">
-                  <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#1B5E3B" }} />
+                  <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#C9433B" }} />
                 </div>
               ) : analytics?.reportsOverTime?.length ? (
                 <ResponsiveContainer width="100%" height={260}>
                   <AreaChart data={analytics.reportsOverTime}>
                     <defs>
                       <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#1B5E3B" stopOpacity={0.35} />
-                        <stop offset="100%" stopColor="#1B5E3B" stopOpacity={0} />
+                        <stop offset="0%" stopColor="#C9433B" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#C9433B" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -178,7 +178,7 @@ const DashboardPage: React.FC = () => {
                     <Area
                       type="monotone"
                       dataKey="count"
-                      stroke="#1B5E3B"
+                      stroke="#C9433B"
                       strokeWidth={2}
                       fill="url(#areaFill)"
                     />
@@ -201,7 +201,7 @@ const DashboardPage: React.FC = () => {
             <CardContent>
               {loading ? (
                 <div className="flex items-center justify-center h-[260px]">
-                  <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#1B5E3B" }} />
+                  <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#C9433B" }} />
                 </div>
               ) : analytics?.reportsByOrgUnit?.length ? (
                 <ResponsiveContainer width="100%" height={260}>
@@ -222,7 +222,7 @@ const DashboardPage: React.FC = () => {
                     <Tooltip
                       contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0" }}
                     />
-                    <Bar dataKey="count" fill="#2E7D52" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="count" fill="#D96455" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -242,7 +242,7 @@ const DashboardPage: React.FC = () => {
             <CardContent>
               {loading ? (
                 <div className="flex items-center justify-center h-[240px]">
-                  <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#1B5E3B" }} />
+                  <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#C9433B" }} />
                 </div>
               ) : analytics?.reportsByType?.length ? (
                 <ResponsiveContainer width="100%" height={240}>
@@ -265,9 +265,9 @@ const DashboardPage: React.FC = () => {
                     <Line
                       type="monotone"
                       dataKey="count"
-                      stroke="#1B5E3B"
+                      stroke="#C9433B"
                       strokeWidth={2}
-                      dot={{ fill: "#1B5E3B", r: 4 }}
+                      dot={{ fill: "#C9433B", r: 4 }}
                       activeDot={{ r: 6 }}
                     />
                   </LineChart>
@@ -289,7 +289,7 @@ const DashboardPage: React.FC = () => {
             <CardContent>
               {loading ? (
                 <div className="flex items-center justify-center h-[220px]">
-                  <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#1B5E3B" }} />
+                  <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#C9433B" }} />
                 </div>
               ) : analytics?.userActivity?.length ? (
                 <ResponsiveContainer width="100%" height={220}>
@@ -301,7 +301,7 @@ const DashboardPage: React.FC = () => {
                       contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0" }}
                       formatter={(value: number) => [value, "Reports"]}
                     />
-                    <Bar dataKey="new_reports" fill="#4CAF50" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="new_reports" fill="#E8877A" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (

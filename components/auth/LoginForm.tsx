@@ -85,7 +85,7 @@ const LoginForm: React.FC = () => {
         {/* Desktop logo + title */}
         <div className="hidden lg:block text-center">
           <div className="flex justify-center mb-4">
-            <div className="relative w-16 h-16 bg-white rounded-full shadow-lg border-2 border-green-100 flex items-center justify-center overflow-hidden">
+            <div className="relative w-16 h-16 bg-white rounded-full shadow-lg border-2 border-red-100 flex items-center justify-center overflow-hidden">
               <Image src="/logo.png" alt="NMC Logo" fill className="object-contain p-1" />
             </div>
           </div>
@@ -118,7 +118,7 @@ const LoginForm: React.FC = () => {
               type="email"
               placeholder="name@example.com"
               {...register("email")}
-              className={`h-11 border-gray-300 focus-visible:ring-green-600 ${errors.email ? "border-red-400 focus-visible:ring-red-400" : ""}`}
+              className={`h-11 border-gray-300 focus-visible:ring-red-600 ${errors.email ? "border-red-400 focus-visible:ring-red-400" : ""}`}
               disabled={isSubmitting}
               autoComplete="email"
               onChange={(e) => { register("email").onChange(e); if (error) clearError() }}
@@ -142,7 +142,7 @@ const LoginForm: React.FC = () => {
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
                 {...register("password")}
-                className={`h-11 pr-10 border-gray-300 focus-visible:ring-green-600 ${errors.password ? "border-red-400 focus-visible:ring-red-400" : ""}`}
+                className={`h-11 pr-10 border-gray-300 focus-visible:ring-red-600 ${errors.password ? "border-red-400 focus-visible:ring-red-400" : ""}`}
                 disabled={isSubmitting}
                 autoComplete="current-password"
               />
@@ -171,8 +171,8 @@ const LoginForm: React.FC = () => {
             className="w-full h-11 font-semibold text-white shadow-sm"
             style={{
               background: isSubmitting || loading
-                ? "#2E7D52"
-                : "linear-gradient(135deg, #1B5E3B, #2E7D52)",
+                ? "#D96455"
+                : "linear-gradient(135deg, #C9433B, #D96455)",
             }}
           >
             {isSubmitting || loading ? (
@@ -192,7 +192,7 @@ const LoginForm: React.FC = () => {
           <button
             type="button"
             onClick={() => setContactModalOpen(true)}
-            className="text-sm font-medium text-green-700 hover:text-green-900 underline underline-offset-2 transition-colors"
+            className="text-sm font-medium text-red-700 hover:text-red-900 underline underline-offset-2 transition-colors"
           >
             Contact Administrator
           </button>
@@ -204,8 +204,8 @@ const LoginForm: React.FC = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg" style={{ background: "#e8f5ee" }}>
-                <UserCog className="h-5 w-5" style={{ color: "#1B5E3B" }} />
+              <div className="p-2 rounded-lg" style={{ background: "#FCC6BB" }}>
+                <UserCog className="h-5 w-5" style={{ color: "#C9433B" }} />
               </div>
               <DialogTitle className="text-gray-900">Contact Administrator</DialogTitle>
             </div>
@@ -226,13 +226,13 @@ const LoginForm: React.FC = () => {
               {ADMIN_CONTACTS.map((contact) => (
                 <div
                   key={contact.email}
-                  className="rounded-lg border border-green-100 p-4"
-                  style={{ background: "#f0f7f3" }}
+                  className="rounded-lg border border-red-100 p-4"
+                  style={{ background: "#FEF0EC" }}
                 >
                   <div className="flex items-start gap-3">
                     <div
                       className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                      style={{ background: "linear-gradient(135deg, #1B5E3B, #2E7D52)" }}
+                      style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}
                     >
                       {contact.name.charAt(0)}
                     </div>
@@ -242,14 +242,14 @@ const LoginForm: React.FC = () => {
                       <div className="space-y-1">
                         <a
                           href={`mailto:${contact.email}`}
-                          className="flex items-center gap-2 text-xs text-green-700 hover:text-green-900 no-underline transition-colors"
+                          className="flex items-center gap-2 text-xs text-red-700 hover:text-red-900 no-underline transition-colors"
                         >
                           <Mail className="h-3.5 w-3.5 flex-shrink-0" />
                           {contact.email}
                         </a>
                         <a
                           href={`tel:${contact.phone}`}
-                          className="flex items-center gap-2 text-xs text-green-700 hover:text-green-900 no-underline transition-colors"
+                          className="flex items-center gap-2 text-xs text-red-700 hover:text-red-900 no-underline transition-colors"
                         >
                           <Phone className="h-3.5 w-3.5 flex-shrink-0" />
                           {contact.phone}

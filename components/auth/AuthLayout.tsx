@@ -13,7 +13,7 @@ export default function AuthLayout({
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Mobile Header */}
-      <div className="lg:hidden p-6 text-center" style={{ background: "linear-gradient(135deg, #0D3B24 0%, #1B5E3B 60%, #2E7D52 100%)" }}>
+      <div className="lg:hidden p-6 text-center" style={{ background: "linear-gradient(135deg, #8B3020 0%, #C9433B 60%, #D96455 100%)" }}>
         <div className="flex justify-center mb-4">
           <div className="relative w-24 h-24 bg-white rounded-full p-3 shadow-xl ring-4 ring-white/20">
             <Image
@@ -29,8 +29,8 @@ export default function AuthLayout({
           <h1 className="text-lg font-bold tracking-tight">
             Nursing and Midwifery Council
           </h1>
-          <p className="text-sm text-green-200">Republic of Ghana</p>
-          <p className="text-xs text-green-300">Standards &bull; Protection &bull; Service</p>
+          <p className="text-sm text-red-200">Republic of Ghana</p>
+          <p className="text-xs text-red-300">Standards &bull; Protection &bull; Service</p>
         </div>
       </div>
 
@@ -42,7 +42,7 @@ export default function AuthLayout({
       {/* Right side — Hero Panel */}
       <div
         className="hidden lg:flex lg:w-1/2 relative items-center justify-center p-12"
-        style={{ background: "linear-gradient(145deg, #0D3B24 0%, #1B5E3B 50%, #2E7D52 100%)" }}
+        style={{ background: "linear-gradient(145deg, #8B3020 0%, #C9433B 50%, #D96455 100%)" }}
       >
         {/* Subtle pattern overlay */}
         <div className="absolute inset-0 opacity-5" style={{
@@ -76,12 +76,12 @@ export default function AuthLayout({
             <h1 className="text-3xl font-bold tracking-tight">
               Nursing and Midwifery Council
             </h1>
-            <p className="text-lg font-medium text-green-200">Republic of Ghana</p>
-            <div className="w-16 h-0.5 bg-green-400 mx-auto rounded-full" />
-            <p className="text-sm text-green-300 font-medium tracking-widest uppercase">
+            <p className="text-lg font-medium text-red-200">Republic of Ghana</p>
+            <div className="w-16 h-0.5 bg-red-400 mx-auto rounded-full" />
+            <p className="text-sm text-red-300 font-medium tracking-widest uppercase">
               Standards &bull; Protection &bull; Service
             </p>
-            <p className="text-xs text-green-400 mt-2">Ministry of Health</p>
+            <p className="text-xs text-red-400 mt-2">Ministry of Health</p>
           </div>
 
           {/* Feature highlights */}
@@ -93,7 +93,7 @@ export default function AuthLayout({
             ].map((feat) => (
               <div key={feat.label} className="bg-white/10 rounded-xl p-3 border border-white/15">
                 <p className="text-xs font-bold text-white">{feat.label}</p>
-                <p className="text-[10px] text-green-300 mt-0.5">{feat.desc}</p>
+                <p className="text-[10px] text-red-300 mt-0.5">{feat.desc}</p>
               </div>
             ))}
           </div>

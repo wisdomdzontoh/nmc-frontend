@@ -275,7 +275,7 @@ export function BulkImportModal({
               {result && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-2 text-green-600">
+                    <div className="flex items-center gap-2 text-red-600">
                       <Check className="h-5 w-5" />
                       <span className="font-semibold">{result.success} successful</span>
                     </div>

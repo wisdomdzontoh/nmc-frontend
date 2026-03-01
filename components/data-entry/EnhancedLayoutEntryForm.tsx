@@ -410,8 +410,8 @@ export default function EnhancedLayoutEntryForm({
           <p className="text-gray-600 mt-1">
             Enter data and view real-time calculations
             {dataSaved && (
-              <span className="ml-2 inline-flex items-center gap-1 text-green-600">
-                <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+              <span className="ml-2 inline-flex items-center gap-1 text-gray-600">
+                <div className="w-1.5 h-1.5 bg-gray-500 rounded-full"></div>
                 Data saved
               </span>
             )}

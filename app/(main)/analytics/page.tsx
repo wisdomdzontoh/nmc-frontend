@@ -208,7 +208,7 @@ const AnalyticsPage: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
+          <Card className="bg-gradient-to-br from-red-600 to-red-700 text-white border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg font-medium text-white/90">Active Users</CardTitle>
               <Users className="h-8 w-8 text-white/80" />

@@ -3,17 +3,17 @@ import Image from "next/image"
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "linear-gradient(180deg, #f0f7f3 0%, #ffffff 100%)" }}>
+    <div className="min-h-screen flex flex-col" style={{ background: "linear-gradient(180deg, #FEF0EC 0%, #ffffff 100%)" }}>
       {/* Header bar */}
-      <div className="w-full border-b border-[#0D3B24] shadow-md" style={{ background: "linear-gradient(135deg, #0D3B24 0%, #1B5E3B 50%, #2E7D52 100%)" }}>
-        <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, #4CAF50, #1B5E3B, #4CAF50)" }} />
+      <div className="w-full border-b border-[#8B3020] shadow-md" style={{ background: "linear-gradient(135deg, #8B3020 0%, #C9433B 50%, #D96455 100%)" }}>
+        <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, #E8877A, #C9433B, #E8877A)" }} />
         <div className="h-16 flex items-center gap-3 px-6">
           <div className="relative h-10 w-10 rounded-full bg-white shadow ring-2 ring-white/30 flex items-center justify-center overflow-hidden flex-shrink-0">
             <Image src="/logo.png" alt="NMC Logo" width={36} height={36} className="object-contain" priority />
           </div>
           <div>
             <h1 className="text-sm font-bold text-white leading-tight">Nursing &amp; Midwifery Council</h1>
-            <p className="text-xs text-green-200">Republic of Ghana</p>
+            <p className="text-xs text-red-200">Republic of Ghana</p>
           </div>
         </div>
       </div>
@@ -26,7 +26,7 @@ export default function NotFound() {
             <div
               className="text-[10rem] font-black leading-none select-none"
               style={{
-                background: "linear-gradient(135deg, #0D3B24, #2E7D52, #4CAF50)",
+                background: "linear-gradient(135deg, #8B3020, #D96455, #E8877A)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
@@ -35,7 +35,7 @@ export default function NotFound() {
               404
             </div>
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-24 h-24 rounded-full bg-white shadow-lg ring-4 ring-green-100 flex items-center justify-center" style={{ marginTop: "1rem" }}>
+              <div className="w-24 h-24 rounded-full bg-white shadow-lg ring-4 ring-red-100 flex items-center justify-center" style={{ marginTop: "1rem" }}>
                 <Image src="/logo.png" alt="NMC" width={64} height={64} className="object-contain w-16 h-16" />
               </div>
             </div>
@@ -51,9 +51,9 @@ export default function NotFound() {
           </div>
 
           {/* Official notice */}
-          <div className="rounded-xl border border-green-200 p-4 text-left" style={{ background: "#f0f7f3" }}>
+          <div className="rounded-xl border border-red-200 p-4 text-left" style={{ background: "#FEF0EC" }}>
             <div className="flex items-start gap-3">
-              <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: "#1B5E3B" }} />
+              <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: "#C9433B" }} />
               <div>
                 <p className="text-sm font-semibold text-gray-800">Official Notice</p>
                 <p className="text-xs text-gray-600 mt-1">
@@ -69,13 +69,13 @@ export default function NotFound() {
             <Link
               href="/dashboard"
               className="flex items-center justify-center gap-2 h-12 px-6 rounded-lg text-white font-semibold text-sm shadow-sm transition-all hover:shadow-md hover:opacity-90 no-underline"
-              style={{ background: "linear-gradient(135deg, #1B5E3B, #2E7D52)" }}
+              style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}
             >
               Go to Dashboard
             </Link>
             <Link
               href="/auth/login"
-              className="flex items-center justify-center gap-2 h-12 px-6 rounded-lg font-semibold text-sm border border-green-300 text-green-800 bg-white hover:bg-green-50 transition-all no-underline"
+              className="flex items-center justify-center gap-2 h-12 px-6 rounded-lg font-semibold text-sm border border-red-300 text-red-800 bg-white hover:bg-red-50 transition-all no-underline"
             >
               Back to Login
             </Link>
@@ -94,7 +94,7 @@ export default function NotFound() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="text-xs text-green-700 hover:text-green-900 underline underline-offset-2 transition-colors"
+                  className="text-xs text-red-700 hover:text-red-900 underline underline-offset-2 transition-colors"
                 >
                   {link.label}
                 </Link>

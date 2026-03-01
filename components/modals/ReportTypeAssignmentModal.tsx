@@ -408,8 +408,8 @@ export default function ReportTypeAssignmentModal({
               </div>
 
               {/* Right Pane - Chosen Report Types */}
-              <div className="flex-1 flex flex-col border rounded-lg overflow-hidden border-green-200 min-h-0 max-h-full">
-                <div className="bg-green-50 px-4 py-3 border-b border-green-200 flex-shrink-0">
+              <div className="flex-1 flex flex-col border rounded-lg overflow-hidden border-red-200 min-h-0 max-h-full">
+                <div className="bg-red-50 px-4 py-3 border-b border-red-200 flex-shrink-0">
                   <h3 className="text-sm font-semibold text-gray-900 mb-1">
                     Chosen report types
                   </h3>
@@ -418,7 +418,7 @@ export default function ReportTypeAssignmentModal({
                   </p>
                 </div>
                 
-                <div className="px-4 py-2 border-b border-green-200 flex-shrink-0">
+                <div className="px-4 py-2 border-b border-red-200 flex-shrink-0">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
@@ -449,7 +449,7 @@ export default function ReportTypeAssignmentModal({
                                   "px-3 py-2 rounded cursor-pointer text-sm transition-colors",
                                   isSelected
                                     ? "bg-blue-100 text-blue-900"
-                                    : "hover:bg-green-50 text-gray-900"
+                                    : "hover:bg-red-50 text-gray-900"
                                 )}
                               >
                                 <div className="font-medium">{reportType.name}</div>
@@ -463,7 +463,7 @@ export default function ReportTypeAssignmentModal({
                   </ScrollArea>
                 </div>
 
-                <div className="px-4 py-3 border-t border-green-200 bg-green-50 flex-shrink-0">
+                <div className="px-4 py-3 border-t border-red-200 bg-red-50 flex-shrink-0">
                   <Button
                     variant="outline"
                     size="sm"

@@ -217,7 +217,7 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Calculator className="h-5 w-5" style={{ color: "#1B5E3B" }} />
+            <Calculator className="h-5 w-5" style={{ color: "#C9433B" }} />
             {indicator ? "Edit Indicator" : "Create New Indicator"}
           </DialogTitle>
           <DialogDescription>
@@ -239,7 +239,7 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
                 <Input
                   id="ind-code"
                   placeholder="e.g., IND001"
-                  className={`font-mono ${errors.code ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-green-600"}`}
+                  className={`font-mono ${errors.code ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-red-600"}`}
                   {...register("code")}
                 />
                 {errors.code ? (
@@ -255,7 +255,7 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
                 <Input
                   id="ind-name"
                   placeholder="e.g., Malaria Incidence Rate"
-                  className={errors.name ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-green-600"}
+                  className={errors.name ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-red-600"}
                   {...register("name")}
                 />
                 {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
@@ -270,7 +270,7 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
                 id="ind-desc"
                 placeholder="Describe what this indicator measures..."
                 rows={2}
-                className="focus-visible:ring-green-600"
+                className="focus-visible:ring-red-600"
                 {...register("description")}
               />
             </div>
@@ -282,7 +282,7 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
                   id="ind-factor"
                   type="number"
                   min={1}
-                  className={`focus-visible:ring-green-600 ${errors.factor ? "border-red-400 focus-visible:ring-red-400" : ""}`}
+                  className={`focus-visible:ring-red-600 ${errors.factor ? "border-red-400 focus-visible:ring-red-400" : ""}`}
                   {...factorReg}
                   onChange={(e) => {
                     factorReg.onChange(e)
@@ -300,7 +300,7 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
                 <Input
                   id="ind-unit"
                   placeholder="e.g., %, per 1000"
-                  className="focus-visible:ring-green-600"
+                  className="focus-visible:ring-red-600"
                   {...register("unit")}
                 />
               </div>
@@ -309,7 +309,7 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
                 <select
                   id="ind-aggregation"
                   {...register("aggregationType")}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
                 >
                   <option value="sum">Sum</option>
                   <option value="average">Average</option>
@@ -333,7 +333,7 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
               <Input
                 id="num-formula"
                 placeholder="e.g., DE001 + DE002"
-                className={`font-mono ${errors.numeratorFormula ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-green-600"}`}
+                className={`font-mono ${errors.numeratorFormula ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-red-600"}`}
                 {...register("numeratorFormula")}
               />
               {errors.numeratorFormula && (
@@ -349,7 +349,7 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
                 id="num-desc"
                 placeholder="Describe what the numerator represents..."
                 rows={2}
-                className="focus-visible:ring-green-600"
+                className="focus-visible:ring-red-600"
                 {...register("numeratorDescription")}
               />
             </div>
@@ -372,7 +372,7 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
                       }
                       style={
                         selectedNumeratorElements.has(de.code)
-                          ? { background: "linear-gradient(135deg, #1B5E3B, #2E7D52)" }
+                          ? { background: "linear-gradient(135deg, #C9433B, #D96455)" }
                           : {}
                       }
                     >
@@ -397,7 +397,7 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
               <Input
                 id="den-formula"
                 placeholder="e.g., DE003"
-                className="font-mono focus-visible:ring-green-600"
+                className="font-mono focus-visible:ring-red-600"
                 {...register("denominatorFormula")}
               />
             </div>
@@ -410,7 +410,7 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
                 id="den-desc"
                 placeholder="Describe what the denominator represents..."
                 rows={2}
-                className="focus-visible:ring-green-600"
+                className="focus-visible:ring-red-600"
                 {...register("denominatorDescription")}
               />
             </div>
@@ -433,7 +433,7 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
                       }
                       style={
                         selectedDenominatorElements.has(de.code)
-                          ? { background: "linear-gradient(135deg, #1B5E3B, #2E7D52)" }
+                          ? { background: "linear-gradient(135deg, #C9433B, #D96455)" }
                           : {}
                       }
                     >
@@ -467,7 +467,7 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
               type="submit"
               disabled={isSubmitting}
               className="text-white"
-              style={{ background: "linear-gradient(135deg, #1B5E3B, #2E7D52)" }}
+              style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}
             >
               <Save className="h-4 w-4 mr-2" />
               {indicator ? "Update" : "Create"} Indicator

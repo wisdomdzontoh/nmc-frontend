@@ -20,10 +20,10 @@ export default function Sidebar({ open }: { open: boolean }) {
   return (
     <aside
       className={cn(
-        "flex flex-col border-r border-[#1a4d30] transition-all duration-200 ease-in-out h-full",
+        "flex flex-col border-r border-[#7A2818] transition-all duration-200 ease-in-out h-full",
         open ? "w-60" : "w-16"
       )}
-      style={{ background: "linear-gradient(180deg, #0D3B24 0%, #0f4228 100%)" }}
+      style={{ background: "linear-gradient(180deg, #8B3020 0%, #861e1e 100%)" }}
     >
       <nav className="flex-1 flex flex-col pt-3 px-2 pb-4 space-y-0.5 overflow-y-auto">
         {visibleNav.map((item) => {
@@ -37,15 +37,15 @@ export default function Sidebar({ open }: { open: boolean }) {
               className={cn(
                 "group flex items-center rounded-lg px-2 py-2.5 text-sm font-medium transition-all duration-150",
                 isActive
-                  ? "bg-[#1B5E3B] text-white shadow-sm border border-[#2E7D52]/40"
-                  : "text-green-200 hover:bg-white/10 hover:text-white"
+                  ? "bg-[#C9433B] text-white shadow-sm border border-[#D96455]/40"
+                  : "text-red-200 hover:bg-white/10 hover:text-white"
               )}
             >
               <Icon
                 className={cn(
                   "flex-shrink-0 h-5 w-5 transition-colors",
                   open ? "mr-3" : "mx-auto",
-                  isActive ? "text-green-300" : "text-green-400 group-hover:text-green-200"
+                  isActive ? "text-red-300" : "text-red-400 group-hover:text-red-200"
                 )}
                 aria-hidden="true"
               />
@@ -53,7 +53,7 @@ export default function Sidebar({ open }: { open: boolean }) {
                 <span className="truncate leading-none">{item.label}</span>
               )}
               {open && isActive && (
-                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
               )}
             </Link>
           );
@@ -62,8 +62,8 @@ export default function Sidebar({ open }: { open: boolean }) {
 
       {/* Footer branding */}
       {open && (
-        <div className="px-3 py-3 border-t border-[#1a4d30]">
-          <p className="text-[10px] text-green-600 text-center leading-relaxed">
+        <div className="px-3 py-3 border-t border-[#7A2818]">
+          <p className="text-[10px] text-red-500 text-center leading-relaxed">
             NMC Ghana &copy; {new Date().getFullYear()}
           </p>
         </div>

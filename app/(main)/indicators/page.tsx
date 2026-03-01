@@ -243,10 +243,10 @@ export default function IndicatorsPage() {
 
   // Stat cards
   const stats = [
-    { label: "Total Indicators", value: indicators.length, icon: TrendingUp, color: "#1B5E3B", bg: "#e8f5ee" },
-    { label: "Data Elements", value: dataElements.length, icon: Database, color: "#2E7D52", bg: "#f0f7f3" },
-    { label: "Percentage (%)", value: indicators.filter(i => i.factor === 100).length, icon: BarChart3, color: "#0D3B24", bg: "#d4eddc" },
-    { label: "Per Thousand", value: indicators.filter(i => i.factor === 1000).length, icon: Hash, color: "#1B5E3B", bg: "#e8f5ee" },
+    { label: "Total Indicators", value: indicators.length, icon: TrendingUp, color: "#C9433B", bg: "#FCC6BB" },
+    { label: "Data Elements", value: dataElements.length, icon: Database, color: "#D96455", bg: "#FEF0EC" },
+    { label: "Percentage (%)", value: indicators.filter(i => i.factor === 100).length, icon: BarChart3, color: "#8B3020", bg: "#FCC6BB" },
+    { label: "Per Thousand", value: indicators.filter(i => i.factor === 1000).length, icon: Hash, color: "#C9433B", bg: "#FCC6BB" },
   ]
 
   if (!isSuperuser && !isStaff) {
@@ -270,7 +270,7 @@ export default function IndicatorsPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center space-y-3">
-          <Loader2 className="h-10 w-10 animate-spin mx-auto" style={{ color: "#1B5E3B" }} />
+          <Loader2 className="h-10 w-10 animate-spin mx-auto" style={{ color: "#C9433B" }} />
           <p className="text-gray-500 text-sm">Loading indicators and data elements...</p>
         </div>
       </div>
@@ -291,7 +291,7 @@ export default function IndicatorsPage() {
           <div className="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
             Last refreshed: {new Date().toLocaleTimeString()}
           </div>
-          <Button variant="outline" size="sm" onClick={loadData} className="border-green-200 text-green-700 hover:bg-green-50">
+          <Button variant="outline" size="sm" onClick={loadData} className="border-red-200 text-red-700 hover:bg-red-50">
             Refresh
           </Button>
         </div>
@@ -320,12 +320,12 @@ export default function IndicatorsPage() {
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "indicators" | "data-elements")} className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <TabsList className="border border-gray-200 bg-gray-50">
-            <TabsTrigger value="indicators" className="data-[state=active]:bg-white data-[state=active]:text-green-800 data-[state=active]:shadow-sm flex items-center gap-2">
+            <TabsTrigger value="indicators" className="data-[state=active]:bg-white data-[state=active]:text-red-800 data-[state=active]:shadow-sm flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Indicators
               <Badge variant="secondary" className="ml-1 text-xs">{indicators.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="data-elements" className="data-[state=active]:bg-white data-[state=active]:text-green-800 data-[state=active]:shadow-sm flex items-center gap-2">
+            <TabsTrigger value="data-elements" className="data-[state=active]:bg-white data-[state=active]:text-red-800 data-[state=active]:shadow-sm flex items-center gap-2">
               <Database className="h-4 w-4" />
               Data Elements
               <Badge variant="secondary" className="ml-1 text-xs">{dataElements.length}</Badge>
@@ -333,18 +333,18 @@ export default function IndicatorsPage() {
           </TabsList>
 
           {activeTab === "indicators" && (
-            <Button onClick={handleCreateIndicator} className="text-white shadow-sm" style={{ background: "linear-gradient(135deg, #1B5E3B, #2E7D52)" }}>
+            <Button onClick={handleCreateIndicator} className="text-white shadow-sm" style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}>
               <Plus className="h-4 w-4 mr-2" />
               Create Indicator
             </Button>
           )}
           {activeTab === "data-elements" && (
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => setBulkImportOpen(true)} className="border-green-200 text-green-700 hover:bg-green-50">
+              <Button variant="outline" onClick={() => setBulkImportOpen(true)} className="border-red-200 text-red-700 hover:bg-red-50">
                 <Upload className="h-4 w-4 mr-2" />
                 Bulk Import
               </Button>
-              <Button onClick={handleCreateDataElement} className="text-white shadow-sm" style={{ background: "linear-gradient(135deg, #1B5E3B, #2E7D52)" }}>
+              <Button onClick={handleCreateDataElement} className="text-white shadow-sm" style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create Data Element
               </Button>
@@ -364,7 +364,7 @@ export default function IndicatorsPage() {
                     placeholder="Search by name or code..."
                     value={indicatorSearch}
                     onChange={(e) => setIndicatorSearch(e.target.value)}
-                    className="pl-9 border-gray-300 focus-visible:ring-green-600"
+                    className="pl-9 border-gray-300 focus-visible:ring-red-600"
                   />
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -373,7 +373,7 @@ export default function IndicatorsPage() {
                     value={indicatorTypeFilter}
                     onValueChange={(v) => setIndicatorTypeFilter(v as typeof indicatorTypeFilter)}
                   >
-                    <SelectTrigger className="w-40 border-gray-300 focus:ring-green-600">
+                    <SelectTrigger className="w-40 border-gray-300 focus:ring-red-600">
                       <SelectValue placeholder="Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -409,7 +409,7 @@ export default function IndicatorsPage() {
                     : "Create your first indicator to get started."}
                 </p>
                 {!indicatorSearch && indicatorTypeFilter === "all" && (
-                  <Button onClick={handleCreateIndicator} className="text-white" style={{ background: "#1B5E3B" }}>
+                  <Button onClick={handleCreateIndicator} className="text-white" style={{ background: "#C9433B" }}>
                     <Plus className="h-4 w-4 mr-2" />Create Indicator
                   </Button>
                 )}
@@ -422,19 +422,19 @@ export default function IndicatorsPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr style={{ background: "linear-gradient(135deg, #0D3B24, #1B5E3B)" }}>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-green-100 uppercase tracking-wider w-28">Code</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-green-100 uppercase tracking-wider">Name</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-green-100 uppercase tracking-wider hidden md:table-cell">Formula</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-green-100 uppercase tracking-wider w-24">Type</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-green-100 uppercase tracking-wider w-24">Actions</th>
+                      <tr style={{ background: "linear-gradient(135deg, #8B3020, #C9433B)" }}>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider w-28">Code</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider">Name</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider hidden md:table-cell">Formula</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider w-24">Type</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-red-100 uppercase tracking-wider w-24">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {indicatorPag.paginated.map((indicator, idx) => (
-                        <tr key={indicator.id} className={`transition-colors hover:bg-green-50/50 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
+                        <tr key={indicator.id} className={`transition-colors hover:bg-red-50/50 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
                           <td className="px-4 py-3">
-                            <Badge variant="outline" className="font-mono text-xs border-green-200 text-green-800 bg-green-50">
+                            <Badge variant="outline" className="font-mono text-xs border-red-200 text-red-800 bg-red-50">
                               {indicator.code}
                             </Badge>
                           </td>
@@ -458,8 +458,8 @@ export default function IndicatorsPage() {
                               variant="secondary"
                               className="text-xs whitespace-nowrap"
                               style={{
-                                background: indicator.factor === 100 ? "#e8f5ee" : indicator.factor === 1000 ? "#e8f0ff" : "#f5f5f5",
-                                color: indicator.factor === 100 ? "#1B5E3B" : indicator.factor === 1000 ? "#5B21B6" : "#374151"
+                                background: indicator.factor === 100 ? "#FCC6BB" : indicator.factor === 1000 ? "#e8f0ff" : "#f5f5f5",
+                                color: indicator.factor === 100 ? "#C9433B" : indicator.factor === 1000 ? "#5B21B6" : "#374151"
                               }}
                             >
                               {indicator.unit}
@@ -467,7 +467,7 @@ export default function IndicatorsPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
-                              <Button variant="ghost" size="sm" onClick={() => handleEditIndicator(indicator)} className="h-8 w-8 p-0 hover:bg-green-100 hover:text-green-800">
+                              <Button variant="ghost" size="sm" onClick={() => handleEditIndicator(indicator)} className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-800">
                                 <Edit className="h-3.5 w-3.5" />
                               </Button>
                               <Button variant="ghost" size="sm" onClick={() => setDeleteIndicatorId(indicator.id)} className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50">
@@ -507,7 +507,7 @@ export default function IndicatorsPage() {
                     placeholder="Search by name or code..."
                     value={dataElementSearch}
                     onChange={(e) => setDataElementSearch(e.target.value)}
-                    className="pl-9 border-gray-300 focus-visible:ring-green-600"
+                    className="pl-9 border-gray-300 focus-visible:ring-red-600"
                   />
                 </div>
                 {dataElementSearch && (
@@ -534,10 +534,10 @@ export default function IndicatorsPage() {
                 </p>
                 {!dataElementSearch && (
                   <div className="flex items-center justify-center gap-2">
-                    <Button variant="outline" onClick={() => setBulkImportOpen(true)} className="border-green-200 text-green-700 hover:bg-green-50">
+                    <Button variant="outline" onClick={() => setBulkImportOpen(true)} className="border-red-200 text-red-700 hover:bg-red-50">
                       <Upload className="h-4 w-4 mr-2" />Bulk Import
                     </Button>
-                    <Button onClick={handleCreateDataElement} className="text-white" style={{ background: "#1B5E3B" }}>
+                    <Button onClick={handleCreateDataElement} className="text-white" style={{ background: "#C9433B" }}>
                       <Plus className="h-4 w-4 mr-2" />Create Data Element
                     </Button>
                   </div>
@@ -550,22 +550,22 @@ export default function IndicatorsPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr style={{ background: "linear-gradient(135deg, #0D3B24, #1B5E3B)" }}>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-green-100 uppercase tracking-wider w-40">#</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-green-100 uppercase tracking-wider w-40">Code</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-green-100 uppercase tracking-wider">Name</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-green-100 uppercase tracking-wider hidden lg:table-cell">Description</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-green-100 uppercase tracking-wider w-24">Actions</th>
+                      <tr style={{ background: "linear-gradient(135deg, #8B3020, #C9433B)" }}>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider w-40">#</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider w-40">Code</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider">Name</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider hidden lg:table-cell">Description</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-red-100 uppercase tracking-wider w-24">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {dePag.paginated.map((de, idx) => (
-                        <tr key={de.id} className={`transition-colors hover:bg-green-50/50 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
+                        <tr key={de.id} className={`transition-colors hover:bg-red-50/50 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
                           <td className="px-4 py-3 text-xs text-gray-400">
                             {(dePag.page - 1) * dataElementPageSize + idx + 1}
                           </td>
                           <td className="px-4 py-3">
-                            <Badge variant="outline" className="font-mono text-xs border-green-200 text-green-800 bg-green-50">
+                            <Badge variant="outline" className="font-mono text-xs border-red-200 text-red-800 bg-red-50">
                               {de.code}
                             </Badge>
                           </td>
@@ -577,7 +577,7 @@ export default function IndicatorsPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
-                              <Button variant="ghost" size="sm" onClick={() => handleEditDataElement(de)} className="h-8 w-8 p-0 hover:bg-green-100 hover:text-green-800">
+                              <Button variant="ghost" size="sm" onClick={() => handleEditDataElement(de)} className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-800">
                                 <Edit className="h-3.5 w-3.5" />
                               </Button>
                               <Button variant="ghost" size="sm" onClick={() => setDeleteDataElementId(de.id)} className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50">
@@ -707,7 +707,7 @@ function PaginationControls({
               size="sm"
               onClick={() => setPage(p)}
               className="h-8 w-8 p-0 text-xs border-gray-200"
-              style={p === page ? { background: "#1B5E3B", color: "white", borderColor: "#1B5E3B" } : {}}
+              style={p === page ? { background: "#C9433B", color: "white", borderColor: "#C9433B" } : {}}
             >
               {p}
             </Button>

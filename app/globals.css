@@ -5,16 +5,16 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ===================================================
-   BRAND COLOR SYSTEM — Navy Green / White / Black
+   BRAND COLOR SYSTEM — Warm Coral-Red / White / Ash
    =================================================== */
 :root {
   /* Base Palette */
-  --color-primary-base: #1B5E3B;   /* Deep Navy Green */
-  --color-primary-dark: #0D3B24;   /* Darker Green */
-  --color-primary-mid: #2E7D52;    /* Mid Green */
-  --color-primary-light: #4CAF50;  /* Accent Green */
+  --color-primary-base: #C9433B;   /* Warm Red (primary buttons / active states) */
+  --color-primary-dark: #8B3020;   /* Deep Warm Red (sidebar / header) */
+  --color-primary-mid:  #D96455;   /* Mid Coral-Red (gradient ends / hover) */
+  --color-primary-light: #E8877A;  /* Soft Coral (accent / charts) */
   --color-dark-base: #0a0a0a;      /* Near Black */
-  --color-soft-base: #f0f7f3;      /* Very light green-white */
+  --color-soft-base: #FEF0EC;      /* Very light warm-white background */
 
   /* Core theme variables */
   --background: #ffffff;
@@ -29,88 +29,88 @@
   --primary: var(--color-primary-base);
   --primary-foreground: #ffffff;
 
-  --secondary: #e8f5ee;
-  --secondary-foreground: #0D3B24;
+  --secondary: #FCC6BB;
+  --secondary-foreground: #8B3020;
 
-  --muted: #f0f7f3;
-  --muted-foreground: #4a7a5c;
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
 
-  --accent: #d4eddc;
-  --accent-foreground: #0D3B24;
+  --accent: #FCC6BB;
+  --accent-foreground: #8B3020;
 
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
 
-  --border: #c8e6d4;
-  --input: #e8f5ee;
+  --border: #E5E7EB;
+  --input: #F9FAFB;
   --ring: var(--color-primary-base);
 
-  /* Chart tones — green scale */
-  --chart-1: #1B5E3B;
-  --chart-2: #2E7D52;
-  --chart-3: #4CAF50;
-  --chart-4: #81C784;
-  --chart-5: #C8E6C9;
+  /* Chart tones — warm coral scale */
+  --chart-1: #C9433B;
+  --chart-2: #D96455;
+  --chart-3: #E8877A;
+  --chart-4: #F4A99E;
+  --chart-5: #FCC6BB;
 
   --radius: 0.5rem;
 
   /* Sidebar */
-  --sidebar: #0D3B24;
+  --sidebar: #8B3020;
   --sidebar-foreground: #ffffff;
-  --sidebar-primary: #4CAF50;
+  --sidebar-primary: #E8877A;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1B5E3B;
+  --sidebar-accent: #C9433B;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #1a4d30;
-  --sidebar-ring: #4CAF50;
+  --sidebar-border: #7A2818;
+  --sidebar-ring: #E8877A;
 }
 
 /* ===================================================
    DARK THEME VARIANTS
    =================================================== */
 .dark {
-  --background: #0a0f0d;
-  --foreground: #f0f7f3;
+  --background: #120a09;
+  --foreground: #FEF0EC;
 
-  --card: #111a14;
-  --card-foreground: #f0f7f3;
+  --card: #1e0f0d;
+  --card-foreground: #FEF0EC;
 
-  --popover: #111a14;
-  --popover-foreground: #f0f7f3;
+  --popover: #1e0f0d;
+  --popover-foreground: #FEF0EC;
 
-  --primary: #4CAF50;
-  --primary-foreground: #0a0f0d;
+  --primary: #E8877A;
+  --primary-foreground: #120a09;
 
-  --secondary: #1B5E3B;
+  --secondary: #8B3020;
   --secondary-foreground: #ffffff;
 
-  --muted: #1a2e1f;
-  --muted-foreground: #81C784;
+  --muted: #2e1510;
+  --muted-foreground: #F4A99E;
 
-  --accent: #1B5E3B;
+  --accent: #8B3020;
   --accent-foreground: #ffffff;
 
   --destructive: #ef4444;
   --destructive-foreground: #fff;
 
-  --border: #1a3022;
-  --input: #1a3022;
-  --ring: #4CAF50;
+  --border: #3d1a14;
+  --input: #3d1a14;
+  --ring: #E8877A;
 
-  --chart-1: #4CAF50;
-  --chart-2: #81C784;
-  --chart-3: #2E7D52;
-  --chart-4: #1B5E3B;
-  --chart-5: #0D3B24;
+  --chart-1: #E8877A;
+  --chart-2: #F4A99E;
+  --chart-3: #D96455;
+  --chart-4: #C9433B;
+  --chart-5: #8B3020;
 
-  --sidebar: #060f08;
-  --sidebar-foreground: #e8f5ee;
-  --sidebar-primary: #4CAF50;
+  --sidebar: #0f0908;
+  --sidebar-foreground: #FCC6BB;
+  --sidebar-primary: #E8877A;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #0D3B24;
+  --sidebar-accent: #8B3020;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #1a3022;
-  --sidebar-ring: #4CAF50;
+  --sidebar-border: #3d1a14;
+  --sidebar-ring: #E8877A;
 }
 
 /* ===================================================
@@ -181,7 +181,7 @@
 }
 
 /* ===================================================
-   CUSTOM SCROLLBAR — Green Theme
+   CUSTOM SCROLLBAR — Warm Coral / Ash Theme
    =================================================== */
 ::-webkit-scrollbar {
   width: 6px;
@@ -189,16 +189,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #f0f7f3;
+  background: #F3F4F6;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2E7D52;
+  background: #D96455;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #1B5E3B;
+  background: #C9433B;
 }
 
 /* ===================================================

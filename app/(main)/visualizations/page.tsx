@@ -161,7 +161,7 @@ function DropZone({ areaId, isOver, onDragOver, onDragLeave, onDrop, children }:
     <div
       className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-colors ${
         isOver
-          ? "border-green-500 bg-green-50"
+          ? "border-red-500 bg-red-50"
           : "border-transparent hover:border-slate-200 hover:bg-slate-50"
       }`}
       onDragOver={(e) => onDragOver(e, areaId)}
@@ -476,7 +476,7 @@ const VisualizationPage: React.FC = () => {
             size="sm"
             disabled={generateLoading || selectedData.length === 0 || !periodResult}
             onClick={handleGenerate}
-            style={{ background: "linear-gradient(135deg, #1B5E3B, #2E7D52)" }}
+            style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}
             className="text-white"
           >
             {generateLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -604,7 +604,7 @@ const VisualizationPage: React.FC = () => {
                     <TableRow>
                       <TableHead
                         className="min-w-[180px] text-white text-xs font-semibold"
-                        style={{ background: "linear-gradient(135deg, #0D3B24, #1B5E3B)" }}
+                        style={{ background: "linear-gradient(135deg, #8B3020, #C9433B)" }}
                       >
                         {DIM_ROW_HEADER[rowDim]}
                       </TableHead>
@@ -612,7 +612,7 @@ const VisualizationPage: React.FC = () => {
                         <TableHead
                           key={col}
                           className="min-w-[100px] text-right text-white text-xs font-semibold"
-                          style={{ background: "linear-gradient(135deg, #0D3B24, #1B5E3B)" }}
+                          style={{ background: "linear-gradient(135deg, #8B3020, #C9433B)" }}
                         >
                           {col}
                         </TableHead>

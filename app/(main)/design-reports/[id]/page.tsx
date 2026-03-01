@@ -75,7 +75,8 @@ export default function ReportDesignerPage() {
 
   useEffect(() => {
     ;(async () => {
-      const rts = await api.get("/metadata/report-types/").then((r) => r.data)
+      const res = await api.get("/metadata/report-types/").then((r) => r.data)
+      const rts = Array.isArray(res) ? res : (res?.results ?? [])
       setReportTypes(rts)
       if (!isNew) {
         const l = await api.get(`/reporting/report-layouts/${params.id}/`).then((r) => r.data)
@@ -361,7 +362,7 @@ export default function ReportDesignerPage() {
               <SelectValue placeholder="Select report type" />
             </SelectTrigger>
             <SelectContent>
-              {reportTypes.map((rt) => (
+              {(Array.isArray(reportTypes) ? reportTypes : []).map((rt) => (
                 <SelectItem key={rt.id} value={String(rt.id)}>
                   {rt.name}
                 </SelectItem>

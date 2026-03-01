@@ -34,7 +34,7 @@ export function CalculationDisplay({
 
   const variantClasses = {
     default: "text-gray-700",
-    success: "text-green-700",
+    success: "text-gray-700",
     warning: "text-yellow-700", 
     error: "text-red-700"
   }
@@ -76,7 +76,7 @@ export function CalculationDisplay({
             ) : hasValue ? (
               <Tooltip>
                 <TooltipTrigger>
-                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <CheckCircle className="h-4 w-4 text-gray-500" />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="text-sm">Calculation successful</p>

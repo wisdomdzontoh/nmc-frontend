@@ -80,7 +80,7 @@ export function DataElementModal({ open, onOpenChange, onSave, dataElement }: Pr
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5" style={{ color: "#1B5E3B" }} />
+            <Database className="h-5 w-5" style={{ color: "#C9433B" }} />
             {dataElement ? "Edit Data Element" : "Create Data Element"}
           </DialogTitle>
           <DialogDescription>
@@ -99,7 +99,7 @@ export function DataElementModal({ open, onOpenChange, onSave, dataElement }: Pr
             <Input
               id="de-code"
               placeholder="e.g., DE001"
-              className={`font-mono ${errors.code ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-green-600"}`}
+              className={`font-mono ${errors.code ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-red-600"}`}
               {...register("code")}
             />
             {errors.code ? (
@@ -117,7 +117,7 @@ export function DataElementModal({ open, onOpenChange, onSave, dataElement }: Pr
             <Input
               id="de-name"
               placeholder="e.g., Number of OPD visits"
-              className={errors.name ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-green-600"}
+              className={errors.name ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-red-600"}
               {...register("name")}
             />
             {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
@@ -132,7 +132,7 @@ export function DataElementModal({ open, onOpenChange, onSave, dataElement }: Pr
               id="de-desc"
               placeholder="Describe what this data element represents..."
               rows={3}
-              className="focus-visible:ring-green-600"
+              className="focus-visible:ring-red-600"
               {...register("description")}
             />
           </div>
@@ -145,7 +145,7 @@ export function DataElementModal({ open, onOpenChange, onSave, dataElement }: Pr
               type="submit"
               disabled={isSubmitting}
               className="text-white"
-              style={{ background: "linear-gradient(135deg, #1B5E3B, #2E7D52)" }}
+              style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}
             >
               <Save className="h-4 w-4 mr-2" />
               {dataElement ? "Update" : "Create"} Data Element

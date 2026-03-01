@@ -495,7 +495,7 @@ export default function DataEntryPage() {
     return (
       <div className="flex items-center justify-center py-16">
         <div className="text-center space-y-3">
-          <Loader2 className="h-10 w-10 animate-spin mx-auto" style={{ color: "#1B5E3B" }} />
+          <Loader2 className="h-10 w-10 animate-spin mx-auto" style={{ color: "#C9433B" }} />
           <p className="text-gray-500 text-sm">Loading data entry…</p>
         </div>
       </div>
@@ -523,9 +523,9 @@ export default function DataEntryPage() {
       <div className="flex-1 p-4 lg:p-6 space-y-4 overflow-auto">
         {/* Layout loading indicator */}
         {loadingLayout && (
-          <Alert className="border-green-200 bg-green-50">
-            <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#1B5E3B" }} />
-            <AlertDescription className="text-green-800">Loading report layout…</AlertDescription>
+          <Alert className="border-gray-200 bg-gray-50">
+            <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#C9433B" }} />
+            <AlertDescription className="text-gray-700">Loading report layout…</AlertDescription>
           </Alert>
         )}
 
@@ -537,21 +537,21 @@ export default function DataEntryPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
                     <div className="flex items-start gap-2">
-                      <div className="w-1 h-full min-h-8 rounded-full flex-shrink-0" style={{ background: "#1B5E3B" }} />
+                      <div className="w-1 h-full min-h-8 rounded-full flex-shrink-0" style={{ background: "#C9433B" }} />
                       <div>
                         <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Report</p>
                         <p className="text-sm font-semibold text-gray-900 mt-0.5">{dataset!.name}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
-                      <div className="w-1 h-full min-h-8 rounded-full flex-shrink-0" style={{ background: "#2E7D52" }} />
+                      <div className="w-1 h-full min-h-8 rounded-full flex-shrink-0" style={{ background: "#D96455" }} />
                       <div>
                         <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Organisation Unit</p>
                         <p className="text-sm font-semibold text-gray-900 mt-0.5">{org!.name}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
-                      <div className="w-1 h-full min-h-8 rounded-full flex-shrink-0" style={{ background: "#4CAF50" }} />
+                      <div className="w-1 h-full min-h-8 rounded-full flex-shrink-0" style={{ background: "#E8877A" }} />
                       <div>
                         <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Reporting Period</p>
                         <p className="text-sm font-semibold text-gray-900 mt-0.5">{period!.name}</p>
@@ -559,9 +559,9 @@ export default function DataEntryPage() {
                     </div>
                   </div>
                   {dataSaved && (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-green-200 bg-green-50 flex-shrink-0">
-                      <div className="w-2 h-2 rounded-full bg-green-500" />
-                      <span className="text-xs font-medium text-green-700">Saved</span>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 bg-gray-50 flex-shrink-0">
+                      <div className="w-2 h-2 rounded-full bg-gray-400" />
+                      <span className="text-xs font-medium text-gray-600">Saved</span>
                     </div>
                   )}
                 </div>
@@ -624,7 +624,7 @@ export default function DataEntryPage() {
             {/* Layout sections info */}
             {layout && (
               <div className="flex items-center gap-2 px-1">
-                <div className="w-2 h-2 rounded-full" style={{ background: "#4CAF50" }} />
+                <div className="w-2 h-2 rounded-full" style={{ background: "#E8877A" }} />
                 <span className="text-xs text-gray-400">
                   Layout: {layout.sections?.length ?? 0} section{(layout.sections?.length ?? 0) !== 1 ? "s" : ""} loaded
                 </span>
@@ -633,7 +633,7 @@ export default function DataEntryPage() {
 
             {/* Form area */}
             {layout ? (
-              <div id="data-entry-form" className={isReadOnly ? "opacity-70 pointer-events-none" : ""}>
+              <div id="data-entry-form" className={isReadOnly ? "opacity-70" : ""}>
                 <EnhancedLayoutEntryForm
                   schema={layout}
                   values={displayValues}
@@ -646,7 +646,7 @@ export default function DataEntryPage() {
             ) : (
               <>
                 <div className="text-xs text-gray-400 px-1">Using default form (no custom layout available)</div>
-                <div className={isReadOnly ? "opacity-70 pointer-events-none" : ""}>
+                <div className={isReadOnly ? "opacity-70" : ""}>
                   <DataEntryForm
                     reportType={dataset!}
                     values={valuesById}
@@ -668,7 +668,7 @@ export default function DataEntryPage() {
                     size="sm"
                     onClick={handleExportExcel}
                     disabled={exporting}
-                    className="h-8 border-green-200 text-green-700 hover:bg-green-50"
+                    className="h-8 border-red-200 text-red-700 hover:bg-red-50"
                   >
                     <FileSpreadsheet className="h-4 w-4 mr-1.5" />
                     Excel
@@ -686,7 +686,7 @@ export default function DataEntryPage() {
                   onClick={submit}
                   disabled={!canSubmit || saving}
                   className="h-10 min-w-[140px] text-white font-semibold shadow-sm"
-                  style={{ background: canSubmit && !saving ? "linear-gradient(135deg, #1B5E3B, #2E7D52)" : "#9CA3AF" }}
+                  style={{ background: canSubmit && !saving ? "linear-gradient(135deg, #C9433B, #D96455)" : "#9CA3AF" }}
                 >
                   {saving ? (
                     <>
@@ -707,8 +707,8 @@ export default function DataEntryPage() {
           /* Empty state */
           <Card className="border-dashed border-2 border-gray-200 shadow-none bg-white">
             <CardContent className="text-center py-20">
-              <div className="w-16 h-16 rounded-full mx-auto mb-5 flex items-center justify-center" style={{ background: "#f0f7f3" }}>
-                <Target className="h-8 w-8" style={{ color: "#2E7D52" }} />
+              <div className="w-16 h-16 rounded-full mx-auto mb-5 flex items-center justify-center" style={{ background: "#F3F4F6" }}>
+                <Target className="h-8 w-8" style={{ color: "#D96455" }} />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Start Data Entry</h3>
               <p className="text-gray-500 max-w-sm mx-auto text-sm leading-relaxed">

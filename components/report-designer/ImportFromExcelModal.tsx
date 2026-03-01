@@ -248,7 +248,7 @@ export function ImportFromExcelModal({
               value={name}
               onChange={(e) => { setName(e.target.value); setFieldErrors((p) => ({ ...p, name: undefined })) }}
               placeholder="e.g. Monthly Nursing Report"
-              className={fieldErrors.name ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-green-600"}
+              className={fieldErrors.name ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-red-600"}
             />
             {fieldErrors.name && <p className="text-xs text-red-500">{fieldErrors.name}</p>}
           </div>
@@ -259,7 +259,7 @@ export function ImportFromExcelModal({
               value={code}
               onChange={(e) => { setCode(e.target.value); setFieldErrors((p) => ({ ...p, code: undefined })) }}
               placeholder="e.g. monthly-nursing-report"
-              className={fieldErrors.code ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-green-600"}
+              className={fieldErrors.code ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-red-600"}
             />
             {fieldErrors.code && <p className="text-xs text-red-500">{fieldErrors.code}</p>}
           </div>

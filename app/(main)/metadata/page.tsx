@@ -452,7 +452,7 @@ const MetadataPage: React.FC = () => {
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-2">
-                        <Calendar className="h-5 w-5 text-green-600" />
+                        <Calendar className="h-5 w-5 text-red-600" />
                         <CardTitle className="text-lg">{reportPeriod.name}</CardTitle>
                       </div>
                       <Badge variant={reportPeriod.is_active ? "default" : "secondary"}>
