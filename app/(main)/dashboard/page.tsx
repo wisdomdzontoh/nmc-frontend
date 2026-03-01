@@ -69,9 +69,9 @@ const DashboardPage: React.FC = () => {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-slate-400" />
-          <p className="text-slate-500">Loading…</p>
+        <div className="text-center space-y-3">
+          <Loader2 className="h-10 w-10 animate-spin mx-auto" style={{ color: "#1B5E3B" }} />
+          <p className="text-gray-500 text-sm">Loading…</p>
         </div>
       </div>
     )
@@ -100,27 +100,33 @@ const DashboardPage: React.FC = () => {
   const firstName = user.first_name || user.username || "there"
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Hero / Welcome */}
-      <section className="relative overflow-hidden px-6 pt-8 pb-12">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(59,130,246,0.12),transparent)]" />
+      <section className="relative overflow-hidden px-6 pt-6 pb-8">
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 80% 60% at 50% -20%, rgba(27,94,59,0.10), transparent)" }} />
         <div className="relative max-w-6xl mx-auto">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
             <div>
-              <p className="flex items-center gap-2 text-sm font-medium text-blue-600 mb-2">
+              <p className="flex items-center gap-2 text-sm font-semibold mb-2" style={{ color: "#1B5E3B" }}>
                 <Sparkles className="h-4 w-4" />
                 Welcome back
               </p>
-              <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">
+              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
                 Hello, {firstName}
               </h1>
-              <p className="mt-2 text-slate-600 max-w-lg">
-                Use the links below to submit reports or explore data. Activity charts show the last 30 days.
+              <p className="mt-2 text-gray-500 max-w-lg text-sm">
+                Use the links below to submit reports or explore data. Charts show the last 30 days of activity.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
               {QUICK_LINKS.map(({ label, href, icon: Icon }) => (
-                <Button key={href} asChild variant="outline" size="lg" className="gap-2">
+                <Button
+                  key={href}
+                  asChild
+                  size="lg"
+                  className="gap-2 text-white shadow-sm"
+                  style={{ background: "linear-gradient(135deg, #1B5E3B, #2E7D52)" }}
+                >
                   <Link href={href}>
                     <Icon className="h-4 w-4" />
                     {label}
@@ -134,7 +140,7 @@ const DashboardPage: React.FC = () => {
       </section>
 
       {/* Content */}
-      <section className="px-6 pb-12 max-w-6xl mx-auto">
+      <section className="px-6 pb-10 max-w-6xl mx-auto">
         {error && (
           <Alert variant="destructive" className="mb-6">
             <AlertDescription>{error}</AlertDescription>
@@ -143,7 +149,7 @@ const DashboardPage: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Reports over time */}
-          <Card className="border-slate-200/80 shadow-sm overflow-hidden">
+          <Card className="border-gray-200 shadow-sm overflow-hidden bg-white">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">Reports over time</CardTitle>
               <CardDescription>Submissions by period (last 30 days)</CardDescription>
@@ -151,15 +157,15 @@ const DashboardPage: React.FC = () => {
             <CardContent>
               {loading ? (
                 <div className="flex items-center justify-center h-[260px]">
-                  <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                  <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#1B5E3B" }} />
                 </div>
               ) : analytics?.reportsOverTime?.length ? (
                 <ResponsiveContainer width="100%" height={260}>
                   <AreaChart data={analytics.reportsOverTime}>
                     <defs>
                       <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.4} />
-                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
+                        <stop offset="0%" stopColor="#1B5E3B" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#1B5E3B" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -172,7 +178,7 @@ const DashboardPage: React.FC = () => {
                     <Area
                       type="monotone"
                       dataKey="count"
-                      stroke="#3b82f6"
+                      stroke="#1B5E3B"
                       strokeWidth={2}
                       fill="url(#areaFill)"
                     />
@@ -187,7 +193,7 @@ const DashboardPage: React.FC = () => {
           </Card>
 
           {/* Reports by organization */}
-          <Card className="border-slate-200/80 shadow-sm overflow-hidden">
+          <Card className="border-gray-200 shadow-sm overflow-hidden bg-white">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">By organization</CardTitle>
               <CardDescription>Distribution across org units</CardDescription>
@@ -195,7 +201,7 @@ const DashboardPage: React.FC = () => {
             <CardContent>
               {loading ? (
                 <div className="flex items-center justify-center h-[260px]">
-                  <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                  <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#1B5E3B" }} />
                 </div>
               ) : analytics?.reportsByOrgUnit?.length ? (
                 <ResponsiveContainer width="100%" height={260}>
@@ -216,7 +222,7 @@ const DashboardPage: React.FC = () => {
                     <Tooltip
                       contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0" }}
                     />
-                    <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="count" fill="#2E7D52" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -236,7 +242,7 @@ const DashboardPage: React.FC = () => {
             <CardContent>
               {loading ? (
                 <div className="flex items-center justify-center h-[240px]">
-                  <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                  <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#1B5E3B" }} />
                 </div>
               ) : analytics?.reportsByType?.length ? (
                 <ResponsiveContainer width="100%" height={240}>
@@ -259,9 +265,9 @@ const DashboardPage: React.FC = () => {
                     <Line
                       type="monotone"
                       dataKey="count"
-                      stroke="#8b5cf6"
+                      stroke="#1B5E3B"
                       strokeWidth={2}
-                      dot={{ fill: "#8b5cf6", r: 4 }}
+                      dot={{ fill: "#1B5E3B", r: 4 }}
                       activeDot={{ r: 6 }}
                     />
                   </LineChart>
@@ -283,7 +289,7 @@ const DashboardPage: React.FC = () => {
             <CardContent>
               {loading ? (
                 <div className="flex items-center justify-center h-[220px]">
-                  <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                  <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#1B5E3B" }} />
                 </div>
               ) : analytics?.userActivity?.length ? (
                 <ResponsiveContainer width="100%" height={220}>
@@ -295,7 +301,7 @@ const DashboardPage: React.FC = () => {
                       contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0" }}
                       formatter={(value: number) => [value, "Reports"]}
                     />
-                    <Bar dataKey="new_reports" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="new_reports" fill="#4CAF50" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (

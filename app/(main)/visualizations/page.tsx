@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 import { ApiClient } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,7 @@ import {
   Layers,
   AlertCircle,
   FileSpreadsheet,
+  GripVertical,
 } from "lucide-react";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import DataSelectionModal, { type DataItem } from "@/components/visualizations/DataSelectionModal";
@@ -23,6 +25,7 @@ import VisualizationPeriodModal, {
 } from "@/components/visualizations/VisualizationPeriodModal";
 import OrgUnitFilterModal from "@/components/visualizations/OrgUnitFilterModal";
 
+// ── Types ──────────────────────────────────────────────────────────────────────
 interface PivotRow {
   org_unit_id: number;
   org_unit_name: string;
@@ -42,6 +45,138 @@ interface PivotResponse {
   rows: PivotRow[];
 }
 
+type DimId = "data" | "period" | "orgUnit";
+type AreaId = "columns" | "rows" | "filter";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const DIM_LABELS: Record<DimId, string> = {
+  data: "Data",
+  period: "Period",
+  orgUnit: "Org Unit",
+};
+
+const DIM_ROW_HEADER: Record<DimId, string> = {
+  data: "Data Element",
+  period: "Period",
+  orgUnit: "Organisation Unit",
+};
+
+const AREA_LABELS: Record<AreaId, string> = {
+  columns: "Columns",
+  rows: "Rows",
+  filter: "Filter",
+};
+
+function getDimValue(row: PivotRow, code: string, dim: DimId): string {
+  if (dim === "period") return row.period;
+  if (dim === "orgUnit") return row.org_unit_name;
+  return code; // data
+}
+
+/**
+ * Builds a pivot matrix from the API response.
+ * - colDim:  which dimension appears as table column headers
+ * - rowDim:  which dimension appears as table row keys
+ * - The third (filter) dimension is aggregated away (summed).
+ */
+function buildPivotMatrix(
+  pivotRows: PivotRow[],
+  colDim: DimId,
+  rowDim: DimId
+): {
+  colHeaders: string[];
+  rowKeys: string[];
+  matrix: Record<string, Record<string, number | null>>;
+} {
+  type FlatPoint = { rowKey: string; colKey: string; value: number };
+  const flat: FlatPoint[] = [];
+
+  for (const row of pivotRows) {
+    for (const [code, val] of Object.entries(row.data)) {
+      const rowKey = getDimValue(row, code, rowDim);
+      const colKey = getDimValue(row, code, colDim);
+      flat.push({ rowKey, colKey, value: val ?? 0 });
+    }
+  }
+
+  const colHeaders = [...new Set(flat.map((f) => f.colKey))].sort();
+  const rowKeys = [...new Set(flat.map((f) => f.rowKey))].sort();
+
+  const matrix: Record<string, Record<string, number | null>> = {};
+  for (const r of rowKeys) {
+    matrix[r] = {};
+    for (const c of colHeaders) matrix[r][c] = null;
+  }
+  for (const f of flat) {
+    const existing = matrix[f.rowKey][f.colKey];
+    matrix[f.rowKey][f.colKey] = existing != null ? existing + f.value : f.value;
+  }
+
+  return { colHeaders, rowKeys, matrix };
+}
+
+// ── Dimension chip component ──────────────────────────────────────────────────
+interface DimChipProps {
+  dimId: DimId;
+  label: string;
+  icon: React.ElementType;
+  onDragStart: (e: React.DragEvent, dimId: DimId) => void;
+  onClick: () => void;
+  isDragging: boolean;
+}
+
+function DimChip({ dimId, label, icon: Icon, onDragStart, onClick, isDragging }: DimChipProps) {
+  return (
+    <div className={`flex items-center gap-1 transition-opacity ${isDragging ? "opacity-40" : ""}`}>
+      {/* Drag handle */}
+      <div
+        draggable
+        onDragStart={(e) => onDragStart(e, dimId)}
+        className="cursor-grab active:cursor-grabbing p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+        title="Drag to move to another area"
+      >
+        <GripVertical className="h-4 w-4" />
+      </div>
+      {/* Clickable button */}
+      <Button variant="outline" size="sm" className="gap-2 h-8" onClick={onClick}>
+        <Icon className="h-3.5 w-3.5" />
+        <span className="text-xs">{label}</span>
+      </Button>
+    </div>
+  );
+}
+
+// ── Drop zone component ───────────────────────────────────────────────────────
+interface DropZoneProps {
+  areaId: AreaId;
+  isOver: boolean;
+  onDragOver: (e: React.DragEvent, areaId: AreaId) => void;
+  onDragLeave: () => void;
+  onDrop: (e: React.DragEvent, areaId: AreaId) => void;
+  children: React.ReactNode;
+}
+
+function DropZone({ areaId, isOver, onDragOver, onDragLeave, onDrop, children }: DropZoneProps) {
+  return (
+    <div
+      className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-colors ${
+        isOver
+          ? "border-green-500 bg-green-50"
+          : "border-transparent hover:border-slate-200 hover:bg-slate-50"
+      }`}
+      onDragOver={(e) => onDragOver(e, areaId)}
+      onDragLeave={onDragLeave}
+      onDrop={(e) => onDrop(e, areaId)}
+    >
+      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide w-14 flex-shrink-0">
+        {AREA_LABELS[areaId]}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 const VisualizationPage: React.FC = () => {
   const { djangoUser } = useAuth();
   const userOrgUnitId = djangoUser?.org_unit ?? null;
@@ -49,26 +184,41 @@ const VisualizationPage: React.FC = () => {
   const isSuperuser = Boolean((djangoUser as unknown as { is_superuser?: boolean })?.is_superuser);
   const isStaff = Boolean((djangoUser as unknown as { is_staff?: boolean })?.is_staff);
 
+  // ── Modal open/close state ────────────────────────────────────────────────
   const [dataModalOpen, setDataModalOpen] = useState(false);
   const [periodModalOpen, setPeriodModalOpen] = useState(false);
   const [orgModalOpen, setOrgModalOpen] = useState(false);
 
+  // ── Data items (for selection modal) ─────────────────────────────────────
   const [dataItems, setDataItems] = useState<DataItem[]>([]);
   const [dataItemsLoading, setDataItemsLoading] = useState(false);
   const [dataItemsError, setDataItemsError] = useState<string | null>(null);
-
-  const [datasets, setDatasets] = useState<{ id: number; name: string; code: string; data_elements: { id: number; code?: string; name?: string }[] }[]>([]);
+  const [datasets, setDatasets] = useState<
+    { id: number; name: string; code: string; data_elements: { id: number; code?: string; name?: string }[] }[]
+  >([]);
   const [selectedDatasetId, setSelectedDatasetId] = useState<number | null>(null);
 
+  // ── Selection state ───────────────────────────────────────────────────────
   const [selectedData, setSelectedData] = useState<DataItem[]>([]);
   const [periodResult, setPeriodResult] = useState<VisualizationPeriodResult | null>(null);
   const [orgUnitIds, setOrgUnitIds] = useState<number[] | "all">("all");
 
+  // ── Pivot layout: which dimension is in which area ────────────────────────
+  const [colDim, setColDim] = useState<DimId>("data");
+  const [rowDim, setRowDim] = useState<DimId>("period");
+  const [filterDim, setFilterDim] = useState<DimId>("orgUnit");
+
+  // ── Drag state ────────────────────────────────────────────────────────────
+  const [draggingDim, setDraggingDim] = useState<DimId | null>(null);
+  const [dragOverArea, setDragOverArea] = useState<AreaId | null>(null);
+
+  // ── Pivot data and loading ─────────────────────────────────────────────────
   const [pivot, setPivot] = useState<PivotResponse | null>(null);
   const [generateLoading, setGenerateLoading] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
+  // ── Load data items ───────────────────────────────────────────────────────
   const loadDataItems = useCallback(async () => {
     setDataItemsLoading(true);
     setDataItemsError(null);
@@ -90,9 +240,19 @@ const VisualizationPage: React.FC = () => {
 
       const rtList = rtRes.data?.results ?? rtRes.data ?? [];
       setDatasets(
-        (rtList as { id: number; name: string; code: string; data_elements?: { id: number; code?: string; name?: string }[] }[]).map(
-          (rt) => ({ id: rt.id, name: rt.name, code: rt.code, data_elements: rt.data_elements ?? [] })
-        )
+        (
+          rtList as {
+            id: number;
+            name: string;
+            code: string;
+            data_elements?: { id: number; code?: string; name?: string }[];
+          }[]
+        ).map((rt) => ({
+          id: rt.id,
+          name: rt.name,
+          code: rt.code,
+          data_elements: rt.data_elements ?? [],
+        }))
       );
     } catch (err) {
       console.error("Failed to load data elements and indicators:", err);
@@ -117,16 +277,17 @@ const VisualizationPage: React.FC = () => {
     );
   }, [dataItems, datasets, selectedDatasetId]);
 
+  // ── Generate pivot table ──────────────────────────────────────────────────
   const handleGenerate = async () => {
     setGenerateError(null);
     setPivot(null);
 
     if (selectedData.length === 0) {
-      setGenerateError("Please add at least one data element or indicator in Columns.");
+      setGenerateError("Please add at least one data element or indicator.");
       return;
     }
     if (!periodResult?.startDate || !periodResult?.endDate) {
-      setGenerateError("Please select at least one period in Rows.");
+      setGenerateError("Please select at least one period.");
       return;
     }
 
@@ -159,79 +320,167 @@ const VisualizationPage: React.FC = () => {
     }
   };
 
-  const allMetricCodes = useMemo(() => {
-    if (!pivot) return [];
-    const codes = new Set<string>();
-    pivot.rows.forEach((row) => Object.keys(row.data).forEach((c) => codes.add(c)));
-    return Array.from(codes).sort();
-  }, [pivot]);
+  // ── Drag-and-drop handlers ────────────────────────────────────────────────
+  const handleDragStart = (e: React.DragEvent, dim: DimId) => {
+    e.dataTransfer.setData("dim", dim);
+    e.dataTransfer.effectAllowed = "move";
+    setDraggingDim(dim);
+  };
 
+  const handleDragEnd = () => {
+    setDraggingDim(null);
+    setDragOverArea(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, areaId: AreaId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverArea(areaId);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverArea(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetArea: AreaId) => {
+    e.preventDefault();
+    const draggedDim = (e.dataTransfer.getData("dim") || draggingDim) as DimId | null;
+    if (!draggedDim) {
+      setDraggingDim(null);
+      setDragOverArea(null);
+      return;
+    }
+
+    const sourceArea: AreaId =
+      draggedDim === colDim ? "columns" : draggedDim === rowDim ? "rows" : "filter";
+
+    if (sourceArea === targetArea) {
+      setDraggingDim(null);
+      setDragOverArea(null);
+      return;
+    }
+
+    // Swap: move draggedDim to targetArea, push targetArea's current dim to sourceArea
+    const targetDim = targetArea === "columns" ? colDim : targetArea === "rows" ? rowDim : filterDim;
+
+    const newCol = targetArea === "columns" ? draggedDim : sourceArea === "columns" ? targetDim : colDim;
+    const newRow = targetArea === "rows" ? draggedDim : sourceArea === "rows" ? targetDim : rowDim;
+    const newFilter =
+      targetArea === "filter" ? draggedDim : sourceArea === "filter" ? targetDim : filterDim;
+
+    setColDim(newCol);
+    setRowDim(newRow);
+    setFilterDim(newFilter);
+    setDraggingDim(null);
+    setDragOverArea(null);
+  };
+
+  // ── Pivot matrix (memoised) ───────────────────────────────────────────────
+  const pivotMatrix = useMemo(
+    () => (pivot ? buildPivotMatrix(pivot.rows, colDim, rowDim) : null),
+    [pivot, colDim, rowDim]
+  );
+
+  // ── Excel export ──────────────────────────────────────────────────────────
   const handleExportExcel = () => {
-    if (!pivot) return;
+    if (!pivot || !pivotMatrix) return;
     setExporting(true);
     try {
-      const metrics = allMetricCodes;
-      const header = ["Org unit", "Period", ...metrics];
-      const lines = [header.join("\t")];
-      pivot.rows.forEach((row) => {
-        const cells = [row.org_unit_name, row.period];
-        metrics.forEach((m) => cells.push(row.data[m] != null ? String(row.data[m]) : ""));
-        lines.push(cells.join("\t"));
-      });
-      const blob = new Blob(["\uFEFF" + lines.join("\r\n")], {
-        type: "application/vnd.ms-excel;charset=utf-8",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `pivot_${pivot.meta.start_date}_${pivot.meta.end_date}.xls`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error("Export failed:", e);
+      const { colHeaders, rowKeys, matrix } = pivotMatrix;
+      const rowHeaderLabel = DIM_ROW_HEADER[rowDim];
+
+      // Build worksheet data: header row + data rows
+      const wsData: (string | number | null)[][] = [
+        [rowHeaderLabel, ...colHeaders],
+        ...rowKeys.map((r) => [r, ...colHeaders.map((c) => matrix[r][c] ?? "")]),
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+      // Auto-width columns
+      const colWidths = wsData[0].map((_, ci) =>
+        Math.min(
+          40,
+          Math.max(10, ...wsData.map((row) => String(row[ci] ?? "").length))
+        )
+      );
+      ws["!cols"] = colWidths.map((w) => ({ wch: w }));
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Pivot Table");
+      XLSX.writeFile(wb, `pivot_${pivot.meta.start_date}_${pivot.meta.end_date}.xlsx`);
+    } catch (ex) {
+      console.error("Export failed:", ex);
     } finally {
       setExporting(false);
     }
   };
 
+  // ── Modal openers per dimension ───────────────────────────────────────────
+  const dimModalOpener: Record<DimId, () => void> = {
+    data: () => setDataModalOpen(true),
+    period: () => setPeriodModalOpen(true),
+    orgUnit: () => setOrgModalOpen(true),
+  };
+
+  const dimIcons: Record<DimId, React.ElementType> = {
+    data: Layers,
+    period: Calendar,
+    orgUnit: Building2,
+  };
+
+  const dimButtonLabel = (dim: DimId): string => {
+    if (dim === "data") {
+      return selectedData.length === 0 ? "Add data…" : `${selectedData.length} item(s)`;
+    }
+    if (dim === "period") {
+      if (!periodResult?.selectedLabels?.length) return "Select period…";
+      return (
+        periodResult.selectedLabels[0] +
+        (periodResult.selectedLabels.length > 1 ? ` +${periodResult.selectedLabels.length - 1}` : "")
+      );
+    }
+    // orgUnit
+    return orgUnitIds === "all"
+      ? "All org units"
+      : `${(orgUnitIds as number[]).length} unit(s)`;
+  };
+
+  // ── Access guard ──────────────────────────────────────────────────────────
   if (!isSuperuser && !isStaff) {
     return (
       <div className="p-6 max-w-2xl mx-auto text-center">
         <h1 className="text-2xl font-bold mb-2">Visualizations</h1>
         <Alert>
           <AlertDescription>
-            Visualizations are only available to staff and administrators. Contact your administrator if you need access.
+            Visualizations are only available to staff and administrators. Contact your administrator if
+            you need access.
           </AlertDescription>
         </Alert>
       </div>
     );
   }
 
-  const dataLabel = selectedData.length === 0 ? "Data..." : `${selectedData.length} item(s)`;
-  const periodLabel =
-    !periodResult?.selectedLabels?.length ? "Period..." : periodResult.selectedLabels[0] + (periodResult.selectedLabels.length > 1 ? ` +${periodResult.selectedLabels.length - 1}` : "");
-  const orgLabel =
-    orgUnitIds === "all" ? "Organisation unit..." : Array.isArray(orgUnitIds) ? `${orgUnitIds.length} unit(s)` : "Organisation unit...";
+  const areas: AreaId[] = ["columns", "rows", "filter"];
+  const areaDims: Record<AreaId, DimId> = { columns: colDim, rows: rowDim, filter: filterDim };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Top action bar */}
+    <div
+      className="min-h-screen bg-slate-50 flex flex-col"
+      onDragEnd={handleDragEnd}
+    >
+      {/* ── Top action bar ─────────────────────────────────────────────────── */}
       <div className="bg-white border-b px-4 py-2 flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
           <Button
             size="sm"
-            onClick={handleGenerate}
             disabled={generateLoading || selectedData.length === 0 || !periodResult}
+            onClick={handleGenerate}
+            style={{ background: "linear-gradient(135deg, #1B5E3B, #2E7D52)" }}
+            className="text-white"
           >
-            {generateLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : null}
+            {generateLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Update
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setDataModalOpen(true)}>
-            File
           </Button>
           <Button
             size="sm"
@@ -239,53 +488,47 @@ const VisualizationPage: React.FC = () => {
             onClick={handleExportExcel}
             disabled={!pivot || exporting}
           >
-            {exporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
+            {exporting ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
             Download
           </Button>
         </div>
+        <p className="text-xs text-slate-400 hidden sm:block">
+          Drag the grip handle{" "}
+          <GripVertical className="h-3 w-3 inline" /> to move dimensions between areas
+        </p>
       </div>
 
-      {/* Dimension layout: Columns | Rows | Filter */}
-      <div className="bg-white border-b px-4 py-3 flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-slate-600">Columns</span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => setDataModalOpen(true)}
-          >
-            <Layers className="h-4 w-4" />
-            {dataLabel}
-          </Button>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-slate-600">Rows</span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => setPeriodModalOpen(true)}
-          >
-            <Calendar className="h-4 w-4" />
-            {periodLabel}
-          </Button>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-slate-600">Filter</span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => setOrgModalOpen(true)}
-          >
-            <Building2 className="h-4 w-4" />
-            {orgLabel}
-          </Button>
-        </div>
+      {/* ── Dimension layout bar ───────────────────────────────────────────── */}
+      <div className="bg-white border-b px-4 py-2 flex flex-wrap items-center gap-2">
+        {areas.map((areaId) => {
+          const dim = areaDims[areaId];
+          return (
+            <DropZone
+              key={areaId}
+              areaId={areaId}
+              isOver={dragOverArea === areaId}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <DimChip
+                dimId={dim}
+                label={dimButtonLabel(dim)}
+                icon={dimIcons[dim]}
+                onDragStart={handleDragStart}
+                onClick={dimModalOpener[dim]}
+                isDragging={draggingDim === dim}
+              />
+            </DropZone>
+          );
+        })}
       </div>
 
-      {/* Error */}
+      {/* ── Error ─────────────────────────────────────────────────────────── */}
       {generateError && (
         <div className="px-4 py-2">
           <Alert variant="destructive">
@@ -295,7 +538,7 @@ const VisualizationPage: React.FC = () => {
         </div>
       )}
 
-      {/* Main content */}
+      {/* ── Main content ──────────────────────────────────────────────────── */}
       <div className="flex-1 p-6">
         {!pivot ? (
           <Card className="max-w-2xl border-slate-200 shadow-sm">
@@ -310,13 +553,27 @@ const VisualizationPage: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4 text-sm text-slate-600">
               <ul className="list-disc list-inside space-y-2">
-                <li>Add dimensions in the layout bar: <strong>Columns</strong> (data elements and indicators), <strong>Rows</strong> (periods), and <strong>Filter</strong> (organisation units).</li>
-                <li>Click a dimension button to add or remove items in the selection modal.</li>
-                <li>Click <strong>Update</strong> to generate the pivot table. Use <strong>Download</strong> to export to Excel.</li>
+                <li>
+                  Use the layout bar to assign dimensions:{" "}
+                  <strong>Columns</strong> (table columns), <strong>Rows</strong> (row groups), and{" "}
+                  <strong>Filter</strong> (aggregated away).
+                </li>
+                <li>
+                  <strong>Drag</strong> the{" "}
+                  <GripVertical className="h-3.5 w-3.5 inline text-slate-400" /> handle to swap
+                  dimensions between areas.
+                </li>
+                <li>
+                  Click a dimension button to configure its selection, then click{" "}
+                  <strong>Update</strong> to generate the table.
+                </li>
+                <li>
+                  Click <strong>Download</strong> to export the result as an Excel (.xlsx) file.
+                </li>
               </ul>
             </CardContent>
           </Card>
-        ) : (
+        ) : !pivotMatrix ? null : (
           <Card className="border-slate-200 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between gap-4">
               <div>
@@ -325,11 +582,18 @@ const VisualizationPage: React.FC = () => {
                   Pivot table
                 </CardTitle>
                 <CardDescription>
-                  {pivot.meta.org_units?.length ?? 0} organisation unit(s), {pivot.rows.length} row(s), {allMetricCodes.length} metric(s).
+                  {pivot.meta.org_units?.length ?? 0} organisation unit(s) · {pivot.rows.length}{" "}
+                  source row(s) · {pivotMatrix.colHeaders.length} column(s) · {pivotMatrix.rowKeys.length}{" "}
+                  row(s). Rows: <strong>{DIM_LABELS[rowDim]}</strong> · Columns:{" "}
+                  <strong>{DIM_LABELS[colDim]}</strong>
                 </CardDescription>
               </div>
               <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={exporting}>
-                {exporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
+                {exporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
                 Export to Excel
               </Button>
             </CardHeader>
@@ -338,33 +602,45 @@ const VisualizationPage: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="min-w-[180px]">Org unit</TableHead>
-                      <TableHead className="min-w-[100px]">Period</TableHead>
-                      {allMetricCodes.map((code) => (
-                        <TableHead key={code} className="min-w-[90px] text-right">
-                          {code}
+                      <TableHead
+                        className="min-w-[180px] text-white text-xs font-semibold"
+                        style={{ background: "linear-gradient(135deg, #0D3B24, #1B5E3B)" }}
+                      >
+                        {DIM_ROW_HEADER[rowDim]}
+                      </TableHead>
+                      {pivotMatrix.colHeaders.map((col) => (
+                        <TableHead
+                          key={col}
+                          className="min-w-[100px] text-right text-white text-xs font-semibold"
+                          style={{ background: "linear-gradient(135deg, #0D3B24, #1B5E3B)" }}
+                        >
+                          {col}
                         </TableHead>
                       ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pivot.rows.length === 0 ? (
+                    {pivotMatrix.rowKeys.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={2 + allMetricCodes.length}
+                          colSpan={1 + pivotMatrix.colHeaders.length}
                           className="text-center py-8 text-slate-500"
                         >
                           No data available for the selected configuration.
                         </TableCell>
                       </TableRow>
                     ) : (
-                      pivot.rows.map((row, idx) => (
-                        <TableRow key={`${row.org_unit_id}-${row.period}-${idx}`}>
-                          <TableCell>{row.org_unit_name}</TableCell>
-                          <TableCell>{row.period}</TableCell>
-                          {allMetricCodes.map((code) => (
-                            <TableCell key={code} className="text-right">
-                              {row.data[code] != null ? row.data[code] : ""}
+                      pivotMatrix.rowKeys.map((rowKey, idx) => (
+                        <TableRow
+                          key={rowKey}
+                          className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
+                        >
+                          <TableCell className="font-medium text-sm">{rowKey}</TableCell>
+                          {pivotMatrix.colHeaders.map((col) => (
+                            <TableCell key={col} className="text-right text-sm">
+                              {pivotMatrix.matrix[rowKey][col] != null
+                                ? pivotMatrix.matrix[rowKey][col]
+                                : ""}
                             </TableCell>
                           ))}
                         </TableRow>
@@ -378,6 +654,7 @@ const VisualizationPage: React.FC = () => {
         )}
       </div>
 
+      {/* ── Modals ────────────────────────────────────────────────────────── */}
       <DataSelectionModal
         open={dataModalOpen}
         onOpenChange={setDataModalOpen}

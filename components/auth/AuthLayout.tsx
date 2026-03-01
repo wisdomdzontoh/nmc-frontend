@@ -13,83 +13,89 @@ export default function AuthLayout({
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Mobile Header */}
-      <div className="lg:hidden bg-gradient-to-r from-[#1e3a5f] to-[#2c5282] p-6 text-center">
+      <div className="lg:hidden p-6 text-center" style={{ background: "linear-gradient(135deg, #0D3B24 0%, #1B5E3B 60%, #2E7D52 100%)" }}>
         <div className="flex justify-center mb-4">
-            <div className="relative w-32 h-32 bg-white rounded-full p-8 shadow-lg">
+          <div className="relative w-24 h-24 bg-white rounded-full p-3 shadow-xl ring-4 ring-white/20">
             <Image
               src={heroImage || "/logo.png"}
               alt="Nursing and Midwifery Council"
               fill
-              className="object-contain"
+              className="object-contain p-1"
               priority
             />
           </div>
         </div>
-        <div className="space-y-2 text-white">
+        <div className="space-y-1 text-white">
           <h1 className="text-lg font-bold tracking-tight">
             Nursing and Midwifery Council
           </h1>
-          <p className="text-sm text-blue-100">
-            Republic of Ghana
-          </p>
-          <p className="text-xs text-blue-200">
-            Standards • Protection • Service
-          </p>
+          <p className="text-sm text-green-200">Republic of Ghana</p>
+          <p className="text-xs text-green-300">Standards &bull; Protection &bull; Service</p>
         </div>
       </div>
 
-      {/* Left side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-gradient-to-br from-slate-50 to-white">
+      {/* Left side — Login Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-white">
         <div className="w-full max-w-md">{children}</div>
       </div>
 
-      {/* Right side - Hero with Logo */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-[#1e3a5f] to-[#2c5282] items-center justify-center p-12">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 2px, transparent 2px),
-                             radial-gradient(circle at 75% 75%, rgba(255,255,255,0.1) 2px, transparent 2px)`,
-            backgroundSize: '60px 60px'
-          }}></div>
-        </div>
-        
-        {/* Logo Display */}
-        <div className="relative z-10 text-center max-w-2xl space-y-8">
-          {/* Main Logo */}
-          <div className="flex justify-center mb-8">
-            <div className="relative w-64 h-64 bg-white rounded-full p-10 shadow-2xl">
+      {/* Right side — Hero Panel */}
+      <div
+        className="hidden lg:flex lg:w-1/2 relative items-center justify-center p-12"
+        style={{ background: "linear-gradient(145deg, #0D3B24 0%, #1B5E3B 50%, #2E7D52 100%)" }}
+      >
+        {/* Subtle pattern overlay */}
+        <div className="absolute inset-0 opacity-5" style={{
+          backgroundImage: `radial-gradient(circle at 20% 20%, rgba(255,255,255,0.15) 2px, transparent 2px),
+                           radial-gradient(circle at 80% 80%, rgba(255,255,255,0.15) 2px, transparent 2px)`,
+          backgroundSize: "50px 50px"
+        }} />
+
+        {/* Decorative circles */}
+        <div className="absolute top-8 right-8 w-32 h-32 rounded-full border border-white/10" />
+        <div className="absolute bottom-12 left-8 w-48 h-48 rounded-full border border-white/10" />
+        <div className="absolute top-1/3 left-4 w-16 h-16 rounded-full border border-white/10" />
+
+        <div className="relative z-10 text-center max-w-lg space-y-8">
+          {/* Logo — large and prominent */}
+          <div className="flex justify-center">
+            <div className="relative w-56 h-56 bg-white rounded-full shadow-2xl ring-8 ring-white/20 flex items-center justify-center">
               <Image
                 src={heroImage || "/logo.png"}
-                alt="Nursing and Midwifery Council"
-                fill
-                className="object-contain"
+                alt="Nursing and Midwifery Council of Ghana"
+                width={200}
+                height={200}
+                className="object-contain w-44 h-44"
                 priority
               />
             </div>
           </div>
-          
-          {/* Organization Info */}
-          <div className="space-y-4 text-white">
+
+          {/* Text */}
+          <div className="space-y-3 text-white">
             <h1 className="text-3xl font-bold tracking-tight">
               Nursing and Midwifery Council
             </h1>
-            <p className="text-lg text-blue-100">
-              Republic of Ghana
+            <p className="text-lg font-medium text-green-200">Republic of Ghana</p>
+            <div className="w-16 h-0.5 bg-green-400 mx-auto rounded-full" />
+            <p className="text-sm text-green-300 font-medium tracking-widest uppercase">
+              Standards &bull; Protection &bull; Service
             </p>
-            <div className="space-y-2 text-sm text-blue-200">
-              <p>Standards • Protection • Service</p>
-              <p className="text-xs opacity-80">
-                Ministry of Health
-              </p>
-            </div>
+            <p className="text-xs text-green-400 mt-2">Ministry of Health</p>
           </div>
-          
-          {/* Decorative Elements */}
-          <div className="flex justify-center space-x-2 mt-8">
-            <div className="w-2 h-2 bg-white rounded-full opacity-60"></div>
-            <div className="w-2 h-2 bg-white rounded-full opacity-80"></div>
-            <div className="w-2 h-2 bg-white rounded-full opacity-60"></div>
+
+          {/* Feature highlights */}
+          <div className="grid grid-cols-3 gap-3 text-center mt-6">
+            {[
+              { label: "Data Entry", desc: "Structured reporting" },
+              { label: "Analytics", desc: "Real-time insights" },
+              { label: "Reporting", desc: "Reporting" },
+            ].map((feat) => (
+              <div key={feat.label} className="bg-white/10 rounded-xl p-3 border border-white/15">
+                <p className="text-xs font-bold text-white">{feat.label}</p>
+                <p className="text-[10px] text-green-300 mt-0.5">{feat.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>

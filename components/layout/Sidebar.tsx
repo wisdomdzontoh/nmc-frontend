@@ -20,36 +20,54 @@ export default function Sidebar({ open }: { open: boolean }) {
   return (
     <aside
       className={cn(
-        "hidden md:flex md:flex-col bg-slate-900 border-r border-slate-800 transition-all duration-200 ease-in-out",
-        open ? "w-64" : "w-16"
+        "flex flex-col border-r border-[#1a4d30] transition-all duration-200 ease-in-out h-full",
+        open ? "w-60" : "w-16"
       )}
+      style={{ background: "linear-gradient(180deg, #0D3B24 0%, #0f4228 100%)" }}
     >
-      <nav className="flex-1 flex flex-col pt-4 px-2 pb-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 flex flex-col pt-3 px-2 pb-4 space-y-0.5 overflow-y-auto">
         {visibleNav.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
           return (
             <Link
               key={item.label}
               href={item.href}
+              title={!open ? item.label : undefined}
               className={cn(
-                "group flex items-center rounded-md px-2 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 hover:text-white transition-colors",
-                isActive && "bg-slate-800 text-white border border-slate-700"
+                "group flex items-center rounded-lg px-2 py-2.5 text-sm font-medium transition-all duration-150",
+                isActive
+                  ? "bg-[#1B5E3B] text-white shadow-sm border border-[#2E7D52]/40"
+                  : "text-green-200 hover:bg-white/10 hover:text-white"
               )}
             >
               <Icon
                 className={cn(
-                  "flex-shrink-0 h-5 w-5",
+                  "flex-shrink-0 h-5 w-5 transition-colors",
                   open ? "mr-3" : "mx-auto",
-                  isActive ? "text-amber-400" : "text-slate-400 group-hover:text-slate-200"
+                  isActive ? "text-green-300" : "text-green-400 group-hover:text-green-200"
                 )}
                 aria-hidden="true"
               />
-              {open && <span className="truncate">{item.label}</span>}
+              {open && (
+                <span className="truncate leading-none">{item.label}</span>
+              )}
+              {open && isActive && (
+                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+              )}
             </Link>
           );
         })}
       </nav>
+
+      {/* Footer branding */}
+      {open && (
+        <div className="px-3 py-3 border-t border-[#1a4d30]">
+          <p className="text-[10px] text-green-600 text-center leading-relaxed">
+            NMC Ghana &copy; {new Date().getFullYear()}
+          </p>
+        </div>
+      )}
     </aside>
   );
 }

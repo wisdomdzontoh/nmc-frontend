@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import { z } from "zod"
 import {
   Dialog,
   DialogContent,
@@ -19,6 +20,18 @@ import { FileSpreadsheet, Upload, Loader2, X } from "lucide-react"
 import { toast } from "sonner"
 import api from "@/lib/api"
 import { cn } from "@/lib/utils"
+
+// ── Zod schema ────────────────────────────────────────────────────────────────
+const importSchema = z.object({
+  name: z.string().min(1, "Layout name is required").max(255, "Name must be at most 255 characters"),
+  code: z
+    .string()
+    .min(1, "Layout code is required")
+    .max(50, "Code must be at most 50 characters")
+    .regex(/^[a-zA-Z0-9_-]+$/, "Code may only contain letters, digits, hyphens and underscores"),
+})
+
+type FieldErrors = Partial<Record<keyof z.infer<typeof importSchema>, string>>
 
 interface ImportFromExcelModalProps {
   open: boolean
@@ -38,6 +51,7 @@ export function ImportFromExcelModal({
   const [createReportType, setCreateReportType] = React.useState(true)
   const [uploading, setUploading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = React.useState<FieldErrors>({})
   const [isDragging, setIsDragging] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
@@ -47,6 +61,7 @@ export function ImportFromExcelModal({
     setCode("")
     setCreateReportType(true)
     setError(null)
+    setFieldErrors({})
   }
 
   React.useEffect(() => {
@@ -105,6 +120,22 @@ export function ImportFromExcelModal({
       setError("Please select an Excel file")
       return
     }
+
+    // Derive final values (mirrors submit logic below)
+    const finalName = name || file.name.replace(/\.(xlsx|xls)$/i, "")
+    const finalCode = code || "imported-report"
+    const validation = importSchema.safeParse({ name: finalName, code: finalCode })
+    if (!validation.success) {
+      const errs: FieldErrors = {}
+      for (const issue of validation.error.issues) {
+        const key = issue.path[0] as keyof FieldErrors
+        if (!errs[key]) errs[key] = issue.message
+      }
+      setFieldErrors(errs)
+      return
+    }
+    setFieldErrors({})
+
     setUploading(true)
     setError(null)
     try {
@@ -215,18 +246,22 @@ export function ImportFromExcelModal({
             <Input
               id="import-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); setFieldErrors((p) => ({ ...p, name: undefined })) }}
               placeholder="e.g. Monthly Nursing Report"
+              className={fieldErrors.name ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-green-600"}
             />
+            {fieldErrors.name && <p className="text-xs text-red-500">{fieldErrors.name}</p>}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="import-code">Layout code (unique)</Label>
             <Input
               id="import-code"
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => { setCode(e.target.value); setFieldErrors((p) => ({ ...p, code: undefined })) }}
               placeholder="e.g. monthly-nursing-report"
+              className={fieldErrors.code ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-green-600"}
             />
+            {fieldErrors.code && <p className="text-xs text-red-500">{fieldErrors.code}</p>}
           </div>
           <div className="flex items-center space-x-2">
             <Checkbox

@@ -23,10 +23,10 @@ export default function MainLayout({
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading...</p>
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="text-center space-y-3">
+          <Loader2 className="h-10 w-10 animate-spin mx-auto" style={{ color: "#1B5E3B" }} />
+          <p className="text-gray-500 text-sm">Loading...</p>
         </div>
       </div>
     );

@@ -1,6 +1,9 @@
 "use client"
 
 import * as React from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
 import { Database, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,6 +18,23 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
+// ── Zod schema ────────────────────────────────────────────────────────────────
+const dataElementSchema = z.object({
+  code: z
+    .string()
+    .min(1, "Code is required")
+    .max(255, "Code must be at most 255 characters")
+    .regex(/^[A-Za-z0-9_-]+$/, "Code may only contain letters, digits, underscores and hyphens"),
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(255, "Name must be at most 255 characters"),
+  description: z.string().optional(),
+})
+
+type DataElementFormValues = z.infer<typeof dataElementSchema>
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface DataElement {
   id: number
   code: string
@@ -25,111 +45,114 @@ interface DataElement {
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (dataElement: Omit<DataElement, 'id'>) => void
+  onSave: (dataElement: Omit<DataElement, "id">) => void
   dataElement?: DataElement | null
 }
 
-export function DataElementModal({
-  open,
-  onOpenChange,
-  onSave,
-  dataElement
-}: Props) {
-  const [formData, setFormData] = React.useState<Omit<DataElement, 'id'>>({
-    code: "",
-    name: "",
-    description: ""
+export function DataElementModal({ open, onOpenChange, onSave, dataElement }: Props) {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<DataElementFormValues>({
+    resolver: zodResolver(dataElementSchema),
+    defaultValues: { code: "", name: "", description: "" },
   })
 
-  // Initialize form when dataElement changes
+  // Populate form when editing
   React.useEffect(() => {
-    if (dataElement) {
-      setFormData({
-        code: dataElement.code,
-        name: dataElement.name,
-        description: dataElement.description || ""
-      })
-    } else {
-      setFormData({
-        code: "",
-        name: "",
-        description: ""
-      })
+    if (open) {
+      reset(
+        dataElement
+          ? { code: dataElement.code, name: dataElement.name, description: dataElement.description ?? "" }
+          : { code: "", name: "", description: "" }
+      )
     }
-  }, [dataElement])
+  }, [open, dataElement, reset])
 
-  const handleSave = () => {
-    if (!formData.code || !formData.name) {
-      return
-    }
-
-    onSave(formData)
+  const onSubmit = (values: DataElementFormValues) => {
+    onSave({ code: values.code, name: values.name, description: values.description })
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5" />
-            {dataElement ? "Edit Data Element" : "Create New Data Element"}
+            <Database className="h-5 w-5" style={{ color: "#1B5E3B" }} />
+            {dataElement ? "Edit Data Element" : "Create Data Element"}
           </DialogTitle>
           <DialogDescription>
-            {dataElement 
-              ? "Update the data element details."
-              : "Define a new data element that can be used in reports and indicators."
-            }
+            {dataElement
+              ? "Update the data element details below."
+              : "Define a new data element for use in reports and indicators."}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="code">Code *</Label>
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4 py-2">
+          {/* Code */}
+          <div className="space-y-1.5">
+            <Label htmlFor="de-code" className="text-sm font-medium">
+              Code <span className="text-red-500">*</span>
+            </Label>
             <Input
-              id="code"
-              value={formData.code}
-              onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
+              id="de-code"
               placeholder="e.g., DE001"
-              className="font-mono"
+              className={`font-mono ${errors.code ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-green-600"}`}
+              {...register("code")}
             />
-            <p className="text-xs text-gray-500">Unique identifier for this data element</p>
+            {errors.code ? (
+              <p className="text-xs text-red-500">{errors.code.message}</p>
+            ) : (
+              <p className="text-xs text-gray-400">Unique identifier (letters, digits, _ or -)</p>
+            )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="name">Name *</Label>
+          {/* Name */}
+          <div className="space-y-1.5">
+            <Label htmlFor="de-name" className="text-sm font-medium">
+              Name <span className="text-red-500">*</span>
+            </Label>
             <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              id="de-name"
               placeholder="e.g., Number of OPD visits"
+              className={errors.name ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-green-600"}
+              {...register("name")}
             />
-            <p className="text-xs text-gray-500">Display name for this data element</p>
+            {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+          {/* Description */}
+          <div className="space-y-1.5">
+            <Label htmlFor="de-desc" className="text-sm font-medium text-gray-700">
+              Description <span className="text-gray-400 font-normal">(optional)</span>
+            </Label>
             <Textarea
-              id="description"
-              value={formData.description || ""}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              id="de-desc"
               placeholder="Describe what this data element represents..."
               rows={3}
+              className="focus-visible:ring-green-600"
+              {...register("description")}
             />
-            <p className="text-xs text-gray-500">Optional description to help users understand this data element</p>
           </div>
-        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={!formData.code || !formData.name}>
-            <Save className="h-4 w-4 mr-2" />
-            {dataElement ? "Update" : "Create"} Data Element
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="text-white"
+              style={{ background: "linear-gradient(135deg, #1B5E3B, #2E7D52)" }}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {dataElement ? "Update" : "Create"} Data Element
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   )
 }
-

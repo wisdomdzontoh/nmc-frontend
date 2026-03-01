@@ -6,18 +6,18 @@ import api from "@/lib/api"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Loader2, Target, Save, Download, FileSpreadsheet, FileText } from "lucide-react"
+import { Loader2, Target, Save, FileSpreadsheet } from "lucide-react"
 import { toast } from "sonner"
 import { Toaster } from "@/components/ui/sonner"
 import DataEntryTopBar from "@/components/data-entry/DataEntryTopBar"
 import DataEntryForm from "@/components/data-entry/DataEntryForm"
-import EnhancedLayoutEntryForm, { type LayoutSchema, type TableArraySection } from "@/components/data-entry/EnhancedLayoutEntryForm"
+import EnhancedLayoutEntryForm, { type LayoutSchema } from "@/components/data-entry/EnhancedLayoutEntryForm"
 import type { ReportType } from "@/components/data-entry/DatasetInlineDropdown"
 import type { OrgNode } from "@/components/data-entry/OrgUnitInlineDropdown"
 import type { Period } from "@/components/data-entry/PeriodInlineDropdown"
-import { evaluateFormula } from "@/lib/formula-evaluator"
+// import { evaluateFormula } from "@/lib/formula-evaluator" // calculations commented out
 import { ApiClient } from "@/lib/api"
-import { exportToExcel, exportToPDF, exportLayoutAsPDF, getExportFilename } from "@/lib/export-utils"
+import { exportToExcel } from "@/lib/export-utils"
 
 type ValuesById = Record<string, number | null>
 type ValuesByCode = Record<string, number | string | null>
@@ -174,19 +174,19 @@ export default function DataEntryPage() {
   /* ---------------- EXPORT FUNCTIONS ---------------- */
   const handleExportExcel = async () => {
     if (!canExport) return
-    
+
     try {
       setExporting(true)
-      
+
       const exportData = {
         reportType: dataset!.name,
         orgUnit: org!.name,
         period: period!.name,
-        values: displayValues,
-        computedValues: computedValuesMap,
+        values: valuesByCode,
+        computedValues: {},
         layout: layout
       }
-      
+
       await exportToExcel(exportData)
       toast.success("Report exported to Excel successfully!")
     } catch (error) {
@@ -196,49 +196,6 @@ export default function DataEntryPage() {
       setExporting(false)
     }
   }
-
-  const handleExportPDF = async () => {
-    if (!canExport) return
-    
-    try {
-      setExporting(true)
-      
-      const exportData = {
-        reportType: dataset!.name,
-        orgUnit: org!.name,
-        period: period!.name,
-        values: displayValues,
-        computedValues: computedValuesMap,
-        layout: layout
-      }
-      
-      await exportToPDF(exportData)
-      toast.success("Report exported to PDF successfully!")
-    } catch (error) {
-      console.error("Export error:", error)
-      toast.error("Failed to export to PDF")
-    } finally {
-      setExporting(false)
-    }
-  }
-
-  const handleExportLayoutPDF = async () => {
-    if (!canExport) return
-    
-    try {
-      setExporting(true)
-      
-      const filename = getExportFilename(dataset!.name, org!.name, period!.name, 'pdf')
-      await exportLayoutAsPDF('data-entry-form', filename)
-      toast.success("Report layout exported to PDF successfully!")
-    } catch (error) {
-      console.error("Export error:", error)
-      toast.error("Failed to export layout to PDF")
-    } finally {
-      setExporting(false)
-    }
-  }
-
 
   /* ---------------- INITIAL LOAD ---------------- */
   React.useEffect(() => {
@@ -450,132 +407,28 @@ export default function DataEntryPage() {
     }
   }, [dataset?.id, org?.id, period?.startDate, layout, dataset?.name, org?.name])
 
-  /* ---------------- PURE COMPUTATION: computedValuesMap ----------------
-     This is the crucial change:
-     - computedValuesMap is derived purely from (layout, valuesByCode)
-     - computedValuesMap is created in useMemo and does NOT call setState during computation
-     - It runs iterative passes to resolve chained formulas, but remains synchronous/pure
+  /* ---------------- CALCULATIONS (commented out) ----------------
+  // Computations are disabled — re-enable when formula engine is ready.
+  // The computedValuesMap useMemo block below evaluates cell formulas using
+  // evaluateFormula() and merges them with user-entered valuesByCode.
+  //
+  // const computedValuesMap = React.useMemo(() => {
+  //   if (!layout?.sections) return {} as ValuesByCode
+  //   const base = { ...valuesByCode }
+  //   const computed: ValuesByCode = {}
+  //   const readCombined = (key: string) => { ... }
+  //   // multi-pass formula evaluation ...
+  //   return computed
+  // }, [layout, valuesByCode])
+  //
+  // const displayValues = React.useMemo(() => ({
+  //   ...(computedValuesMap || {}),
+  //   ...(valuesByCode || {}),
+  // }), [computedValuesMap, valuesByCode])
   ------------------------------------------------------------------ */
-  const computedValuesMap = React.useMemo(() => {
-    if (!layout?.sections) return {} as ValuesByCode
 
-    // working maps
-    const base = { ...valuesByCode } // base user inputs (may contain numbers, strings, remarks)
-    const computed: ValuesByCode = {} // computed values we will derive
-
-    // Helper to read "combined" value used during computation: base overrides computed? base should be authoritative for bound fields
-    const readCombined = (key: string): string | number | null | undefined => {
-      // prefer base user-entered value (including remark.*)
-      if (Object.prototype.hasOwnProperty.call(base, key)) return base[key]
-      if (Object.prototype.hasOwnProperty.call(computed, key)) return computed[key]
-      return undefined
-    }
-
-    // Iterate per-table and compute; do multi-pass for chained formulas
-    const maxPasses = 6
-    for (let pass = 0; pass < maxPasses; pass++) {
-      let passChanged = false
-
-      for (const section of layout.sections) {
-        if (section.type !== "table") continue
-        const table = section as TableArraySection;
-        const rows = Array.isArray(table.rows) ? table.rows : [];
-        const rowCount = rows.length;
-        const colCount = rows.reduce((m: number, r) => Math.max(m, Array.isArray(r.cells) ? r.cells.length : 0), 0) || 0;
-
-        // Build a small accessor to satisfy FormulaContext
-        const context = {
-          getCellValue: (rowIndex: number, colIndex: number) => {
-            // safety bounds
-            if (rowIndex < 0 || rowIndex >= rowCount) return undefined
-            if (colIndex < 0 || colIndex >= colCount) return undefined
-
-            const cell = rows[rowIndex]?.cells?.[colIndex]
-            if (!cell) return undefined
-
-            // if cell has bind, prefer the base value for that bind, otherwise computed
-            if (cell.bind) {
-              const key = String(cell.bind)
-              const v = readCombined(key)
-              if (v === null || v === undefined || v === "") return undefined
-              return typeof v === "number" ? v : (isNaN(Number(v)) ? undefined : Number(v))
-            }
-
-            // if cell has compute, check computed map or base keyed by compute
-            if (cell.compute) {
-              const key = String(cell.bind || cell.compute)
-              const v = readCombined(key)
-              if (v === null || v === undefined || v === "") return undefined
-              return typeof v === "number" ? v : (isNaN(Number(v)) ? undefined : Number(v))
-            }
-
-            // otherwise try text
-            if (cell.text !== undefined && cell.text !== null && String(cell.text).trim() !== "") {
-              const n = Number(cell.text)
-              return isNaN(n) ? undefined : n
-            }
-
-            return undefined
-          },
-          rowCount,
-          colCount,
-        }
-
-        // For every compute cell, evaluate with current snapshot of base+computed
-        for (let r = 0; r < rowCount; r++) {
-          const row = rows[r] || { cells: [] }
-          for (let c = 0; c < (row.cells || []).length; c++) {
-            const cell = row.cells[c]
-            if (!cell || !cell.compute || !String(cell.compute).trim()) continue
-
-            const computeKey = String(cell.bind || cell.compute)
-            try {
-              const result = evaluateFormula(cell.compute, context)
-
-              // normalize numeric strings to numbers where appropriate
-              let normalized: number | string | null
-              if (typeof result === "number") {
-                normalized = Number.isFinite(result) ? result : "#ERROR"
-              } else if (typeof result === "string") {
-                // evaluator returns "#ERROR" or numeric-like string; try parse
-                const maybeNum = Number(result)
-                normalized = !Number.isNaN(maybeNum) ? maybeNum : result
-              } else {
-                normalized = null
-              }
-
-              const prev = computed[computeKey] ?? base[computeKey]
-              // compare as strings to avoid object identity issues
-              const prevStr = prev === undefined || prev === null ? "" : String(prev)
-              const newStr = normalized === undefined || normalized === null ? "" : String(normalized)
-
-              if (prevStr !== newStr) {
-                computed[computeKey] = normalized
-                passChanged = true
-              }
-            } catch (err) {
-              console.warn("Formula evaluation error:", cell.compute, err)
-              if (computed[computeKey] !== "#ERROR") {
-                computed[computeKey] = "#ERROR"
-                passChanged = true
-              }
-            }
-          }
-        }
-      } // end sections loop
-
-      if (!passChanged) break
-    } // end passes
-
-    // return only computed values (do NOT mix base here)
-    return computed
-  }, [layout, valuesByCode]) // recompute when layout or base values change
-
-  // Combined values to pass to the UI: base user inputs override computed when present.
-  const displayValues = React.useMemo(() => {
-    return { ...(computedValuesMap || {}), ...(valuesByCode || {}) }
-    // put computed first so user-entered values take precedence for bound codes
-  }, [computedValuesMap, valuesByCode])
+  // While calculations are off, display values = raw user inputs only
+  const displayValues = valuesByCode
 
   /* ---------------- SUBMIT HANDLER ---------------- */
   const submit = async () => {
@@ -640,9 +493,11 @@ export default function DataEntryPage() {
   /* ---------------- UI RENDER ---------------- */
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin mr-2 text-blue-600" />
-        <span className="text-gray-600">Loading data entry…</span>
+      <div className="flex items-center justify-center py-16">
+        <div className="text-center space-y-3">
+          <Loader2 className="h-10 w-10 animate-spin mx-auto" style={{ color: "#1B5E3B" }} />
+          <p className="text-gray-500 text-sm">Loading data entry…</p>
+        </div>
       </div>
     )
   }
@@ -665,46 +520,66 @@ export default function DataEntryPage() {
         onClear={onClear}
       />
 
-      <div className="flex-1 p-6 space-y-4 overflow-auto">
+      <div className="flex-1 p-4 lg:p-6 space-y-4 overflow-auto">
+        {/* Layout loading indicator */}
         {loadingLayout && (
-          <Alert>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <AlertDescription>Loading report layout…</AlertDescription>
+          <Alert className="border-green-200 bg-green-50">
+            <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#1B5E3B" }} />
+            <AlertDescription className="text-green-800">Loading report layout…</AlertDescription>
           </Alert>
         )}
 
         {showForm && !loadingLayout ? (
           <div className="space-y-4">
-            <Card className="bg-white">
-              <CardContent className="pt-6">
-                <div className="grid grid-cols-3 gap-4 text-sm mb-4">
-                  <div>
-                    <span className="text-gray-500">Dataset:</span>
-                    <p className="font-medium">{dataset!.name}</p>
+            {/* Report context card */}
+            <Card className="bg-white border border-gray-200 shadow-sm">
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
+                    <div className="flex items-start gap-2">
+                      <div className="w-1 h-full min-h-8 rounded-full flex-shrink-0" style={{ background: "#1B5E3B" }} />
+                      <div>
+                        <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Report</p>
+                        <p className="text-sm font-semibold text-gray-900 mt-0.5">{dataset!.name}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <div className="w-1 h-full min-h-8 rounded-full flex-shrink-0" style={{ background: "#2E7D52" }} />
+                      <div>
+                        <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Organisation Unit</p>
+                        <p className="text-sm font-semibold text-gray-900 mt-0.5">{org!.name}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <div className="w-1 h-full min-h-8 rounded-full flex-shrink-0" style={{ background: "#4CAF50" }} />
+                      <div>
+                        <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Reporting Period</p>
+                        <p className="text-sm font-semibold text-gray-900 mt-0.5">{period!.name}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-gray-500">Organisation Unit:</span>
-                    <p className="font-medium">{org!.name}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Period:</span>
-                    <p className="font-medium">{period!.name}</p>
-                  </div>
+                  {dataSaved && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-green-200 bg-green-50 flex-shrink-0">
+                      <div className="w-2 h-2 rounded-full bg-green-500" />
+                      <span className="text-xs font-medium text-green-700">Saved</span>
+                    </div>
+                  )}
                 </div>
+
                 {lastSubmittedBy && (
-                  <div className="pt-4 border-t text-sm">
-                    <span className="text-gray-500">Last submitted by: </span>
-                    <span className="font-medium">{lastSubmittedBy}</span>
+                  <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
+                    Last submitted by{" "}
+                    <span className="font-semibold text-gray-700">{lastSubmittedBy}</span>
                     {lastSubmittedAt && (
                       <>
-                        <span className="text-gray-500 ml-2">on </span>
-                        <span className="font-medium">
-                          {new Date(lastSubmittedAt).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
+                        {" "}on{" "}
+                        <span className="font-medium text-gray-600">
+                          {new Date(lastSubmittedAt).toLocaleDateString("en-GH", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
                           })}
                         </span>
                       </>
@@ -714,30 +589,30 @@ export default function DataEntryPage() {
               </CardContent>
             </Card>
 
+            {/* Read-only / lock notice */}
             {isReadOnly && (
-              <Alert className="bg-amber-50 border-amber-200">
+              <Alert className="bg-amber-50 border-amber-300">
                 <AlertDescription className="text-amber-800">
-                  <strong>View-only mode:</strong>{" "}
+                  <strong>View-only mode — </strong>
                   {isPeriodLocked ? (
                     <>
-                      This reporting period <strong>({period!.name})</strong> is locked. 
-                      Data cannot be modified after {dataset!.lock_period_days} days from the period end date. 
-                      Please contact an administrator if you need to make changes.
+                      This reporting period <strong>({period!.name})</strong> is locked.
+                      Data cannot be modified after {dataset!.lock_period_days} days from the period end date.
+                      Contact an administrator to make changes.
                     </>
                   ) : !isViewingOwnOrg ? (
                     <>
-                      You are viewing data for <strong>{org!.name}</strong>. 
-                      You can only make entries for your assigned organization unit.
+                      You are viewing data for <strong>{org!.name}</strong>.
+                      You can only enter data for your assigned organisation unit.
                       {userOrgUnitId && (
-                        <span className="block mt-1 text-sm">
-                          To make entries, select your organization unit from the dropdown above.
+                        <span className="block mt-1">
+                          Select your organisation unit from the dropdown above to make entries.
                         </span>
                       )}
                     </>
                   ) : !isReportTypeEditable ? (
                     <>
-                      The report type <strong>{dataset!.name}</strong> is not assigned to your organization unit. 
-                      You can only make entries for report types directly assigned to your org unit.
+                      The report type <strong>{dataset!.name}</strong> is not assigned to your organisation unit.
                     </>
                   ) : (
                     "You cannot make entries for this selection."
@@ -746,30 +621,35 @@ export default function DataEntryPage() {
               </Alert>
             )}
 
+            {/* Layout sections info */}
+            {layout && (
+              <div className="flex items-center gap-2 px-1">
+                <div className="w-2 h-2 rounded-full" style={{ background: "#4CAF50" }} />
+                <span className="text-xs text-gray-400">
+                  Layout: {layout.sections?.length ?? 0} section{(layout.sections?.length ?? 0) !== 1 ? "s" : ""} loaded
+                </span>
+              </div>
+            )}
+
+            {/* Form area */}
             {layout ? (
-              <>
-                <div className="text-xs text-gray-500 px-2">
-                  Layout loaded: {layout.sections?.length ?? 0} sections
-                </div>
-                {/* Pass the combined displayValues (computed + base) */}
-                <div id="data-entry-form" className={isReadOnly ? "opacity-60" : ""}>
-                  <EnhancedLayoutEntryForm 
-                    schema={layout} 
-                    values={displayValues} 
-                    onChange={setCodeValue}
-                    dataElements={dataElements}
-                    dataSaved={dataSaved}
-                    readOnly={isReadOnly}
-                  />
-                </div>
-              </>
+              <div id="data-entry-form" className={isReadOnly ? "opacity-70 pointer-events-none" : ""}>
+                <EnhancedLayoutEntryForm
+                  schema={layout}
+                  values={displayValues}
+                  onChange={setCodeValue}
+                  dataElements={dataElements}
+                  dataSaved={dataSaved}
+                  readOnly={isReadOnly}
+                />
+              </div>
             ) : (
               <>
-                <div className="text-xs text-gray-500 px-2">Using default form (no layout available)</div>
-                <div className={isReadOnly ? "opacity-60" : ""}>
-                  <DataEntryForm 
-                    reportType={dataset!} 
-                    values={valuesById} 
+                <div className="text-xs text-gray-400 px-1">Using default form (no custom layout available)</div>
+                <div className={isReadOnly ? "opacity-70 pointer-events-none" : ""}>
+                  <DataEntryForm
+                    reportType={dataset!}
+                    values={valuesById}
                     onChange={setIdValue}
                     readOnly={isReadOnly}
                   />
@@ -777,58 +657,37 @@ export default function DataEntryPage() {
               </>
             )}
 
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                {dataSaved && (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-sm font-medium">Data saved successfully</span>
-                  </div>
-                )}
-                
-                {/* Export buttons */}
-                {canExport && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Export:</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleExportExcel}
-                      disabled={exporting}
-                      className="h-8"
-                    >
-                      <FileSpreadsheet className="h-4 w-4 mr-1" />
-                      Excel
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleExportPDF}
-                      disabled={exporting}
-                      className="h-8"
-                    >
-                      <FileText className="h-4 w-4 mr-1" />
-                      PDF
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleExportLayoutPDF}
-                      disabled={exporting}
-                      className="h-8"
-                    >
-                      <Download className="h-4 w-4 mr-1" />
-                      Layout PDF
-                    </Button>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={onClear}>
+            {/* Action bar */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-2 border-t border-gray-200">
+              {/* Export buttons */}
+              {canExport ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Export:</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportExcel}
+                    disabled={exporting}
+                    className="h-8 border-green-200 text-green-700 hover:bg-green-50"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 mr-1.5" />
+                    Excel
+                  </Button>
+                </div>
+              ) : (
+                <div />
+              )}
+
+              <div className="flex gap-2 flex-shrink-0">
+                <Button variant="outline" onClick={onClear} className="h-10 border-gray-300">
                   Cancel
                 </Button>
-                <Button onClick={submit} disabled={!canSubmit || saving} className="min-w-[140px]">
+                <Button
+                  onClick={submit}
+                  disabled={!canSubmit || saving}
+                  className="h-10 min-w-[140px] text-white font-semibold shadow-sm"
+                  style={{ background: canSubmit && !saving ? "linear-gradient(135deg, #1B5E3B, #2E7D52)" : "#9CA3AF" }}
+                >
                   {saving ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -845,12 +704,15 @@ export default function DataEntryPage() {
             </div>
           </div>
         ) : !loadingLayout ? (
-          <Card>
-            <CardContent className="text-center py-16">
-              <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium mb-2">Get started with data entry</h3>
-              <p className="text-gray-500 max-w-md mx-auto">
-                Choose a dataset, organisation unit, and period to start entering data.
+          /* Empty state */
+          <Card className="border-dashed border-2 border-gray-200 shadow-none bg-white">
+            <CardContent className="text-center py-20">
+              <div className="w-16 h-16 rounded-full mx-auto mb-5 flex items-center justify-center" style={{ background: "#f0f7f3" }}>
+                <Target className="h-8 w-8" style={{ color: "#2E7D52" }} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Start Data Entry</h3>
+              <p className="text-gray-500 max-w-sm mx-auto text-sm leading-relaxed">
+                Select a <strong>Report</strong>, <strong>Organisation Unit</strong>, and <strong>Reporting Period</strong> from the toolbar above to begin entering data.
               </p>
             </CardContent>
           </Card>
