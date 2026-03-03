@@ -24,7 +24,7 @@ const dataElementSchema = z.object({
     .string()
     .min(1, "Code is required")
     .max(255, "Code must be at most 255 characters")
-    .regex(/^[A-Za-z0-9_-]+$/, "Code may only contain letters, digits, underscores and hyphens"),
+    .regex(/^[A-Za-z0-9_.\-]+$/, "Code may only contain letters, digits, underscores, hyphens and dots"),
   name: z
     .string()
     .min(1, "Name is required")
@@ -99,13 +99,16 @@ export function DataElementModal({ open, onOpenChange, onSave, dataElement }: Pr
             <Input
               id="de-code"
               placeholder="e.g., DE001"
-              className={`font-mono ${errors.code ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-red-600"}`}
+              readOnly={!!dataElement}
+              className={`font-mono ${dataElement ? "bg-muted cursor-not-allowed opacity-70" : errors.code ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-red-600"}`}
               {...register("code")}
             />
             {errors.code ? (
               <p className="text-xs text-red-500">{errors.code.message}</p>
+            ) : dataElement ? (
+              <p className="text-xs text-gray-400">Code cannot be changed after creation</p>
             ) : (
-              <p className="text-xs text-gray-400">Unique identifier (letters, digits, _ or -)</p>
+              <p className="text-xs text-gray-400">Unique identifier (letters, digits, _ - .)</p>
             )}
           </div>
 

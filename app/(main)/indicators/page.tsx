@@ -17,6 +17,8 @@ import {
   BarChart3,
   Hash,
 } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { SectionLoader } from "@/components/ui/PageLoader"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -94,6 +96,11 @@ export default function IndicatorsPage() {
   const [bulkImportOpen, setBulkImportOpen] = React.useState(false)
   const [deleteIndicatorId, setDeleteIndicatorId] = React.useState<string | null>(null)
   const [deleteDataElementId, setDeleteDataElementId] = React.useState<number | null>(null)
+  const [selectedIndicators, setSelectedIndicators] = React.useState<Set<string>>(new Set())
+  const [selectedDataElements, setSelectedDataElements] = React.useState<Set<number>>(new Set())
+  const [bulkDeleteIndicatorsOpen, setBulkDeleteIndicatorsOpen] = React.useState(false)
+  const [bulkDeleteDataElementsOpen, setBulkDeleteDataElementsOpen] = React.useState(false)
+  const [bulkDeleting, setBulkDeleting] = React.useState(false)
 
   React.useEffect(() => { loadData() }, [])
 
@@ -218,6 +225,60 @@ export default function IndicatorsPage() {
 
   const handleBulkImportSuccess = () => { loadData(); setBulkImportOpen(false) }
 
+  const handleBulkDeleteIndicators = async () => {
+    setBulkDeleting(true)
+    try {
+      await Promise.all([...selectedIndicators].map(id => ApiClient.deleteIndicator(Number(id))))
+      setIndicators(prev => prev.filter(ind => !selectedIndicators.has(ind.id)))
+      toast.success(`Deleted ${selectedIndicators.size} indicator(s)`)
+      setSelectedIndicators(new Set())
+      setBulkDeleteIndicatorsOpen(false)
+    } catch {
+      toast.error("Failed to delete some indicators")
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
+
+  const handleBulkDeleteDataElements = async () => {
+    setBulkDeleting(true)
+    try {
+      await Promise.all([...selectedDataElements].map(id => ApiClient.deleteDataElement(id)))
+      setDataElements(prev => prev.filter(de => !selectedDataElements.has(de.id)))
+      toast.success(`Deleted ${selectedDataElements.size} data element(s)`)
+      setSelectedDataElements(new Set())
+      setBulkDeleteDataElementsOpen(false)
+    } catch {
+      toast.error("Failed to delete some data elements")
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
+
+  const toggleIndicator = (id: string) => {
+    setSelectedIndicators(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const toggleDataElement = (id: number) => {
+    setSelectedDataElements(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const toggleAllIndicators = (checked: boolean) => {
+    setSelectedIndicators(checked ? new Set(filteredIndicators.map(i => i.id)) : new Set())
+  }
+
+  const toggleAllDataElements = (checked: boolean) => {
+    setSelectedDataElements(checked ? new Set(filteredDataElements.map(d => d.id)) : new Set())
+  }
+
   // Filter logic
   const filteredIndicators = React.useMemo(() => {
     return indicators.filter(ind => {
@@ -267,14 +328,7 @@ export default function IndicatorsPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center space-y-3">
-          <Loader2 className="h-10 w-10 animate-spin mx-auto" style={{ color: "#C9433B" }} />
-          <p className="text-gray-500 text-sm">Loading indicators and data elements...</p>
-        </div>
-      </div>
-    )
+    return <SectionLoader message="Loading indicators…" />
   }
 
   return (
@@ -333,13 +387,37 @@ export default function IndicatorsPage() {
           </TabsList>
 
           {activeTab === "indicators" && (
-            <Button onClick={handleCreateIndicator} className="text-white shadow-sm" style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Indicator
-            </Button>
+            <div className="flex items-center gap-2">
+              {selectedIndicators.size > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBulkDeleteIndicatorsOpen(true)}
+                  className="border-red-200 text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete {selectedIndicators.size} selected
+                </Button>
+              )}
+              <Button onClick={handleCreateIndicator} className="text-white shadow-sm" style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Indicator
+              </Button>
+            </div>
           )}
           {activeTab === "data-elements" && (
             <div className="flex items-center gap-2">
+              {selectedDataElements.size > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBulkDeleteDataElementsOpen(true)}
+                  className="border-red-200 text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete {selectedDataElements.size} selected
+                </Button>
+              )}
               <Button variant="outline" onClick={() => setBulkImportOpen(true)} className="border-red-200 text-red-700 hover:bg-red-50">
                 <Upload className="h-4 w-4 mr-2" />
                 Bulk Import
@@ -423,6 +501,13 @@ export default function IndicatorsPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr style={{ background: "linear-gradient(135deg, #8B3020, #C9433B)" }}>
+                        <th className="px-4 py-3 w-10">
+                          <Checkbox
+                            checked={selectedIndicators.size === filteredIndicators.length && filteredIndicators.length > 0}
+                            onCheckedChange={(checked) => toggleAllIndicators(!!checked)}
+                            className="border-red-200 data-[state=checked]:bg-white data-[state=checked]:text-red-700"
+                          />
+                        </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider w-28">Code</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider">Name</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider hidden md:table-cell">Formula</th>
@@ -432,7 +517,13 @@ export default function IndicatorsPage() {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {indicatorPag.paginated.map((indicator, idx) => (
-                        <tr key={indicator.id} className={`transition-colors hover:bg-red-50/50 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
+                        <tr key={indicator.id} className={`transition-colors hover:bg-red-50/50 ${selectedIndicators.has(indicator.id) ? "bg-red-50" : idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
+                          <td className="px-4 py-3">
+                            <Checkbox
+                              checked={selectedIndicators.has(indicator.id)}
+                              onCheckedChange={() => toggleIndicator(indicator.id)}
+                            />
+                          </td>
                           <td className="px-4 py-3">
                             <Badge variant="outline" className="font-mono text-xs border-red-200 text-red-800 bg-red-50">
                               {indicator.code}
@@ -551,7 +642,14 @@ export default function IndicatorsPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr style={{ background: "linear-gradient(135deg, #8B3020, #C9433B)" }}>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider w-40">#</th>
+                        <th className="px-4 py-3 w-10">
+                          <Checkbox
+                            checked={selectedDataElements.size === filteredDataElements.length && filteredDataElements.length > 0}
+                            onCheckedChange={(checked) => toggleAllDataElements(!!checked)}
+                            className="border-red-200 data-[state=checked]:bg-white data-[state=checked]:text-red-700"
+                          />
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider w-16">#</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider w-40">Code</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider">Name</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider hidden lg:table-cell">Description</th>
@@ -560,7 +658,13 @@ export default function IndicatorsPage() {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {dePag.paginated.map((de, idx) => (
-                        <tr key={de.id} className={`transition-colors hover:bg-red-50/50 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
+                        <tr key={de.id} className={`transition-colors hover:bg-red-50/50 ${selectedDataElements.has(de.id) ? "bg-red-50" : idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
+                          <td className="px-4 py-3">
+                            <Checkbox
+                              checked={selectedDataElements.has(de.id)}
+                              onCheckedChange={() => toggleDataElement(de.id)}
+                            />
+                          </td>
                           <td className="px-4 py-3 text-xs text-gray-400">
                             {(dePag.page - 1) * dataElementPageSize + idx + 1}
                           </td>
@@ -634,6 +738,50 @@ export default function IndicatorsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteDataElement} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Indicators */}
+      <AlertDialog open={bulkDeleteIndicatorsOpen} onOpenChange={setBulkDeleteIndicatorsOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIndicators.size} Indicator(s)</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedIndicators.size} selected indicator(s)? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDeleteIndicators}
+              disabled={bulkDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {bulkDeleting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</> : "Delete All"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Data Elements */}
+      <AlertDialog open={bulkDeleteDataElementsOpen} onOpenChange={setBulkDeleteDataElementsOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedDataElements.size} Data Element(s)</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedDataElements.size} selected data element(s)? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDeleteDataElements}
+              disabled={bulkDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {bulkDeleting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</> : "Delete All"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

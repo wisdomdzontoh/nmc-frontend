@@ -12,7 +12,8 @@ import { ApiClient } from "@/lib/api"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Loader2, FileText, BarChart3, Sparkles, ArrowRight } from "lucide-react"
+import { Loader2, FileText, Sparkles, ArrowRight } from "lucide-react"
+import { SectionLoader } from "@/components/ui/PageLoader"
 import {
   AreaChart,
   Area,
@@ -67,14 +68,7 @@ const DashboardPage: React.FC = () => {
   }, [loadAnalytics])
 
   if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center space-y-3">
-          <Loader2 className="h-10 w-10 animate-spin mx-auto" style={{ color: "#C9433B" }} />
-          <p className="text-gray-500 text-sm">Loading…</p>
-        </div>
-      </div>
-    )
+    return <SectionLoader />
   }
 
   if (authError) {
@@ -100,9 +94,9 @@ const DashboardPage: React.FC = () => {
   const firstName = user.first_name || user.username || "there"
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-full">
       {/* Hero / Welcome */}
-      <section className="relative overflow-hidden px-6 pt-6 pb-8">
+      <section className="relative overflow-hidden pt-2 pb-8">
         <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 80% 60% at 50% -20%, rgba(201,67,59,0.08), transparent)" }} />
         <div className="relative max-w-6xl mx-auto">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
@@ -140,7 +134,7 @@ const DashboardPage: React.FC = () => {
       </section>
 
       {/* Content */}
-      <section className="px-6 pb-10 max-w-6xl mx-auto">
+      <section className="pb-10 max-w-6xl mx-auto">
         {error && (
           <Alert variant="destructive" className="mb-6">
             <AlertDescription>{error}</AlertDescription>

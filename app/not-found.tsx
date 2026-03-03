@@ -8,12 +8,20 @@ export default function NotFound() {
       <div className="w-full border-b border-[#8B3020] shadow-md" style={{ background: "linear-gradient(135deg, #8B3020 0%, #C9433B 50%, #D96455 100%)" }}>
         <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, #E8877A, #C9433B, #E8877A)" }} />
         <div className="h-16 flex items-center gap-3 px-6">
-          <div className="relative h-10 w-10 rounded-full bg-white shadow ring-2 ring-white/30 flex items-center justify-center overflow-hidden flex-shrink-0">
-            <Image src="/logo.png" alt="NMC Logo" width={36} height={36} className="object-contain" priority />
+          <div className="relative h-10 w-10 flex-shrink-0">
+            <Image
+              src="/logo.png"
+              alt="NMC Logo"
+              width={40}
+              height={40}
+              className="object-contain"
+              style={{ mixBlendMode: "multiply" }}
+              priority
+            />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-white leading-tight">Nursing &amp; Midwifery Council</h1>
-            <p className="text-xs text-red-200">Republic of Ghana</p>
+            <h1 className="text-sm font-bold text-white leading-tight tracking-tight">Nursing &amp; Midwifery Council</h1>
+            <p className="text-xs text-white/65">Republic of Ghana</p>
           </div>
         </div>
       </div>
@@ -35,7 +43,7 @@ export default function NotFound() {
               404
             </div>
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-24 h-24 rounded-full bg-white shadow-lg ring-4 ring-red-100 flex items-center justify-center" style={{ marginTop: "1rem" }}>
+              <div className="w-24 h-24 rounded-full bg-white shadow-lg ring-4 ring-[#FCC6BB] flex items-center justify-center" style={{ marginTop: "1rem" }}>
                 <Image src="/logo.png" alt="NMC" width={64} height={64} className="object-contain w-16 h-16" />
               </div>
             </div>

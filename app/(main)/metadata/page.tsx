@@ -14,26 +14,36 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
 } from "@/components/ui/dialog"
-import { 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
-  FileText, 
-  
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  FileText,
   Calendar,
   Loader2,
   BarChart3
 } from "lucide-react"
+import { SectionLoader } from "@/components/ui/PageLoader"
 
 interface ReportType {
   id: number
@@ -85,6 +95,10 @@ const MetadataPage: React.FC = () => {
     name: "",
     description: ""
   })
+
+  // Delete state
+  const [deleteReportTypeId, setDeleteReportTypeId] = useState<number | null>(null)
+  const [deleteReportPeriodId, setDeleteReportPeriodId] = useState<number | null>(null)
 
   // Report Periods Dialog
   const [isCreateReportPeriodDialogOpen, setIsCreateReportPeriodDialogOpen] = useState(false)
@@ -170,6 +184,32 @@ const MetadataPage: React.FC = () => {
     }
   }
 
+  // Handle delete report type
+  const handleDeleteReportType = async () => {
+    if (!deleteReportTypeId) return
+    try {
+      await ApiClient.deleteReportType(deleteReportTypeId)
+      setReportTypes(prev => prev.filter(rt => rt.id !== deleteReportTypeId))
+      setDeleteReportTypeId(null)
+    } catch (err: unknown) {
+      console.error("Failed to delete report type:", err)
+      setError("Failed to delete report type. Please try again.")
+    }
+  }
+
+  // Handle delete report period
+  const handleDeleteReportPeriod = async () => {
+    if (!deleteReportPeriodId) return
+    try {
+      await ApiClient.deleteReportPeriod(deleteReportPeriodId)
+      setReportPeriods(prev => prev.filter(rp => rp.id !== deleteReportPeriodId))
+      setDeleteReportPeriodId(null)
+    } catch (err: unknown) {
+      console.error("Failed to delete report period:", err)
+      setError("Failed to delete report period. Please try again.")
+    }
+  }
+
   // Filter data based on search term
   const filteredReportTypes = reportTypes.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -182,14 +222,7 @@ const MetadataPage: React.FC = () => {
   )
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading metadata...</p>
-        </div>
-      </div>
-    )
+    return <SectionLoader message="Loading metadata…" />
   }
 
   return (
@@ -342,7 +375,12 @@ const MetadataPage: React.FC = () => {
                         <Button variant="outline" size="sm">
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => setDeleteReportTypeId(reportType.id)}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -480,7 +518,12 @@ const MetadataPage: React.FC = () => {
                         <Button variant="outline" size="sm">
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => setDeleteReportPeriodId(reportPeriod.id)}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -492,6 +535,42 @@ const MetadataPage: React.FC = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Report Type Confirmation */}
+      <AlertDialog open={!!deleteReportTypeId} onOpenChange={(open) => !open && setDeleteReportTypeId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Report Type</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this report type? This action cannot be undone and may affect existing reports.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteReportType} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Report Period Confirmation */}
+      <AlertDialog open={!!deleteReportPeriodId} onOpenChange={(open) => !open && setDeleteReportPeriodId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Report Period</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this report period? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteReportPeriod} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

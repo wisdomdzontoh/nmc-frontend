@@ -408,7 +408,16 @@ const VisualizationPage: React.FC = () => {
 
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Pivot Table");
-      XLSX.writeFile(wb, `pivot_${pivot.meta.start_date}_${pivot.meta.end_date}.xlsx`);
+      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `pivot_${pivot.meta.start_date}_${pivot.meta.end_date}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (ex) {
       console.error("Export failed:", ex);
     } finally {

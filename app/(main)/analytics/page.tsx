@@ -28,9 +28,9 @@ import {
   Pie,
   Cell
 } from "recharts"
-import { 
-  Users, 
-  FileText, 
+import {
+  Users,
+  FileText,
   Building2,
   Download,
   RefreshCw,
@@ -38,6 +38,7 @@ import {
   TrendingUp,
   Activity
 } from "lucide-react"
+import { SectionLoader } from "@/components/ui/PageLoader"
 
 interface AnalyticsData {
   summary: {
@@ -122,14 +123,7 @@ const AnalyticsPage: React.FC = () => {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600 text-lg">Loading analytics...</p>
-        </div>
-      </div>
-    )
+    return <SectionLoader message="Loading analytics…" />
   }
 
   if (error) {

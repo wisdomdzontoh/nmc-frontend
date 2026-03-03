@@ -94,11 +94,15 @@ function EnhancedCellInput({
 
   const handleChange = (newValue: string) => {
     if (readOnly) return // Prevent changes when read-only
+    if (!isRemark) {
+      // Only allow digits, optional leading minus, optional decimal point
+      if (newValue !== "" && !/^-?\d*\.?\d*$/.test(newValue)) return
+    }
     setLocalValue(newValue)
     if (isRemark) onChange(code, newValue)
     else {
       const trimmed = newValue.trim()
-      onChange(code, trimmed === "" ? null : Number(trimmed))
+      onChange(code, trimmed === "" || trimmed === "-" ? null : Number(trimmed))
     }
   }
 
@@ -118,8 +122,8 @@ function EnhancedCellInput({
         />
       ) : (
         <Input
-          type="number"
-          step="0.01"
+          type="text"
+          inputMode="decimal"
           value={localValue}
           readOnly={readOnly}
           disabled={readOnly}

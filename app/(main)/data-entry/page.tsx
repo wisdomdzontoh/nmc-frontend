@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Loader2, Target, Save, FileSpreadsheet } from "lucide-react"
 import { toast } from "sonner"
-import { Toaster } from "@/components/ui/sonner"
+import { SectionLoader } from "@/components/ui/PageLoader"
 import DataEntryTopBar from "@/components/data-entry/DataEntryTopBar"
 import DataEntryForm from "@/components/data-entry/DataEntryForm"
 import EnhancedLayoutEntryForm, { type LayoutSchema } from "@/components/data-entry/EnhancedLayoutEntryForm"
@@ -191,7 +191,7 @@ export default function DataEntryPage() {
       toast.success("Report exported to Excel successfully!")
     } catch (error) {
       console.error("Export error:", error)
-      toast.error("Failed to export to Excel")
+      toast.error("Export failed. Please try again.")
     } finally {
       setExporting(false)
     }
@@ -235,7 +235,7 @@ export default function DataEntryPage() {
         
       } catch (e) {
         console.error("[entry] init error:", e)
-        toast.error("Failed to load data. Please refresh.")
+        toast.error("Unable to load. Please refresh the page.")
       } finally {
         setLoading(false)
       }
@@ -288,21 +288,20 @@ export default function DataEntryPage() {
           const convertedSchema = convertLayoutSchema(schema)
           setLayout(convertedSchema)
           console.log(`[DEBUG] Layout set successfully for: ${dataset.name}`)
-          toast.success(`Layout loaded for ${dataset.name}`)
+          // Silent — the form appearing is sufficient feedback
         } else {
           setLayout(null)
           console.log(`[DEBUG] No valid schema found for: ${dataset.name}`)
-          toast.info("No published layout found.")
+          // Silent — the form will show the fallback state
         }
       } catch (e) {
         console.warn("[entry] layout fetch failed:", e)
         const error = e as { response?: { status?: number } }
         if (error?.response?.status === 404) {
           console.log(`[DEBUG] No published layout found for dataset: ${dataset.name}`)
-          toast.info(`No published layout found for ${dataset.name}`)
-        } else {
-          toast.error("Failed to load layout")
+          // Silent — 404 is an expected state (no layout published yet)
         }
+        // Other errors: silent — the form shows fallback state
         setLayout(null)
       } finally {
         setLoadingLayout(false)
@@ -382,7 +381,7 @@ export default function DataEntryPage() {
           setValuesById(byId)
         }
 
-        toast.info("Existing report loaded.")
+        // Silent — data prefill is visible feedback
       } catch (err: unknown) {
         const error = err as { response?: { status?: number } };
         const status = error?.response?.status;
@@ -394,7 +393,7 @@ export default function DataEntryPage() {
           return
         }
         console.error("Error loading report:", err)
-        toast.error("Failed to load existing report data.")
+        toast.error("Could not load your saved data.")
       } finally {
         setSaving(false)
       }
@@ -475,7 +474,7 @@ export default function DataEntryPage() {
         { timeout: 30000 }
       )
 
-      toast.success("Report submitted successfully!")
+      toast.success("Report submitted successfully.")
       setDataSaved(true)
       // Update last submitted info
       const userFullName = djangoUser?.full_name || (djangoUser?.first_name && djangoUser?.last_name ? `${djangoUser.first_name} ${djangoUser.last_name}` : null) || "You"
@@ -484,7 +483,7 @@ export default function DataEntryPage() {
       // Keep the form values to show they are saved
     } catch (e) {
       console.error("[entry] submit error:", e)
-      toast.error("Failed to submit report.")
+      toast.error("Submission failed. Please try again.")
     } finally {
       setSaving(false)
     }
@@ -492,21 +491,13 @@ export default function DataEntryPage() {
 
   /* ---------------- UI RENDER ---------------- */
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="text-center space-y-3">
-          <Loader2 className="h-10 w-10 animate-spin mx-auto" style={{ color: "#C9433B" }} />
-          <p className="text-gray-500 text-sm">Loading data entry…</p>
-        </div>
-      </div>
-    )
+    return <SectionLoader message="Loading data entry…" />
   }
 
   const showForm = !!dataset && !!org && !!period
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
-      <Toaster />
 
       <DataEntryTopBar
         dataset={dataset}

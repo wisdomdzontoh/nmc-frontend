@@ -48,6 +48,7 @@ import {
   ChevronDown,
   Pencil,
 } from "lucide-react"
+import { SectionLoader } from "@/components/ui/PageLoader"
 
 import OrgUnitSelectionModal from "@/components/modals/OrgUnitSelectionModal"
 
@@ -743,12 +744,7 @@ async function handleCreate() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-        <p className="text-muted-foreground">Loading users...</p>
-      </div>
-    )
+    return <SectionLoader message="Loading users…" />
   }
 
   if (error === "You do not have permission to view or manage users. Contact your administrator if you need access.") {

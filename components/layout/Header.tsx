@@ -102,8 +102,8 @@ export default function Header({
               <h1 className="text-base font-bold text-white leading-tight tracking-tight">
                 Nursing &amp; Midwifery Council
               </h1>
-              <p className="text-xs text-red-200 leading-tight">
-              Integrated Monitoring & Evaluation Management System &mdash; M&amp;E (IMEMS)
+              <p className="text-xs text-white/65 leading-tight">
+                Integrated Monitoring &amp; Evaluation Management System &mdash; M&amp;E (IMEMS)
               </p>
             </div>
           </Link>
@@ -113,8 +113,8 @@ export default function Header({
 
           {/* Online status indicator */}
           <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20">
-            <Circle className="h-2 w-2 fill-red-300 text-red-300 animate-pulse" />
-            <span className="text-xs font-medium text-red-100">Online</span>
+            <Circle className="h-2 w-2 fill-white/60 text-white/60 animate-pulse" />
+            <span className="text-xs font-medium text-white/70">Online</span>
           </div>
         </div>
 
@@ -126,7 +126,7 @@ export default function Header({
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-red-100 hover:bg-white/15 hover:text-white transition-all rounded-lg h-9 w-9"
+                className="text-white/70 hover:bg-white/15 hover:text-white transition-all rounded-lg h-9 w-9"
                 title="App launcher"
               >
                 <Grid className="h-5 w-5" />
@@ -139,7 +139,7 @@ export default function Header({
             >
               {/* Search header */}
               <div className="p-4 border-b" style={{ background: "linear-gradient(135deg, #8B3020, #C9433B)" }}>
-                <p className="text-xs font-semibold text-red-200 mb-2 uppercase tracking-wide">Applications</p>
+                <p className="text-xs font-semibold text-white/70 mb-2 uppercase tracking-wide">Applications</p>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
@@ -273,7 +273,7 @@ export default function Header({
                   <p className="text-xs font-semibold leading-none text-white">
                     {djangoUser?.full_name || "User"}
                   </p>
-                  <p className="text-[10px] text-red-200 leading-none mt-0.5">
+                  <p className="text-[10px] text-white/60 leading-none mt-0.5">
                     {djangoUser?.org_unit_name || "No unit"}
                   </p>
                 </div>

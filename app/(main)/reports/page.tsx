@@ -45,6 +45,7 @@ import {
   CheckCircle,
   Clock,
 } from "lucide-react"
+import { SectionLoader } from "@/components/ui/PageLoader"
 import { Badge } from "@/components/ui/badge"
 import { ApiClient } from "@/lib/api"
 import * as XLSX from "xlsx"
@@ -275,14 +276,7 @@ const ReportsPage: React.FC = () => {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading reports…</p>
-        </div>
-      </div>
-    )
+    return <SectionLoader message="Loading reports…" />
   }
 
   return (

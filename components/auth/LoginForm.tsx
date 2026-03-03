@@ -84,12 +84,15 @@ const LoginForm: React.FC = () => {
       <div className="space-y-6">
         {/* Desktop logo + title */}
         <div className="hidden lg:block text-center">
-          <div className="flex justify-center mb-4">
-            <div className="relative w-16 h-16 bg-white rounded-full shadow-lg border-2 border-red-100 flex items-center justify-center overflow-hidden">
-              <Image src="/logo.png" alt="NMC Logo" fill className="object-contain p-1" />
+          <div className="flex justify-center mb-5">
+            {/* On white bg, logo white areas are invisible — drop-shadow gives lift */}
+            <div className="relative w-20 h-20 drop-shadow-md">
+              <Image src="/logo.png" alt="NMC Logo" fill className="object-contain" priority />
             </div>
           </div>
-          <h1 className="text-xl font-bold text-gray-900">Nursing and Midwifery Council</h1>
+          <h1 className="text-xl font-bold text-gray-900 tracking-tight">
+            Integrated Monitoring and Evaluation Management System (IMEMS)
+          </h1>
           <p className="text-sm text-gray-500 mt-1">Republic of Ghana &bull; Reporting System</p>
         </div>
 
@@ -101,8 +104,8 @@ const LoginForm: React.FC = () => {
 
         {/* Auth error */}
         {error && (
-          <Alert className="border-red-200 bg-red-50">
-            <AlertDescription className="text-red-700">{error}</AlertDescription>
+          <Alert className="border-[#E8877A] bg-[#FEF0EC]">
+            <AlertDescription className="text-[#8B3020]">{error}</AlertDescription>
           </Alert>
         )}
 
@@ -111,21 +114,21 @@ const LoginForm: React.FC = () => {
           {/* Email */}
           <div className="space-y-1.5">
             <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-              Email Address <span className="text-red-500">*</span>
+              Email Address <span className="text-[#C9433B]">*</span>
             </Label>
             <Input
               id="email"
               type="email"
               placeholder="name@example.com"
               {...register("email")}
-              className={`h-11 border-gray-300 focus-visible:ring-red-600 ${errors.email ? "border-red-400 focus-visible:ring-red-400" : ""}`}
+              className={`h-11 border-gray-300 focus-visible:ring-[#C9433B] ${errors.email ? "border-[#E8877A] focus-visible:ring-[#C9433B]" : ""}`}
               disabled={isSubmitting}
               autoComplete="email"
               onChange={(e) => { register("email").onChange(e); if (error) clearError() }}
             />
             {errors.email && (
-              <p className="text-xs text-red-500 flex items-center gap-1">
-                <span className="inline-block w-1 h-1 rounded-full bg-red-500 flex-shrink-0" />
+              <p className="text-xs text-[#C9433B] flex items-center gap-1">
+                <span className="inline-block w-1 h-1 rounded-full bg-[#C9433B] flex-shrink-0" />
                 {errors.email.message}
               </p>
             )}
@@ -134,7 +137,7 @@ const LoginForm: React.FC = () => {
           {/* Password */}
           <div className="space-y-1.5">
             <Label htmlFor="password" className="text-sm font-medium text-gray-700">
-              Password <span className="text-red-500">*</span>
+              Password <span className="text-[#C9433B]">*</span>
             </Label>
             <div className="relative">
               <Input
@@ -142,7 +145,7 @@ const LoginForm: React.FC = () => {
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
                 {...register("password")}
-                className={`h-11 pr-10 border-gray-300 focus-visible:ring-red-600 ${errors.password ? "border-red-400 focus-visible:ring-red-400" : ""}`}
+                className={`h-11 pr-10 border-gray-300 focus-visible:ring-[#C9433B] ${errors.password ? "border-[#E8877A] focus-visible:ring-[#C9433B]" : ""}`}
                 disabled={isSubmitting}
                 autoComplete="current-password"
               />
@@ -157,8 +160,8 @@ const LoginForm: React.FC = () => {
               </button>
             </div>
             {errors.password && (
-              <p className="text-xs text-red-500 flex items-center gap-1">
-                <span className="inline-block w-1 h-1 rounded-full bg-red-500 flex-shrink-0" />
+              <p className="text-xs text-[#C9433B] flex items-center gap-1">
+                <span className="inline-block w-1 h-1 rounded-full bg-[#C9433B] flex-shrink-0" />
                 {errors.password.message}
               </p>
             )}
@@ -192,7 +195,7 @@ const LoginForm: React.FC = () => {
           <button
             type="button"
             onClick={() => setContactModalOpen(true)}
-            className="text-sm font-medium text-red-700 hover:text-red-900 underline underline-offset-2 transition-colors"
+            className="text-sm font-medium text-[#C9433B] hover:text-[#8B3020] underline underline-offset-2 transition-colors"
           >
             Contact Administrator
           </button>
@@ -226,7 +229,7 @@ const LoginForm: React.FC = () => {
               {ADMIN_CONTACTS.map((contact) => (
                 <div
                   key={contact.email}
-                  className="rounded-lg border border-red-100 p-4"
+                  className="rounded-lg border border-[#FCC6BB] p-4"
                   style={{ background: "#FEF0EC" }}
                 >
                   <div className="flex items-start gap-3">
@@ -242,14 +245,14 @@ const LoginForm: React.FC = () => {
                       <div className="space-y-1">
                         <a
                           href={`mailto:${contact.email}`}
-                          className="flex items-center gap-2 text-xs text-red-700 hover:text-red-900 no-underline transition-colors"
+                          className="flex items-center gap-2 text-xs text-[#C9433B] hover:text-[#8B3020] no-underline transition-colors"
                         >
                           <Mail className="h-3.5 w-3.5 flex-shrink-0" />
                           {contact.email}
                         </a>
                         <a
                           href={`tel:${contact.phone}`}
-                          className="flex items-center gap-2 text-xs text-red-700 hover:text-red-900 no-underline transition-colors"
+                          className="flex items-center gap-2 text-xs text-[#C9433B] hover:text-[#8B3020] no-underline transition-colors"
                         >
                           <Phone className="h-3.5 w-3.5 flex-shrink-0" />
                           {contact.phone}

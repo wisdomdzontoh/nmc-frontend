@@ -34,8 +34,8 @@ export default function DataEntryForm({ reportType, values, onChange, readOnly =
                 </div>
                 <div className="w-32 shrink-0">
                   <Input
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     placeholder="0"
                     readOnly={readOnly}
                     className={readOnly ? "text-right bg-gray-50 cursor-not-allowed opacity-60" : "text-right"}
@@ -45,8 +45,9 @@ export default function DataEntryForm({ reportType, values, onChange, readOnly =
                         e.preventDefault()
                         return
                       }
-                      const v = e.target.value.trim()
-                      onChange(String(de.id), v === "" ? null : Number(v))
+                      const v = e.target.value
+                      if (v !== "" && !/^-?\d*\.?\d*$/.test(v)) return
+                      onChange(String(de.id), v.trim() === "" || v.trim() === "-" ? null : Number(v))
                     }}
                     disabled={readOnly}
                   />

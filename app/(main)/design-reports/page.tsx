@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/table"
 import { ImportFromExcelModal } from "@/components/report-designer/ImportFromExcelModal"
 import { Loader2, FileSpreadsheet, Download } from "lucide-react"
+import { SectionLoader } from "@/components/ui/PageLoader"
 
 type LayoutStatus = "draft" | "published" | "archived"
 
@@ -114,12 +115,7 @@ export default function DesignReportsList() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-        <p className="text-muted-foreground">Loading report layouts...</p>
-      </div>
-    )
+    return <SectionLoader message="Loading report layouts…" />
   }
 
   // Show error if user doesn't have permission
