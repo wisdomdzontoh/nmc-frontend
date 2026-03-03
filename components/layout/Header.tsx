@@ -103,7 +103,7 @@ export default function Header({
                 Nursing &amp; Midwifery Council
               </h1>
               <p className="text-xs text-red-200 leading-tight">
-                Republic of Ghana &mdash; M&amp;E Reporting System
+              Integrated Monitoring & Evaluation Management System &mdash; M&amp;E (IMEMS)
               </p>
             </div>
           </Link>
