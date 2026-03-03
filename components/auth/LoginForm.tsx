@@ -90,10 +90,10 @@ const LoginForm: React.FC = () => {
               <Image src="/logo.png" alt="NMC Logo" fill className="object-contain" priority />
             </div>
           </div>
-          <h1 className="text-xl font-bold text-gray-900 tracking-tight">
-            Integrated Monitoring and Evaluation Management System (IMEMS)
+          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+            INTEGRATED MONITORING AND EVALUATION MANAGEMENT SYSTEM (IMEMS)
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Republic of Ghana &bull; Reporting System</p>
+          <p className="text-sm text-gray-500 mt-1">Nursing and Midwifery Council of Ghana</p>
         </div>
 
         {/* Welcome text */}

@@ -69,7 +69,7 @@ export default function AuthLayout({
           {/* Logo — no white disc, uses mix-blend-mode to eliminate white bg */}
           <div className="flex justify-center">
             <div
-              className="relative w-64 h-64 flex items-center justify-center rounded-full"
+              className="relative w-80 h-80 flex items-center justify-center rounded-full"
               style={{
                 background: "radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%)",
                 boxShadow: "0 0 80px rgba(255,255,255,0.07)",
