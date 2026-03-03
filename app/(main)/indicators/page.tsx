@@ -79,14 +79,27 @@ export default function IndicatorsPage() {
   const [dataElements, setDataElements] = React.useState<DataElement[]>([])
   const [loading, setLoading] = React.useState(true)
 
+  // Report types (for filters)
+  const [reportTypes, setReportTypes] = React.useState<{ id: number; name: string; code: string; data_element_ids: number[] }[]>([])
+
   // Indicator filters
   const [indicatorSearch, setIndicatorSearch] = React.useState("")
   const [indicatorTypeFilter, setIndicatorTypeFilter] = React.useState<"all" | "percentage" | "per_thousand" | "ratio">("all")
+  const [indicatorRtFilter, setIndicatorRtFilter] = React.useState<string>("all")
   const [indicatorPageSize, setIndicatorPageSize] = React.useState(10)
 
-  // Data element filters
-  const [dataElementSearch, setDataElementSearch] = React.useState("")
-  const [dataElementPageSize, setDataElementPageSize] = React.useState(25)
+  // Indicator → data element ID mapping (for report type filtering)
+  const [indicatorDeIds, setIndicatorDeIds] = React.useState<Map<string, number[]>>(new Map())
+
+  // Data element server-side pagination + search
+  const [deSearchInput, setDeSearchInput] = React.useState("")
+  const [deSearch, setDeSearch] = React.useState("")
+  const [dePage, setDePage] = React.useState(1)
+  const [dePageSize, setDePageSize] = React.useState(25)
+  const [deTotal, setDeTotal] = React.useState(0)
+  const [deLoading, setDeLoading] = React.useState(false)
+  const [deRtFilter, setDeRtFilter] = React.useState<string>("all")
+  const deSearchTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Modal states
   const [indicatorModalOpen, setIndicatorModalOpen] = React.useState(false)
@@ -107,16 +120,19 @@ export default function IndicatorsPage() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [indicatorsRes, dataElementsRes] = await Promise.all([
-        ApiClient.getIndicators(),
-        ApiClient.getDataElements()
+      const [indicatorsRes, rtRes] = await Promise.all([
+        ApiClient.getIndicators({ page_size: 10000 }),
+        ApiClient.getReportTypes({ page_size: 10000 }),
       ])
-      const indData = indicatorsRes.data?.results || indicatorsRes.data || []
-      setIndicators(indData.map((ind: {
+
+      const indData: Array<{
         id: number; code: string; name: string; description?: string;
         numerator_formula: string; numerator_description?: string;
-        denominator_formula?: string; denominator_description?: string; factor: number
-      }) => ({
+        denominator_formula?: string; denominator_description?: string; factor: number;
+        data_elements?: { id: number }[]
+      }> = indicatorsRes.data?.results || indicatorsRes.data || []
+
+      setIndicators(indData.map((ind) => ({
         id: String(ind.id),
         code: ind.code,
         name: ind.name,
@@ -129,17 +145,52 @@ export default function IndicatorsPage() {
         category: ""
       })))
 
-      const deData = dataElementsRes.data?.results || dataElementsRes.data || []
-      setDataElements(deData.map((de: { id: number; code: string; name: string; description?: string }) => ({
-        id: de.id, code: de.code, name: de.name, description: de.description
+      // Build indicator → data element IDs map for report type filtering
+      const deMap = new Map<string, number[]>()
+      for (const ind of indData) {
+        deMap.set(String(ind.id), (ind.data_elements ?? []).map((de) => de.id))
+      }
+      setIndicatorDeIds(deMap)
+
+      const rtData: Array<{ id: number; name: string; code: string; data_elements?: { id: number }[] }> =
+        rtRes.data?.results || rtRes.data || []
+      setReportTypes(rtData.map((rt) => ({
+        id: rt.id,
+        name: rt.name,
+        code: rt.code,
+        data_element_ids: (rt.data_elements ?? []).map((de) => de.id),
       })))
     } catch (error) {
-      console.error("Failed to load data:", error)
-      toast.error("Failed to load indicators and data elements")
+      console.error("Failed to load indicators:", error)
+      toast.error("Failed to load indicators and report types")
     } finally {
       setLoading(false)
     }
   }
+
+  const loadDataElements = React.useCallback(async (page: number, pageSize: number, search: string, rtFilter: string) => {
+    try {
+      setDeLoading(true)
+      const params: Record<string, string | number> = { page, page_size: pageSize }
+      if (search.trim()) params.search = search.trim()
+      if (rtFilter !== "all") params.report_types = rtFilter
+      const res = await ApiClient.getDataElements(params)
+      const deData = res.data?.results || res.data || []
+      setDeTotal(res.data?.count ?? deData.length)
+      setDataElements(deData.map((de: { id: number; code: string; name: string; description?: string }) => ({
+        id: de.id, code: de.code, name: de.name, description: de.description
+      })))
+    } catch (error) {
+      console.error("Failed to load data elements:", error)
+      toast.error("Failed to load data elements")
+    } finally {
+      setDeLoading(false)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    loadDataElements(dePage, dePageSize, deSearch, deRtFilter)
+  }, [dePage, dePageSize, deSearch, deRtFilter, loadDataElements])
 
   // Handlers
   const handleCreateIndicator = () => { setEditingIndicator(null); setIndicatorModalOpen(true) }
@@ -203,7 +254,7 @@ export default function IndicatorsPage() {
       }
       setDataElementModalOpen(false)
       setEditingDataElement(null)
-      await loadData()
+      await loadDataElements(dePage, dePageSize, deSearch, deRtFilter)
     } catch (error) {
       console.error("Failed to save data element:", error)
       toast.error(`Failed to ${editingDataElement ? "update" : "create"} data element`)
@@ -214,16 +265,16 @@ export default function IndicatorsPage() {
     if (!deleteDataElementId) return
     try {
       await ApiClient.deleteDataElement(deleteDataElementId)
-      setDataElements(prev => prev.filter(de => de.id !== deleteDataElementId))
       toast.success("Data element deleted successfully")
       setDeleteDataElementId(null)
+      await loadDataElements(dePage, dePageSize, deSearch, deRtFilter)
     } catch (error) {
       console.error("Failed to delete data element:", error)
       toast.error("Failed to delete data element")
     }
   }
 
-  const handleBulkImportSuccess = () => { loadData(); setBulkImportOpen(false) }
+  const handleBulkImportSuccess = () => { loadDataElements(1, dePageSize, deSearch, deRtFilter); setBulkImportOpen(false) }
 
   const handleBulkDeleteIndicators = async () => {
     setBulkDeleting(true)
@@ -244,10 +295,12 @@ export default function IndicatorsPage() {
     setBulkDeleting(true)
     try {
       await Promise.all([...selectedDataElements].map(id => ApiClient.deleteDataElement(id)))
-      setDataElements(prev => prev.filter(de => !selectedDataElements.has(de.id)))
       toast.success(`Deleted ${selectedDataElements.size} data element(s)`)
       setSelectedDataElements(new Set())
       setBulkDeleteDataElementsOpen(false)
+      // Reset to page 1 and reload after bulk delete
+      setDePage(1)
+      await loadDataElements(1, dePageSize, deSearch, deRtFilter)
     } catch {
       toast.error("Failed to delete some data elements")
     } finally {
@@ -276,11 +329,15 @@ export default function IndicatorsPage() {
   }
 
   const toggleAllDataElements = (checked: boolean) => {
-    setSelectedDataElements(checked ? new Set(filteredDataElements.map(d => d.id)) : new Set())
+    setSelectedDataElements(checked ? new Set(dataElements.map(d => d.id)) : new Set())
   }
 
   // Filter logic
   const filteredIndicators = React.useMemo(() => {
+    const rtDeIds = indicatorRtFilter !== "all"
+      ? new Set(reportTypes.find((rt) => String(rt.id) === indicatorRtFilter)?.data_element_ids ?? [])
+      : null
+
     return indicators.filter(ind => {
       const matchesSearch = ind.name.toLowerCase().includes(indicatorSearch.toLowerCase()) ||
         ind.code.toLowerCase().includes(indicatorSearch.toLowerCase())
@@ -288,24 +345,20 @@ export default function IndicatorsPage() {
         (indicatorTypeFilter === "percentage" && ind.factor === 100) ||
         (indicatorTypeFilter === "per_thousand" && ind.factor === 1000) ||
         (indicatorTypeFilter === "ratio" && ind.factor === 1)
-      return matchesSearch && matchesType
+      const matchesRt = !rtDeIds ||
+        (indicatorDeIds.get(ind.id) ?? []).some((deId) => rtDeIds.has(deId))
+      return matchesSearch && matchesType && matchesRt
     })
-  }, [indicators, indicatorSearch, indicatorTypeFilter])
+  }, [indicators, indicatorSearch, indicatorTypeFilter, indicatorRtFilter, reportTypes, indicatorDeIds])
 
-  const filteredDataElements = React.useMemo(() => {
-    return dataElements.filter(de =>
-      de.name.toLowerCase().includes(dataElementSearch.toLowerCase()) ||
-      de.code.toLowerCase().includes(dataElementSearch.toLowerCase())
-    )
-  }, [dataElements, dataElementSearch])
+  const deTotalPages = Math.max(1, Math.ceil(deTotal / dePageSize))
 
   const indicatorPag = usePagination(filteredIndicators, indicatorPageSize)
-  const dePag = usePagination(filteredDataElements, dataElementPageSize)
 
   // Stat cards
   const stats = [
     { label: "Total Indicators", value: indicators.length, icon: TrendingUp, color: "#C9433B", bg: "#FCC6BB" },
-    { label: "Data Elements", value: dataElements.length, icon: Database, color: "#D96455", bg: "#FEF0EC" },
+    { label: "Data Elements", value: deTotal, icon: Database, color: "#D96455", bg: "#FEF0EC" },
     { label: "Percentage (%)", value: indicators.filter(i => i.factor === 100).length, icon: BarChart3, color: "#8B3020", bg: "#FCC6BB" },
     { label: "Per Thousand", value: indicators.filter(i => i.factor === 1000).length, icon: Hash, color: "#C9433B", bg: "#FCC6BB" },
   ]
@@ -345,7 +398,7 @@ export default function IndicatorsPage() {
           <div className="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
             Last refreshed: {new Date().toLocaleTimeString()}
           </div>
-          <Button variant="outline" size="sm" onClick={loadData} className="border-red-200 text-red-700 hover:bg-red-50">
+          <Button variant="outline" size="sm" onClick={() => { loadData(); loadDataElements(dePage, dePageSize, deSearch, deRtFilter) }} className="border-red-200 text-red-700 hover:bg-red-50">
             Refresh
           </Button>
         </div>
@@ -382,7 +435,7 @@ export default function IndicatorsPage() {
             <TabsTrigger value="data-elements" className="data-[state=active]:bg-white data-[state=active]:text-red-800 data-[state=active]:shadow-sm flex items-center gap-2">
               <Database className="h-4 w-4" />
               Data Elements
-              <Badge variant="secondary" className="ml-1 text-xs">{dataElements.length}</Badge>
+              <Badge variant="secondary" className="ml-1 text-xs">{deTotal}</Badge>
             </TabsTrigger>
           </TabsList>
 
@@ -461,8 +514,22 @@ export default function IndicatorsPage() {
                       <SelectItem value="ratio">Ratio</SelectItem>
                     </SelectContent>
                   </Select>
-                  {(indicatorSearch || indicatorTypeFilter !== "all") && (
-                    <Button variant="ghost" size="sm" onClick={() => { setIndicatorSearch(""); setIndicatorTypeFilter("all") }} className="h-9 px-2 text-gray-500 hover:text-gray-700">
+                  <Select
+                    value={indicatorRtFilter}
+                    onValueChange={(v) => { setIndicatorRtFilter(v); indicatorPag.setPage(1) }}
+                  >
+                    <SelectTrigger className="w-48 border-gray-300 focus:ring-red-600">
+                      <SelectValue placeholder="Report Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Report Types</SelectItem>
+                      {reportTypes.map((rt) => (
+                        <SelectItem key={rt.id} value={String(rt.id)}>{rt.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {(indicatorSearch || indicatorTypeFilter !== "all" || indicatorRtFilter !== "all") && (
+                    <Button variant="ghost" size="sm" onClick={() => { setIndicatorSearch(""); setIndicatorTypeFilter("all"); setIndicatorRtFilter("all") }} className="h-9 px-2 text-gray-500 hover:text-gray-700">
                       <X className="h-4 w-4" />
                     </Button>
                   )}
@@ -596,34 +663,65 @@ export default function IndicatorsPage() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     placeholder="Search by name or code..."
-                    value={dataElementSearch}
-                    onChange={(e) => setDataElementSearch(e.target.value)}
+                    value={deSearchInput}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setDeSearchInput(val)
+                      if (deSearchTimer.current) clearTimeout(deSearchTimer.current)
+                      deSearchTimer.current = setTimeout(() => {
+                        setDeSearch(val)
+                        setDePage(1)
+                      }, 400)
+                    }}
                     className="pl-9 border-gray-300 focus-visible:ring-red-600"
                   />
                 </div>
-                {dataElementSearch && (
-                  <Button variant="ghost" size="sm" onClick={() => setDataElementSearch("")} className="h-9 px-2 text-gray-500 hover:text-gray-700">
+                <Select
+                  value={deRtFilter}
+                  onValueChange={(v) => { setDeRtFilter(v); setDePage(1) }}
+                >
+                  <SelectTrigger className="w-48 border-gray-300 focus:ring-red-600 flex-shrink-0">
+                    <SelectValue placeholder="Report Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Report Types</SelectItem>
+                    {reportTypes.map((rt) => (
+                      <SelectItem key={rt.id} value={String(rt.id)}>{rt.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {(deSearchInput || deRtFilter !== "all") && (
+                  <Button variant="ghost" size="sm" onClick={() => { setDeSearchInput(""); setDeSearch(""); setDeRtFilter("all"); setDePage(1) }} className="h-9 px-2 text-gray-500 hover:text-gray-700">
                     <X className="h-4 w-4 mr-1" />Clear
                   </Button>
                 )}
               </div>
-              {filteredDataElements.length !== dataElements.length && (
+              {(deSearch || deRtFilter !== "all") && (
                 <p className="text-xs text-gray-500 mt-2">
-                  Showing {filteredDataElements.length} of {dataElements.length} data elements
+                  Showing {dataElements.length} of {deTotal} data elements
+                  {deSearch && <> matching &quot;{deSearch}&quot;</>}
+                  {deRtFilter !== "all" && <> in &quot;{reportTypes.find(rt => String(rt.id) === deRtFilter)?.name}&quot;</>}
                 </p>
               )}
             </CardContent>
           </Card>
 
-          {filteredDataElements.length === 0 ? (
+          {deLoading ? (
+            <Card className="border border-gray-200 shadow-sm">
+              <CardContent className="p-8 text-center">
+                <Loader2 className="h-8 w-8 text-gray-300 mx-auto mb-2 animate-spin" />
+                <p className="text-sm text-gray-500">Loading data elements…</p>
+              </CardContent>
+            </Card>
+          ) : dataElements.length === 0 ? (
             <Card className="border-dashed border-2 border-gray-200">
               <CardContent className="p-12 text-center">
                 <Database className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-700 mb-1">No data elements found</h3>
                 <p className="text-sm text-gray-500 mb-4">
-                  {dataElementSearch ? "Try adjusting your search criteria." : "Create your first data element or import from Excel."}
+                  {(deSearchInput || deRtFilter !== "all") ? "Try adjusting your filters." : "Create your first data element or import from Excel."}
                 </p>
-                {!dataElementSearch && (
+                {!deSearchInput && deRtFilter === "all" && (
                   <div className="flex items-center justify-center gap-2">
                     <Button variant="outline" onClick={() => setBulkImportOpen(true)} className="border-red-200 text-red-700 hover:bg-red-50">
                       <Upload className="h-4 w-4 mr-2" />Bulk Import
@@ -644,7 +742,7 @@ export default function IndicatorsPage() {
                       <tr style={{ background: "linear-gradient(135deg, #8B3020, #C9433B)" }}>
                         <th className="px-4 py-3 w-10">
                           <Checkbox
-                            checked={selectedDataElements.size === filteredDataElements.length && filteredDataElements.length > 0}
+                            checked={selectedDataElements.size === dataElements.length && dataElements.length > 0}
                             onCheckedChange={(checked) => toggleAllDataElements(!!checked)}
                             className="border-red-200 data-[state=checked]:bg-white data-[state=checked]:text-red-700"
                           />
@@ -657,7 +755,7 @@ export default function IndicatorsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {dePag.paginated.map((de, idx) => (
+                      {dataElements.map((de, idx) => (
                         <tr key={de.id} className={`transition-colors hover:bg-red-50/50 ${selectedDataElements.has(de.id) ? "bg-red-50" : idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
                           <td className="px-4 py-3">
                             <Checkbox
@@ -666,7 +764,7 @@ export default function IndicatorsPage() {
                             />
                           </td>
                           <td className="px-4 py-3 text-xs text-gray-400">
-                            {(dePag.page - 1) * dataElementPageSize + idx + 1}
+                            {(dePage - 1) * dePageSize + idx + 1}
                           </td>
                           <td className="px-4 py-3">
                             <Badge variant="outline" className="font-mono text-xs border-red-200 text-red-800 bg-red-50">
@@ -697,12 +795,12 @@ export default function IndicatorsPage() {
               </Card>
 
               <PaginationControls
-                page={dePag.page}
-                totalPages={dePag.totalPages}
-                setPage={dePag.setPage}
-                total={filteredDataElements.length}
-                pageSize={dataElementPageSize}
-                setPageSize={setDataElementPageSize}
+                page={dePage}
+                totalPages={deTotalPages}
+                setPage={setDePage}
+                total={deTotal}
+                pageSize={dePageSize}
+                setPageSize={(s) => { setDePageSize(s); setDePage(1) }}
               />
             </>
           )}

@@ -149,7 +149,7 @@ export const ApiClient = {
   deleteOrgUnit: (id: number) => api.delete(`/org/units/${id}/`),
   
   // Metadata endpoints
-  getReportTypes: () => api.get("/metadata/report-types/"),
+  getReportTypes: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/metadata/report-types/", { params }),
   getReportType: (id: number) => api.get(`/metadata/report-types/${id}/`),
   createReportType: (data: unknown) => api.post("/metadata/report-types/", data),
   updateReportType: (id: number, data: unknown) => api.patch(`/metadata/report-types/${id}/`, data),

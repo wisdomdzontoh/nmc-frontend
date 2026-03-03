@@ -19,7 +19,9 @@ import {
 } from "@/components/ui/dialog"
 
 // ── Zod schema ────────────────────────────────────────────────────────────────
-const dataElementSchema = z.object({
+// When editing, the code field is read-only so we skip the regex check —
+// existing codes may contain spaces or other legacy characters.
+const createSchema = z.object({
   code: z
     .string()
     .min(1, "Code is required")
@@ -32,7 +34,16 @@ const dataElementSchema = z.object({
   description: z.string().optional(),
 })
 
-type DataElementFormValues = z.infer<typeof dataElementSchema>
+const editSchema = z.object({
+  code: z.string().min(1, "Code is required"),
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(255, "Name must be at most 255 characters"),
+  description: z.string().optional(),
+})
+
+type DataElementFormValues = z.infer<typeof createSchema>
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface DataElement {
@@ -50,13 +61,14 @@ interface Props {
 }
 
 export function DataElementModal({ open, onOpenChange, onSave, dataElement }: Props) {
+  const isEditing = !!dataElement
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<DataElementFormValues>({
-    resolver: zodResolver(dataElementSchema),
+    resolver: zodResolver(isEditing ? editSchema : createSchema),
     defaultValues: { code: "", name: "", description: "" },
   })
 

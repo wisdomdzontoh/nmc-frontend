@@ -224,9 +224,9 @@ const VisualizationPage: React.FC = () => {
     setDataItemsError(null);
     try {
       const [deRes, indRes, rtRes] = await Promise.all([
-        ApiClient.getDataElements(),
-        ApiClient.getIndicators(),
-        ApiClient.getReportTypes(),
+        ApiClient.getDataElements({ page_size: 10000 }),
+        ApiClient.getIndicators({ page_size: 10000 }),
+        ApiClient.getReportTypes({ page_size: 10000 }),
       ]);
       const deList = deRes.data?.results ?? deRes.data ?? [];
       const indList = indRes.data?.results ?? indRes.data ?? [];
