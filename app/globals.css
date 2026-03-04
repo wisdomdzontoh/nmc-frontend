@@ -5,16 +5,16 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ===================================================
-   BRAND COLOR SYSTEM — Warm Coral-Red / White / Ash
+   BRAND COLOR SYSTEM — Light Coral-Red / White / Ash
    =================================================== */
 :root {
   /* Base Palette */
-  --color-primary-base: #C9433B;   /* Warm Red (primary buttons / active states) */
-  --color-primary-dark: #8B3020;   /* Deep Warm Red (sidebar / header) */
-  --color-primary-mid:  #D96455;   /* Mid Coral-Red (gradient ends / hover) */
-  --color-primary-light: #E8877A;  /* Soft Coral (accent / charts) */
+  --color-primary-base: #D96455;   /* Light Coral-Red (primary buttons / active states) */
+  --color-primary-dark: #C9433B;   /* Medium Coral-Red (sidebar / header) */
+  --color-primary-mid:  #E8877A;   /* Soft Coral (gradient ends / hover) */
+  --color-primary-light: #F4A99E;  /* Light Blush Coral (accent / charts) */
   --color-dark-base: #0a0a0a;      /* Near Black */
-  --color-soft-base: #FEF0EC;      /* Very light warm-white background */
+  --color-soft-base: #FFF5F3;      /* Very light warm-white background */
 
   /* Core theme variables */
   --background: #ffffff;
@@ -30,13 +30,13 @@
   --primary-foreground: #ffffff;
 
   --secondary: #FCC6BB;
-  --secondary-foreground: #8B3020;
+  --secondary-foreground: #C9433B;
 
   --muted: #F3F4F6;
   --muted-foreground: #6B7280;
 
   --accent: #FCC6BB;
-  --accent-foreground: #8B3020;
+  --accent-foreground: #C9433B;
 
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
@@ -45,24 +45,24 @@
   --input: #F9FAFB;
   --ring: var(--color-primary-base);
 
-  /* Chart tones — warm coral scale */
-  --chart-1: #C9433B;
-  --chart-2: #D96455;
-  --chart-3: #E8877A;
-  --chart-4: #F4A99E;
-  --chart-5: #FCC6BB;
+  /* Chart tones — light coral scale */
+  --chart-1: #D96455;
+  --chart-2: #E8877A;
+  --chart-3: #F4A99E;
+  --chart-4: #FCC6BB;
+  --chart-5: #FFE4DE;
 
   --radius: 0.5rem;
 
   /* Sidebar */
-  --sidebar: #8B3020;
+  --sidebar: #C9433B;
   --sidebar-foreground: #ffffff;
-  --sidebar-primary: #E8877A;
+  --sidebar-primary: #F4A99E;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #C9433B;
+  --sidebar-accent: #D96455;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #7A2818;
-  --sidebar-ring: #E8877A;
+  --sidebar-border: #B84039;
+  --sidebar-ring: #F4A99E;
 }
 
 /* ===================================================
@@ -103,14 +103,14 @@
   --chart-4: #C9433B;
   --chart-5: #8B3020;
 
-  --sidebar: #0f0908;
+  --sidebar: #1a0e0c;
   --sidebar-foreground: #FCC6BB;
-  --sidebar-primary: #E8877A;
+  --sidebar-primary: #F4A99E;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #8B3020;
+  --sidebar-accent: #C9433B;
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #3d1a14;
-  --sidebar-ring: #E8877A;
+  --sidebar-ring: #F4A99E;
 }
 
 /* ===================================================
@@ -206,12 +206,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D96455;
+  background: #E8877A;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #C9433B;
+  background: #D96455;
 }
 
 /* ===================================================

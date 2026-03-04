@@ -3,10 +3,10 @@ import Image from "next/image"
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "linear-gradient(180deg, #FEF0EC 0%, #ffffff 100%)" }}>
+    <div className="min-h-screen flex flex-col" style={{ background: "linear-gradient(180deg, #FFF5F3 0%, #ffffff 100%)" }}>
       {/* Header bar */}
-      <div className="w-full border-b border-[#8B3020] shadow-md" style={{ background: "linear-gradient(135deg, #8B3020 0%, #C9433B 50%, #D96455 100%)" }}>
-        <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, #E8877A, #C9433B, #E8877A)" }} />
+      <div className="w-full border-b border-[#C9433B] shadow-md" style={{ background: "linear-gradient(135deg, #C9433B 0%, #D96455 50%, #E8877A 100%)" }}>
+        <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, #F4A99E, #D96455, #F4A99E)" }} />
         <div className="h-16 flex items-center gap-3 px-6">
           <div className="relative h-10 w-10 flex-shrink-0">
             <Image
@@ -34,7 +34,7 @@ export default function NotFound() {
             <div
               className="text-[10rem] font-black leading-none select-none"
               style={{
-                background: "linear-gradient(135deg, #8B3020, #D96455, #E8877A)",
+                background: "linear-gradient(135deg, #C9433B, #E8877A, #F4A99E)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
@@ -59,9 +59,9 @@ export default function NotFound() {
           </div>
 
           {/* Official notice */}
-          <div className="rounded-xl border border-red-200 p-4 text-left" style={{ background: "#FEF0EC" }}>
+          <div className="rounded-xl border border-[#FCC6BB] p-4 text-left" style={{ background: "#FFF5F3" }}>
             <div className="flex items-start gap-3">
-              <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: "#C9433B" }} />
+              <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: "#D96455" }} />
               <div>
                 <p className="text-sm font-semibold text-gray-800">Official Notice</p>
                 <p className="text-xs text-gray-600 mt-1">
@@ -77,13 +77,13 @@ export default function NotFound() {
             <Link
               href="/dashboard"
               className="flex items-center justify-center gap-2 h-12 px-6 rounded-lg text-white font-semibold text-sm shadow-sm transition-all hover:shadow-md hover:opacity-90 no-underline"
-              style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}
+              style={{ background: "linear-gradient(135deg, #D96455, #E8877A)" }}
             >
               Go to Dashboard
             </Link>
             <Link
               href="/auth/login"
-              className="flex items-center justify-center gap-2 h-12 px-6 rounded-lg font-semibold text-sm border border-red-300 text-red-800 bg-white hover:bg-red-50 transition-all no-underline"
+              className="flex items-center justify-center gap-2 h-12 px-6 rounded-lg font-semibold text-sm border border-[#F4A99E] text-[#C9433B] bg-white hover:bg-[#FFF5F3] transition-all no-underline"
             >
               Back to Login
             </Link>
@@ -102,7 +102,7 @@ export default function NotFound() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="text-xs text-red-700 hover:text-red-900 underline underline-offset-2 transition-colors"
+                  className="text-xs text-[#D96455] hover:text-[#C9433B] underline underline-offset-2 transition-colors"
                 >
                   {link.label}
                 </Link>

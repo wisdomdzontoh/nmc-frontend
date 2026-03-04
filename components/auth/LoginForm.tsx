@@ -83,17 +83,36 @@ const LoginForm: React.FC = () => {
     <AuthLayout>
       <div className="space-y-6">
         {/* Desktop logo + title */}
-        <div className="hidden lg:block text-center">
-          <div className="flex justify-center mb-5">
-            {/* On white bg, logo white areas are invisible — drop-shadow gives lift */}
-            <div className="relative w-20 h-20 drop-shadow-md">
-              <Image src="/logo.png" alt="NMC Logo" fill className="object-contain" priority />
-            </div>
+        <div className="hidden lg:block text-center space-y-4">
+          {/* Dual-crest logo — full landscape width, proper aspect ratio */}
+          <div className="flex justify-center">
+            <Image
+              src="/logo.png"
+              alt="Ministry of Health & Nursing and Midwifery Council of Ghana"
+              width={260}
+              height={80}
+              className="object-contain"
+              style={{ height: "80px", width: "auto" }}
+              priority
+            />
           </div>
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
-            INTEGRATED MONITORING AND EVALUATION MANAGEMENT SYSTEM (IMEMS)
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">Nursing and Midwifery Council of Ghana</p>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-[10px] font-bold tracking-[0.2em] text-[#C9433B] uppercase">IMEMS</span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+
+          {/* Title */}
+          <div>
+            <h1 className="text-lg font-extrabold text-gray-900 leading-snug">
+              Integrated Monitoring &amp; Evaluation<br />Management System
+            </h1>
+            <p className="text-xs text-gray-400 mt-1 font-medium tracking-wide">
+              Nursing and Midwifery Council of Ghana
+            </p>
+          </div>
         </div>
 
         {/* Welcome text */}

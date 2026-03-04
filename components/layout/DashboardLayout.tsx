@@ -19,12 +19,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* ── Fixed sidebar ───────────────────────────────────────── */}
       {/*
-        We push the sidebar down by the header height (h-16 = 64px + 4px accent bar = 68px).
+        We push the sidebar down by the header height (2px accent + 68px row = 70px).
         The sidebar takes up the remaining viewport height below the header.
       */}
       <div
         className="fixed left-0 bottom-0 z-40 overflow-hidden"
-        style={{ top: "68px" }}
+        style={{ top: "70px" }}
       >
         <Sidebar open={sidebarOpen} />
       </div>
@@ -32,15 +32,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* ── Main content area ───────────────────────────────────── */}
       {/*
         Offset the content by:
-          - top: header height (68px)
+          - top: header height (70px)
           - left: sidebar width (dynamic)
         This keeps the header + sidebar visible while content scrolls.
       */}
       <main
         className="transition-all duration-200 ease-in-out min-h-screen"
-        style={{ paddingTop: "68px", paddingLeft: `${sidebarWidth}px` }}
+        style={{ paddingTop: "70px", paddingLeft: `${sidebarWidth}px` }}
       >
-        <div className="px-4 sm:px-6 lg:px-8 py-5 min-h-[calc(100vh-68px)]">
+        <div className="px-4 sm:px-6 lg:px-8 py-5 min-h-[calc(100vh-70px)]">
           {children}
         </div>
       </main>

@@ -20,10 +20,10 @@ export default function Sidebar({ open }: { open: boolean }) {
   return (
     <aside
       className={cn(
-        "flex flex-col border-r border-[#7A2818] transition-all duration-200 ease-in-out h-full",
+        "flex flex-col border-r border-[#B84039] transition-all duration-200 ease-in-out h-full",
         open ? "w-60" : "w-16"
       )}
-      style={{ background: "linear-gradient(180deg, #8B3020 0%, #7A2818 100%)" }}
+      style={{ background: "linear-gradient(180deg, #C9433B 0%, #B84039 100%)" }}
     >
       <nav className="flex-1 flex flex-col pt-3 px-2 pb-4 space-y-0.5 overflow-y-auto">
         {visibleNav.map((item) => {
@@ -37,7 +37,7 @@ export default function Sidebar({ open }: { open: boolean }) {
               className={cn(
                 "group flex items-center rounded-lg px-2 py-2.5 text-sm font-medium transition-all duration-150",
                 isActive
-                  ? "bg-[#C9433B] text-white shadow-sm border border-[#D96455]/40"
+                  ? "bg-[#D96455] text-white shadow-sm border border-[#E8877A]/40"
                   : "text-white/60 hover:bg-white/10 hover:text-white"
               )}
             >
@@ -62,7 +62,7 @@ export default function Sidebar({ open }: { open: boolean }) {
 
       {/* Footer branding */}
       {open && (
-        <div className="px-3 py-3 border-t border-[#7A2818]">
+        <div className="px-3 py-3 border-t border-[#B84039]">
           <p className="text-[10px] text-white/35 text-center leading-relaxed">
             NMC Ghana &copy; {new Date().getFullYear()}
           </p>
