@@ -29,6 +29,25 @@ import { exportToExcel } from "@/lib/export-utils"
 type ValuesById = Record<string, number | null>
 type ValuesByCode = Record<string, number | string | null>
 
+const DATA_ENTRY_SELECTION_KEY = "nmc_data_entry_selection"
+
+type PersistedSelection = {
+  datasetId: number
+  orgId: number
+  period: { id: string; name: string; startDate: string; endDate: string }
+}
+
+function findOrgInTree(tree: OrgNode[], id: number): OrgNode | null {
+  for (const node of tree) {
+    if (node.id === id) return node
+    if (node.children?.length) {
+      const found = findOrgInTree(node.children, id)
+      if (found) return found
+    }
+  }
+  return null
+}
+
 // ── Relative time helper ──────────────────────────────────────────────────
 
 function formatRelativeTime(date: Date): string {
@@ -298,6 +317,56 @@ export default function DataEntryPage() {
     })()
   }, [])
 
+  // ── Restore persisted selection after first load ───────────────────────────
+  const hasRestoredSelection = React.useRef(false)
+  React.useEffect(() => {
+    if (loading || hasRestoredSelection.current) return
+    try {
+      const raw = typeof window !== "undefined" ? window.localStorage.getItem(DATA_ENTRY_SELECTION_KEY) : null
+      if (!raw) return
+      const parsed = JSON.parse(raw) as PersistedSelection
+      if (!parsed?.datasetId || !parsed?.orgId || !parsed?.period?.startDate) return
+      hasRestoredSelection.current = true
+
+      const d = datasets.find((ds) => ds.id === parsed.datasetId)
+      const o = findOrgInTree(orgTree, parsed.orgId)
+      if (d) setDataset(d)
+      if (o) setOrg(o)
+      if (parsed.period?.name && parsed.period?.endDate) {
+        setPeriod({
+          id: parsed.period.id,
+          name: parsed.period.name,
+          startDate: parsed.period.startDate,
+          endDate: parsed.period.endDate,
+        })
+      }
+    } catch {
+      // ignore invalid or missing stored selection
+    }
+  }, [loading, datasets, orgTree])
+
+  // ── Persist selection when user changes dataset, org, or period ────────────
+  React.useEffect(() => {
+    if (!dataset || !org || !period) return
+    try {
+      const payload: PersistedSelection = {
+        datasetId: dataset.id,
+        orgId: org.id,
+        period: {
+          id: period.id,
+          name: period.name,
+          startDate: period.startDate,
+          endDate: period.endDate,
+        },
+      }
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(DATA_ENTRY_SELECTION_KEY, JSON.stringify(payload))
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [dataset?.id, org?.id, period?.startDate, period?.id, period?.name, period?.endDate])
+
   // ── Reset when dataset changes ────────────────────────────────────────────
   React.useEffect(() => {
     setValuesById({})
@@ -436,6 +505,11 @@ export default function DataEntryPage() {
     setLastAutoSaved(null)
     setDraftRestored(false)
     valuesRef.current = {}
+    try {
+      if (typeof window !== "undefined") window.localStorage.removeItem(DATA_ENTRY_SELECTION_KEY)
+    } catch {
+      /* ignore */
+    }
   }
 
   const setIdValue = (id: string, v: number | null) => {
