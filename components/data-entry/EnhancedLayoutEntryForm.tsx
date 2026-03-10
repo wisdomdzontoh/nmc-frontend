@@ -336,9 +336,10 @@ function EnhancedTableArray({
                     const computed = computedValues[code]
                     content = (
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-purple-700 text-lg font-semibold justify-end pr-2">
-                          <Calculator className="h-5 w-5 opacity-70" />
-                          <span className="font-mono">{computed?.formatted || "—"}</span>
+                        <div className="flex items-center justify-end pr-2">
+                          <span className="font-mono text-lg font-extrabold text-green-700">
+                            {computed?.formatted || "—"}
+                          </span>
                         </div>
                         {showCalculations && computed && (
                           <div className="text-xs">
@@ -347,7 +348,7 @@ function EnhancedTableArray({
                         )}
                       </div>
                     )
-                    extraClass = "bg-purple-50/30"
+                    extraClass = "bg-green-50/40"
                   } else if (typeof c.text === "string" && c.text.trim() !== "") {
                     content = (
                       <span className={cn("text-sm", c.bold ? "font-bold" : "font-semibold")}>

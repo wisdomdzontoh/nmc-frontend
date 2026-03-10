@@ -6,6 +6,7 @@
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
+import { evaluateAdvancedFormula, type AdvancedFormulaContext } from "@/lib/advanced-formula-evaluator"
 
 export interface ExportData {
   reportType: string
@@ -17,10 +18,83 @@ export interface ExportData {
 }
 
 /**
+ * Compute formula results from the layout + raw values so that
+ * computed cells (e.g. =SUM(A1:A5)) are exported with their values.
+ */
+function computeLayoutFormulas(
+  layout: any,
+  values: Record<string, number | string | null>,
+): Record<string, number | string | null> {
+  const result: Record<string, number | string | null> = {}
+
+  if (!layout?.sections || !Array.isArray(layout.sections)) {
+    return result
+  }
+
+  layout.sections.forEach((section: any) => {
+    if (section.type !== 'table' || !section.rows || !Array.isArray(section.rows)) return
+
+    const rows = section.rows
+    const rowCount = rows.length
+    const colCount =
+      rowCount === 0 ? 0 : Math.max(...rows.map((r: any) => (Array.isArray(r.cells) ? r.cells.length : 0)))
+
+    const context: AdvancedFormulaContext = {
+      getCellValue: (rowIndex, colIndex) => {
+        const row = rows[rowIndex]
+        if (!row || !Array.isArray(row.cells)) return null
+        const cell = row.cells[colIndex]
+        if (!cell) return null
+        if (cell.bind) {
+          const v = values[cell.bind]
+          return v ?? null
+        }
+        return null
+      },
+      getDataElementValue: (code) => {
+        const v = values[code]
+        return typeof v === 'number' ? v : null
+      },
+      rowCount,
+      colCount,
+      dataElements: Object.keys(values)
+        .filter((code) => !code.startsWith('remark.'))
+        .map((code) => ({
+          code,
+          value: (typeof values[code] === 'number' ? (values[code] as number) : null) as number | null,
+        })),
+    }
+
+    rows.forEach((row: any) => {
+      if (!Array.isArray(row.cells)) return
+      row.cells.forEach((cell: any) => {
+        if (!cell?.compute) return
+        const key = String(cell.bind || cell.compute)
+        if (result[key] !== undefined) return
+        try {
+          const calc = evaluateAdvancedFormula(String(cell.compute), context)
+          result[key] = calc.value
+        } catch {
+          result[key] = null
+        }
+      })
+    })
+  })
+
+  return result
+}
+
+/**
  * Export data to Excel format with proper table structure
  */
 export async function exportToExcel(data: ExportData): Promise<void> {
   try {
+    const layoutComputed = data.layout ? computeLayoutFormulas(data.layout, data.values) : {}
+    const mergedComputedValues: Record<string, number | string | null> = {
+      ...(data.computedValues || {}),
+      ...layoutComputed,
+    }
+
     // Create a new workbook
     const workbook = XLSX.utils.book_new()
     
@@ -73,7 +147,8 @@ export async function exportToExcel(data: ExportData): Promise<void> {
                   dataRow.push(value !== null && value !== undefined ? value : '')
                 } else if (cell.compute) {
                   // This is a computed cell
-                  const value = data.values[cell.compute]
+                  const key = String(cell.bind || cell.compute)
+                  const value = mergedComputedValues[key]
                   dataRow.push(value !== null && value !== undefined ? value : '')
                 } else {
                   // This is a text cell
@@ -108,11 +183,11 @@ export async function exportToExcel(data: ExportData): Promise<void> {
     }
     
     // Add computed values if available
-    if (data.computedValues && Object.keys(data.computedValues).length > 0) {
+    if (Object.keys(mergedComputedValues).length > 0) {
       worksheetData.push([]) // Empty row
       worksheetData.push(['Computed Values', 'Results'])
       
-      Object.entries(data.computedValues).forEach(([key, value]) => {
+      Object.entries(mergedComputedValues).forEach(([key, value]) => {
         worksheetData.push([
           key,
           typeof value === 'number' ? value : (value || '')
@@ -148,6 +223,12 @@ export async function exportToExcel(data: ExportData): Promise<void> {
  */
 export async function exportToPDF(data: ExportData): Promise<void> {
   try {
+    const layoutComputed = data.layout ? computeLayoutFormulas(data.layout, data.values) : {}
+    const mergedComputedValues: Record<string, number | string | null> = {
+      ...(data.computedValues || {}),
+      ...layoutComputed,
+    }
+
     const pdf = new jsPDF('p', 'mm', 'a4')
     
     // Add header information
@@ -232,7 +313,8 @@ export async function exportToPDF(data: ExportData): Promise<void> {
                   const value = data.values[cell.bind]
                   cellValue = value !== null && value !== undefined ? String(value) : ''
                 } else if (cell.compute) {
-                  const value = data.values[cell.compute]
+                  const key = String(cell.bind || cell.compute)
+                  const value = mergedComputedValues[key]
                   cellValue = value !== null && value !== undefined ? String(value) : ''
                 } else {
                   cellValue = cell.text || ''
@@ -292,7 +374,7 @@ export async function exportToPDF(data: ExportData): Promise<void> {
     }
     
     // Add computed values if available
-    if (data.computedValues && Object.keys(data.computedValues).length > 0) {
+    if (Object.keys(mergedComputedValues).length > 0) {
       yPosition += 10
       
       if (yPosition > 270) {
@@ -308,7 +390,7 @@ export async function exportToPDF(data: ExportData): Promise<void> {
       pdf.setFontSize(10)
       pdf.setFont('helvetica', 'normal')
       
-      Object.entries(data.computedValues).forEach(([key, value]) => {
+      Object.entries(mergedComputedValues).forEach(([key, value]) => {
         if (yPosition > 270) {
           pdf.addPage()
           yPosition = 20

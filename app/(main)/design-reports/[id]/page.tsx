@@ -13,6 +13,7 @@ import ExcelLikeTable from "@/components/report-designer/ExcelLikeTable"
 import CellFormatToolbar from "@/components/report-designer/CellFormatToolbar"
 import FormulaBar from "@/components/report-designer/FormulaBar"
 import DataElementPalette, { type DataElement } from "@/components/report-designer/DataElementPalette"
+import { DataElementEditorModal, type DataElementEditorMode } from "@/components/report-designer/DataElementEditorModal"
 import Renderer from "@/components/report-designer/Renderer"
 import api from "@/lib/api"
 import { createLayout, updateLayout, publishLayout } from "@/lib/reportLayouts"
@@ -67,6 +68,10 @@ export default function ReportDesignerPage() {
   const [leftPanelOpen, setLeftPanelOpen] = useState(true)
   const [rightPanelOpen, setRightPanelOpen] = useState(true)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const [elementModalOpen, setElementModalOpen] = useState(false)
+  const [elementModalMode, setElementModalMode] = useState<DataElementEditorMode>("create")
+  const [editingElement, setEditingElement] = useState<DataElement | null>(null)
+  const [targetCell, setTargetCell] = useState<{ sectionIndex: number; rowIndex: number; colIndex: number } | null>(null)
 
   const { selectedCell, setSelectedCell, copiedCell, setCopiedCell, pushHistory, undo, redo, canUndo, canRedo } =
     useDesignerStore()
@@ -263,6 +268,48 @@ export default function ReportDesignerPage() {
     }
     updateSelectedCell({ bind: el.code, text: undefined, compute: undefined })
     toast.success("Data element bound", { description: `Bound ${el.code} to cell` })
+  }
+
+  const openDataElementModalForCell = (args: {
+    sectionIndex: number
+    rowIndex: number
+    colIndex: number
+    bindCode?: string
+  }) => {
+    setTargetCell({
+      sectionIndex: args.sectionIndex,
+      rowIndex: args.rowIndex,
+      colIndex: args.colIndex,
+    })
+
+    if (args.bindCode) {
+      const existing = rtElements.find((e) => e.code === args.bindCode)
+      if (existing) {
+        setEditingElement(existing)
+        setElementModalMode("edit")
+        setElementModalOpen(true)
+        return
+      }
+    }
+
+    setEditingElement(null)
+    setElementModalMode("create")
+    setElementModalOpen(true)
+  }
+
+  const applyBindingToTargetCell = (code: string) => {
+    if (!targetCell) return
+    const { sectionIndex, rowIndex, colIndex } = targetCell
+    const sec = schema.sections[sectionIndex] as TableSection
+    if (!sec || sec.type !== "table") return
+    const rows = sec.rows.map((r, ri) =>
+      ri === rowIndex
+        ? {
+            cells: r.cells.map((c, ci) => (ci === colIndex ? { ...c, bind: code, text: undefined, compute: undefined } : c)),
+          }
+        : r,
+    )
+    updateSectionAt(sectionIndex, { ...sec, rows })
   }
 
   const handleSave = async () => {
@@ -638,6 +685,7 @@ export default function ReportDesignerPage() {
                           onCopy={handleCopy}
                           onPaste={handlePaste}
                           onDelete={clearSelectedCell}
+                          onRequestDataElementEdit={openDataElementModalForCell}
                         />
                       </div>
                     </div>
@@ -706,6 +754,55 @@ export default function ReportDesignerPage() {
           </div>
         )}
       </div>
+
+      <DataElementEditorModal
+        open={elementModalOpen}
+        onOpenChange={setElementModalOpen}
+        mode={elementModalMode}
+        reportTypeId={reportTypeId}
+        initialData={
+          elementModalMode === "edit" && editingElement
+            ? {
+                id: editingElement.id,
+                name: editingElement.name,
+                code: editingElement.code,
+                description: editingElement.description,
+              }
+            : null
+        }
+        onCompleted={(saved) => {
+          setRtElements((prev) => {
+            const existingIndex = prev.findIndex((e) => e.id === saved.id)
+            if (existingIndex >= 0) {
+              const copy = [...prev]
+              copy[existingIndex] = { ...copy[existingIndex], ...saved }
+              return copy
+            }
+            return [...prev, saved]
+          })
+          applyBindingToTargetCell(saved.code)
+        }}
+        onDeleted={(code) => {
+          setRtElements((prev) => prev.filter((e) => e.code !== code))
+          // If the deleted element was bound in the target cell, clear the binding
+          if (!targetCell) return
+          const { sectionIndex, rowIndex, colIndex } = targetCell
+          const sec = schema.sections[sectionIndex] as TableSection
+          if (!sec || sec.type !== "table") return
+          const rows = sec.rows.map((r, ri) =>
+            ri === rowIndex
+              ? {
+                  cells: r.cells.map((c, ci) =>
+                    ci === colIndex && c.bind === code
+                      ? { ...c, bind: undefined }
+                      : c,
+                  ),
+                }
+              : r,
+          )
+          updateSectionAt(sectionIndex, { ...sec, rows })
+        }}
+      />
     </div>
   )
 }

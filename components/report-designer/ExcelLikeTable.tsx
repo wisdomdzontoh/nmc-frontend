@@ -4,7 +4,19 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { useDesignerStore } from "@/stores/reportDesignerStore"
 import type { CellDef, TableSection } from "@/types/report-layout"
-import { Database, Calculator, Copy, Trash2, AlignLeft, AlignCenter, AlignRight, Bold, Plus, Minus } from "lucide-react"
+import {
+  Database,
+  Calculator,
+  Copy,
+  Trash2,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Bold,
+  Plus,
+  Minus,
+  GripVertical,
+} from "lucide-react"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -22,6 +34,12 @@ type ExcelLikeTableProps = {
   onCopy?: () => void
   onPaste?: () => void
   onDelete?: () => void
+  onRequestDataElementEdit?: (args: {
+    sectionIndex: number
+    rowIndex: number
+    colIndex: number
+    bindCode?: string
+  }) => void
 }
 
 function getColumnLabel(index: number): string {
@@ -34,6 +52,49 @@ function getColumnLabel(index: number): string {
   return label
 }
 
+/**
+ * Adjusts header rows when a visual column is deleted.
+ * This keeps multi-row / merged headers (using colSpan) consistent with the body.
+ */
+function removeHeaderColumnAtIndex(headerRows: CellDef[][], colIndexToDelete: number): CellDef[][] {
+  return headerRows.map((row) => {
+    const newRow: CellDef[] = []
+    let currentCol = 0
+
+    for (const cell of row) {
+      const span = cell.colSpan ?? 1
+      const start = currentCol
+      const end = currentCol + span - 1
+
+      if (colIndexToDelete < start || colIndexToDelete > end) {
+        // Column lies completely outside this cell's span
+        newRow.push(cell)
+      } else {
+        // Column is inside this cell's span
+        if (span > 1) {
+          // Shrink the span by one, so the merged header still covers
+          // the remaining columns without shifting neighbours.
+          const newSpan = span - 1
+          const updated: CellDef = { ...cell }
+          if (newSpan > 1) {
+            updated.colSpan = newSpan
+          } else {
+            // span of 1 is the default; drop the property to avoid clutter
+            delete updated.colSpan
+          }
+          newRow.push(updated)
+        }
+        // If span === 1, the deleted column exactly matches this header cell;
+        // we drop the cell entirely and do not push it into newRow.
+      }
+
+      currentCol += span
+    }
+
+    return newRow
+  })
+}
+
 export default function ExcelLikeTable({
   table,
   sectionIndex,
@@ -41,6 +102,7 @@ export default function ExcelLikeTable({
   onCopy,
   onPaste,
   onDelete,
+  onRequestDataElementEdit,
 }: ExcelLikeTableProps) {
   const { selectedCell, setSelectedCell, copiedCell } = useDesignerStore()
   const [editingCell, setEditingCell] = React.useState<{
@@ -56,6 +118,8 @@ export default function ExcelLikeTable({
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const [highlightCol, setHighlightCol] = React.useState<number | null>(null)
+  const [draggedRow, setDraggedRow] = React.useState<number | null>(null)
+  const [dragOverRow, setDragOverRow] = React.useState<number | null>(null)
 
   const scrollToColumn = (colIndex: number) => {
     if (!scrollRef.current) return
@@ -214,7 +278,10 @@ export default function ExcelLikeTable({
     }))
     const header = table.header
       ? {
-          rows: table.header.rows.map((r) => r.filter((_, i) => i !== colIndex)),
+          // Adjust header rows taking colSpan into account so that
+          // deleting a single visual column only shrinks the appropriate
+          // merged header cells instead of shifting everything left.
+          rows: removeHeaderColumnAtIndex(table.header.rows, colIndex),
         }
       : undefined
     const columnWidths = table.columnWidths?.filter((_, i) => i !== colIndex)
@@ -314,6 +381,70 @@ export default function ExcelLikeTable({
   }
 
   const colCount = table.rows[0]?.cells.length || 0
+
+  const reorderRows = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return
+
+    const rows = [...table.rows]
+    const [moved] = rows.splice(fromIndex, 1)
+    rows.splice(toIndex, 0, moved)
+
+    onChange({ ...table, rows })
+
+    // Keep the current selection attached to the same physical row
+    if (selectedCell && selectedCell.sectionIndex === sectionIndex) {
+      const { rowIndex, colIndex } = selectedCell
+      let newRowIndex = rowIndex
+
+      if (rowIndex === fromIndex) {
+        newRowIndex = toIndex
+      } else if (fromIndex < toIndex && rowIndex > fromIndex && rowIndex <= toIndex) {
+        newRowIndex = rowIndex - 1
+      } else if (fromIndex > toIndex && rowIndex >= toIndex && rowIndex < fromIndex) {
+        newRowIndex = rowIndex + 1
+      }
+
+      if (newRowIndex !== rowIndex) {
+        setSelectedCell({ sectionIndex, rowIndex: newRowIndex, colIndex })
+      }
+    }
+  }
+
+  const handleRowDragStart = (e: React.DragEvent, rowIndex: number) => {
+    e.dataTransfer.setData("text/plain", String(rowIndex))
+    e.dataTransfer.effectAllowed = "move"
+    setDraggedRow(rowIndex)
+  }
+
+  const handleRowDragOver = (e: React.DragEvent, rowIndex: number) => {
+    if (draggedRow === null || draggedRow === rowIndex) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+    setDragOverRow(rowIndex)
+  }
+
+  const handleRowDrop = (e: React.DragEvent, rowIndex: number) => {
+    e.preventDefault()
+    let fromIndex = draggedRow
+    if (fromIndex === null) {
+      const raw = e.dataTransfer.getData("text/plain")
+      const parsed = Number.parseInt(raw, 10)
+      fromIndex = Number.isFinite(parsed) ? parsed : null
+    }
+    if (fromIndex === null || fromIndex === rowIndex) {
+      setDraggedRow(null)
+      setDragOverRow(null)
+      return
+    }
+    reorderRows(fromIndex, rowIndex)
+    setDraggedRow(null)
+    setDragOverRow(null)
+  }
+
+  const handleRowDragEnd = () => {
+    setDraggedRow(null)
+    setDragOverRow(null)
+  }
 
   const handleDrop = (e: React.DragEvent, rowIndex: number, colIndex: number) => {
     e.preventDefault()
@@ -438,11 +569,25 @@ export default function ExcelLikeTable({
 
           <tbody>
             {table.rows.map((row, ri) => (
-              <tr key={`r-${ri}`}>
+              <tr
+                key={`r-${ri}`}
+                draggable
+                onDragStart={(e) => handleRowDragStart(e, ri)}
+                onDragOver={(e) => handleRowDragOver(e, ri)}
+                onDrop={(e) => handleRowDrop(e, ri)}
+                onDragEnd={handleRowDragEnd}
+                className={cn(
+                  dragOverRow === ri && "outline outline-2 outline-blue-400",
+                  draggedRow === ri && "opacity-60",
+                )}
+              >
                 <ContextMenu>
                   <ContextMenuTrigger asChild>
-                    <td className="bg-gray-100 border border-gray-300 px-2 py-1 text-xs text-gray-700 text-center font-medium w-10 cursor-pointer hover:bg-gray-200 transition-colors">
-                      {ri + 1}
+                    <td className="bg-gray-100 border border-gray-300 px-2 py-1 text-xs text-gray-700 text-center font-medium w-10 cursor-move hover:bg-gray-200 transition-colors select-none">
+                      <div className="flex items-center justify-center gap-1">
+                        <GripVertical className="h-3 w-3 text-gray-500" />
+                        <span>{ri + 1}</span>
+                      </div>
                     </td>
                   </ContextMenuTrigger>
                   <ContextMenuContent>
@@ -498,6 +643,24 @@ export default function ExcelLikeTable({
                           <div className="flex items-center gap-1.5">
                             {getCellIcon(cell)}
                             <span className="flex-1">{getCellDisplay(cell)}</span>
+                            {onRequestDataElementEdit && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onRequestDataElementEdit({
+                                    sectionIndex,
+                                    rowIndex: ri,
+                                    colIndex: ci,
+                                    bindCode: cell.bind,
+                                  })
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-blue-600 hover:text-blue-800 text-xs font-semibold px-1.5 py-0.5 border border-blue-200 rounded"
+                                title={cell.bind ? "Edit data element" : "Create & bind data element"}
+                              >
+                                +
+                              </button>
+                            )}
                           </div>
                         )}
                       </td>
