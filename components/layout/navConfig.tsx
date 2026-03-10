@@ -1,11 +1,13 @@
 import {
   LayoutDashboard,
-  FileText,
+  FilePenLine,
+  FileSpreadsheet,
   BarChart3,
   Database,
   Users,
   Settings,
   TrendingUp,
+  ClipboardList,
 } from "lucide-react"
 
 export type NavItem = {
@@ -30,7 +32,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     label: "Data Entry",
     href: "/data-entry",
-    icon: FileText,
+    icon: FileSpreadsheet,
     group: "Top apps",
     description: "Submit new reports",
     badge: "New",
@@ -38,7 +40,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     label: "Design Reports",
     href: "/design-reports",
-    icon: FileText,
+    icon: FilePenLine,
     group: "Top apps",
     description: "Create report templates",
     staffOnly: true,
@@ -46,7 +48,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     label: "Reports",
     href: "/reports",
-    icon: FileText,
+    icon: ClipboardList,
     group: "Top apps",
     description: "View submitted reports",
     staffOnly: true,

@@ -455,6 +455,11 @@ export default function ExcelLikeTable({
   }
 
   const handleRowDrop = (e: React.DragEvent, rowIndex: number) => {
+    // If this drag is a formula-fill drag, let the cell-level drop handler manage it.
+    const isFormulaFill = Array.from(e.dataTransfer.types || []).includes(FORMULA_FILL_TYPE)
+    if (isFormulaFill) {
+      return
+    }
     e.preventDefault()
     let fromIndex = draggedRow
     if (fromIndex === null) {
@@ -535,13 +540,18 @@ export default function ExcelLikeTable({
   }
 
   const handleDragOver = (e: React.DragEvent) => {
+    // Allow drops for both formula fill and data-element binding
     e.preventDefault()
-    const hasFormulaFill = e.dataTransfer.types.includes(FORMULA_FILL_TYPE)
-    e.dataTransfer.dropEffect = hasFormulaFill ? "copy" : "copy"
+    e.dataTransfer.dropEffect = "copy"
   }
 
   const handleFormulaFillStart = (e: React.DragEvent, rowIndex: number, colIndex: number, formula: string) => {
-    e.dataTransfer.setData(FORMULA_FILL_TYPE, JSON.stringify({ sourceRow: rowIndex, sourceCol: colIndex, formula }))
+    // Some browsers require a text type for drag to be considered valid
+    e.dataTransfer.setData("text/plain", "formula-fill")
+    e.dataTransfer.setData(
+      FORMULA_FILL_TYPE,
+      JSON.stringify({ sourceRow: rowIndex, sourceCol: colIndex, formula }),
+    )
     e.dataTransfer.effectAllowed = "copy"
     e.stopPropagation()
   }

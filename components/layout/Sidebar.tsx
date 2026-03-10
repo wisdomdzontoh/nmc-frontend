@@ -25,39 +25,121 @@ export default function Sidebar({ open }: { open: boolean }) {
       )}
       style={{ background: "linear-gradient(180deg, #C9433B 0%, #B84039 100%)" }}
     >
-      <nav className="flex-1 flex flex-col pt-3 px-2 pb-4 space-y-0.5 overflow-y-auto">
-        {visibleNav.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.label}
-              href={item.href}
-              title={!open ? item.label : undefined}
-              className={cn(
-                "group flex items-center rounded-lg px-2 py-2.5 text-sm font-medium transition-all duration-150",
-                isActive
-                  ? "bg-[#D96455] text-white shadow-sm border border-[#E8877A]/40"
-                  : "text-white/60 hover:bg-white/10 hover:text-white"
-              )}
-            >
-              <Icon
-                className={cn(
-                  "flex-shrink-0 h-5 w-5 transition-colors",
-                  open ? "mr-3" : "mx-auto",
-                  isActive ? "text-white/80" : "text-white/50 group-hover:text-white/80"
-                )}
-                aria-hidden="true"
-              />
-              {open && (
-                <span className="truncate leading-none">{item.label}</span>
-              )}
-              {open && isActive && (
-                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/60 flex-shrink-0" />
-              )}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 flex flex-col pt-3 px-2 pb-4 space-y-3 overflow-y-auto">
+        {/* Top apps */}
+        <div>
+          {open && (
+            <p className="px-2 mb-1 text-[10px] uppercase tracking-[0.16em] text-white/50 font-semibold">
+              Top apps
+            </p>
+          )}
+          <div className="space-y-0.5">
+            {visibleNav
+              .filter((item) => item.group === "Top apps" || !item.group)
+              .map((item) => {
+                const isActive =
+                  pathname === item.href || pathname.startsWith(item.href + "/");
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    title={!open ? item.label : item.description || item.label}
+                    className={cn(
+                      "group flex items-center rounded-lg px-2 py-2.5 text-sm font-medium transition-all duration-150",
+                      isActive
+                        ? "bg-[#D96455] text-white shadow-sm border border-[#E8877A]/40"
+                        : "text-white/70 hover:bg-white/10 hover:text-white"
+                    )}
+                  >
+                    <Icon
+                      className={cn(
+                        "flex-shrink-0 h-5 w-5 transition-colors",
+                        open ? "mr-3" : "mx-auto",
+                        isActive ? "text-white" : "text-white/60 group-hover:text-white"
+                      )}
+                      aria-hidden="true"
+                    />
+                    {open && (
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1">
+                          <span className="truncate leading-none">{item.label}</span>
+                          {item.badge && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white/15 text-white/90">
+                              {item.badge}
+                            </span>
+                          )}
+                        </div>
+                        {item.description && (
+                          <p className="mt-1 text-[11px] text-white/60 truncate">
+                            {item.description}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {open && isActive && (
+                      <div className="ml-2 w-1.5 h-1.5 rounded-full bg-white/70 flex-shrink-0" />
+                    )}
+                  </Link>
+                );
+              })}
+          </div>
+        </div>
+
+        {/* All apps */}
+        {visibleNav.some((item) => item.group === "All apps") && (
+          <div className="mt-2">
+            {open && (
+              <p className="px-2 mb-1 text-[10px] uppercase tracking-[0.16em] text-white/50 font-semibold">
+                All apps
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {visibleNav
+                .filter((item) => item.group === "All apps")
+                .map((item) => {
+                  const isActive =
+                    pathname === item.href || pathname.startsWith(item.href + "/");
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      title={!open ? item.label : item.description || item.label}
+                      className={cn(
+                        "group flex items-center rounded-lg px-2 py-2 text-sm font-medium transition-all duration-150",
+                        isActive
+                          ? "bg-[#D96455] text-white shadow-sm border border-[#E8877A]/40"
+                          : "text-white/70 hover:bg-white/10 hover:text-white"
+                      )}
+                    >
+                      <Icon
+                        className={cn(
+                          "flex-shrink-0 h-4.5 w-4.5 transition-colors",
+                          open ? "mr-3" : "mx-auto",
+                          isActive ? "text-white" : "text-white/60 group-hover:text-white"
+                        )}
+                        aria-hidden="true"
+                      />
+                      {open && (
+                        <div className="flex-1 min-w-0">
+                          <span className="truncate leading-none">{item.label}</span>
+                          {item.description && (
+                            <p className="mt-1 text-[11px] text-white/60 truncate">
+                              {item.description}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {open && isActive && (
+                        <div className="ml-2 w-1.5 h-1.5 rounded-full bg-white/70 flex-shrink-0" />
+                      )}
+                    </Link>
+                  );
+                })}
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Footer branding */}
