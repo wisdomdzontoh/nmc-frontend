@@ -52,6 +52,37 @@ function getColumnLabel(index: number): string {
   return label
 }
 
+function columnLetterToIndex(letter: string): number {
+  let index = 0
+  for (let i = 0; i < letter.length; i++) {
+    index = index * 26 + (letter.charCodeAt(i) - 65 + 1)
+  }
+  return index - 1
+}
+
+function indexToColumnLetter(index: number): string {
+  let s = ""
+  let n = index + 1
+  while (n > 0) {
+    const r = (n - 1) % 26
+    s = String.fromCharCode(65 + r) + s
+    n = Math.floor((n - 1) / 26)
+  }
+  return s
+}
+
+/** Adjust A1-style cell references in a formula by row/col delta (Excel-style fill). */
+function adjustFormulaReferences(formula: string, rowDelta: number, colDelta: number): string {
+  return formula.replace(/\b([A-Z]+)(\d+)\b/gi, (_, letters: string, numStr: string) => {
+    const col = columnLetterToIndex(letters.toUpperCase())
+    const row = parseInt(numStr, 10) - 1
+    const newCol = col + colDelta
+    const newRow = row + rowDelta
+    if (newRow < 0 || newCol < 0) return `${letters}${numStr}`
+    return `${indexToColumnLetter(newCol)}${newRow + 1}`
+  })
+}
+
 /**
  * Adjusts header rows when a visual column is deleted.
  * This keeps multi-row / merged headers (using colSpan) consistent with the body.
@@ -446,8 +477,52 @@ export default function ExcelLikeTable({
     setDragOverRow(null)
   }
 
+  const FORMULA_FILL_TYPE = "application/x-report-formula-fill"
+
+  const fillFormulaRange = (
+    sourceRow: number,
+    sourceCol: number,
+    targetRow: number,
+    targetCol: number,
+    formula: string,
+  ) => {
+    const minRow = Math.min(sourceRow, targetRow)
+    const maxRow = Math.max(sourceRow, targetRow)
+    const minCol = Math.min(sourceCol, targetCol)
+    const maxCol = Math.max(sourceCol, targetCol)
+
+    const rows = table.rows.map((r, ri) => ({
+      cells: r.cells.map((c, ci) => {
+        if (ri >= minRow && ri <= maxRow && ci >= minCol && ci <= maxCol) {
+          const rowDelta = ri - sourceRow
+          const colDelta = ci - sourceCol
+          const adjusted = adjustFormulaReferences(formula, rowDelta, colDelta)
+          return { ...c, compute: adjusted, text: undefined, bind: undefined }
+        }
+        return c
+      }),
+    }))
+    onChange({ ...table, rows })
+  }
+
   const handleDrop = (e: React.DragEvent, rowIndex: number, colIndex: number) => {
     e.preventDefault()
+    const formulaFillRaw = e.dataTransfer.getData(FORMULA_FILL_TYPE)
+    if (formulaFillRaw) {
+      try {
+        const { sourceRow, sourceCol, formula } = JSON.parse(formulaFillRaw) as {
+          sourceRow: number
+          sourceCol: number
+          formula: string
+        }
+        if (typeof sourceRow === "number" && typeof sourceCol === "number" && typeof formula === "string") {
+          fillFormulaRange(sourceRow, sourceCol, rowIndex, colIndex, formula)
+        }
+      } catch (err) {
+        console.error("Failed to parse formula fill data", err)
+      }
+      return
+    }
     try {
       const data = e.dataTransfer.getData("application/json")
       if (data) {
@@ -461,7 +536,14 @@ export default function ExcelLikeTable({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
-    e.dataTransfer.dropEffect = "copy"
+    const hasFormulaFill = e.dataTransfer.types.includes(FORMULA_FILL_TYPE)
+    e.dataTransfer.dropEffect = hasFormulaFill ? "copy" : "copy"
+  }
+
+  const handleFormulaFillStart = (e: React.DragEvent, rowIndex: number, colIndex: number, formula: string) => {
+    e.dataTransfer.setData(FORMULA_FILL_TYPE, JSON.stringify({ sourceRow: rowIndex, sourceCol: colIndex, formula }))
+    e.dataTransfer.effectAllowed = "copy"
+    e.stopPropagation()
   }
 
   return (
@@ -640,9 +722,19 @@ export default function ExcelLikeTable({
                             className="h-6 px-1 text-sm"
                           />
                         ) : (
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
                             {getCellIcon(cell)}
-                            <span className="flex-1">{getCellDisplay(cell)}</span>
+                            <span className="flex-1 min-w-0 truncate">{getCellDisplay(cell)}</span>
+                            {cell.compute && (
+                              <div
+                                draggable
+                                onDragStart={(e) => handleFormulaFillStart(e, ri, ci, cell.compute!)}
+                                onClick={(e) => e.stopPropagation()}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                className="absolute bottom-1 right-1 w-3 h-3 rounded-sm bg-purple-500 cursor-grab active:cursor-grabbing opacity-80 hover:opacity-100 shrink-0 border border-purple-600"
+                                title="Drag to fill formula into other rows/cells (references adjust like Excel)"
+                              />
+                            )}
                             {onRequestDataElementEdit && (
                               <button
                                 type="button"
