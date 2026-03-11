@@ -455,11 +455,6 @@ export default function ExcelLikeTable({
   }
 
   const handleRowDrop = (e: React.DragEvent, rowIndex: number) => {
-    // If this drag is a formula-fill drag, let the cell-level drop handler manage it.
-    const isFormulaFill = Array.from(e.dataTransfer.types || []).includes(FORMULA_FILL_TYPE)
-    if (isFormulaFill) {
-      return
-    }
     e.preventDefault()
     let fromIndex = draggedRow
     if (fromIndex === null) {
@@ -482,26 +477,17 @@ export default function ExcelLikeTable({
     setDragOverRow(null)
   }
 
-  const FORMULA_FILL_TYPE = "application/x-report-formula-fill"
-
-  const fillFormulaRange = (
-    sourceRow: number,
-    sourceCol: number,
-    targetRow: number,
-    targetCol: number,
-    formula: string,
-  ) => {
-    const minRow = Math.min(sourceRow, targetRow)
-    const maxRow = Math.max(sourceRow, targetRow)
-    const minCol = Math.min(sourceCol, targetCol)
-    const maxCol = Math.max(sourceCol, targetCol)
+  /** Fill formula down from (sourceRow, sourceCol) by N rows; references adjust per row (Excel-style). */
+  const fillFormulaDown = (sourceRow: number, sourceCol: number, formula: string, numRows: number) => {
+    const totalRows = table.rows.length
+    const endRow = numRows < 0 ? totalRows - 1 : Math.min(sourceRow + numRows, totalRows - 1)
+    if (endRow <= sourceRow) return
 
     const rows = table.rows.map((r, ri) => ({
       cells: r.cells.map((c, ci) => {
-        if (ri >= minRow && ri <= maxRow && ci >= minCol && ci <= maxCol) {
+        if (ci === sourceCol && ri > sourceRow && ri <= endRow) {
           const rowDelta = ri - sourceRow
-          const colDelta = ci - sourceCol
-          const adjusted = adjustFormulaReferences(formula, rowDelta, colDelta)
+          const adjusted = adjustFormulaReferences(formula, rowDelta, 0)
           return { ...c, compute: adjusted, text: undefined, bind: undefined }
         }
         return c
@@ -512,22 +498,6 @@ export default function ExcelLikeTable({
 
   const handleDrop = (e: React.DragEvent, rowIndex: number, colIndex: number) => {
     e.preventDefault()
-    const formulaFillRaw = e.dataTransfer.getData(FORMULA_FILL_TYPE)
-    if (formulaFillRaw) {
-      try {
-        const { sourceRow, sourceCol, formula } = JSON.parse(formulaFillRaw) as {
-          sourceRow: number
-          sourceCol: number
-          formula: string
-        }
-        if (typeof sourceRow === "number" && typeof sourceCol === "number" && typeof formula === "string") {
-          fillFormulaRange(sourceRow, sourceCol, rowIndex, colIndex, formula)
-        }
-      } catch (err) {
-        console.error("Failed to parse formula fill data", err)
-      }
-      return
-    }
     try {
       const data = e.dataTransfer.getData("application/json")
       if (data) {
@@ -540,20 +510,8 @@ export default function ExcelLikeTable({
   }
 
   const handleDragOver = (e: React.DragEvent) => {
-    // Allow drops for both formula fill and data-element binding
     e.preventDefault()
     e.dataTransfer.dropEffect = "copy"
-  }
-
-  const handleFormulaFillStart = (e: React.DragEvent, rowIndex: number, colIndex: number, formula: string) => {
-    // Some browsers require a text type for drag to be considered valid
-    e.dataTransfer.setData("text/plain", "formula-fill")
-    e.dataTransfer.setData(
-      FORMULA_FILL_TYPE,
-      JSON.stringify({ sourceRow: rowIndex, sourceCol: colIndex, formula }),
-    )
-    e.dataTransfer.effectAllowed = "copy"
-    e.stopPropagation()
   }
 
   return (
@@ -735,16 +693,6 @@ export default function ExcelLikeTable({
                           <div className="flex items-center gap-1.5 min-w-0">
                             {getCellIcon(cell)}
                             <span className="flex-1 min-w-0 truncate">{getCellDisplay(cell)}</span>
-                            {cell.compute && (
-                              <div
-                                draggable
-                                onDragStart={(e) => handleFormulaFillStart(e, ri, ci, cell.compute!)}
-                                onClick={(e) => e.stopPropagation()}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                className="absolute bottom-1 right-1 w-3 h-3 rounded-sm bg-purple-500 cursor-grab active:cursor-grabbing opacity-80 hover:opacity-100 shrink-0 border border-purple-600"
-                                title="Drag to fill formula into other rows/cells (references adjust like Excel)"
-                              />
-                            )}
                             {onRequestDataElementEdit && (
                               <button
                                 type="button"
@@ -776,6 +724,31 @@ export default function ExcelLikeTable({
                       <ContextMenuItem onClick={onPaste} disabled={!copiedCell}>
                         Paste
                       </ContextMenuItem>
+                      {cell.compute && (
+                        <>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem onClick={() => fillFormulaDown(ri, ci, cell.compute!, 1)}>
+                            <Calculator className="h-4 w-4 mr-2" />
+                            Fill formula down → 1 row
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => fillFormulaDown(ri, ci, cell.compute!, 5)}>
+                            <Calculator className="h-4 w-4 mr-2" />
+                            Fill formula down → 5 rows
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => fillFormulaDown(ri, ci, cell.compute!, 10)}>
+                            <Calculator className="h-4 w-4 mr-2" />
+                            Fill formula down → 10 rows
+                          </ContextMenuItem>
+                          <ContextMenuItem
+                            onClick={() =>
+                              fillFormulaDown(ri, ci, cell.compute!, table.rows.length - 1 - ri)
+                            }
+                          >
+                            <Calculator className="h-4 w-4 mr-2" />
+                            Fill formula down → To end of table
+                          </ContextMenuItem>
+                        </>
+                      )}
                       <ContextMenuSeparator />
                       <ContextMenuItem onClick={() => addRowAbove(ri)}>
                         <Plus className="h-4 w-4 mr-2" />
