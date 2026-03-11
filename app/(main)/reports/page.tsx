@@ -1477,7 +1477,7 @@ const ReportsPage: React.FC = () => {
 
       {/* ── Report detail dialog ─────────────────────────────────────────── */}
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
+        <DialogContent className="max-w-7xl w-[96vw] max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-base">Report Details</DialogTitle>
             <DialogDescription className="text-xs">
