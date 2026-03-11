@@ -50,9 +50,13 @@ import {
   CheckCircle2,
   XCircle,
   Minus,
+  Check,
 } from "lucide-react"
 import { SectionLoader } from "@/components/ui/PageLoader"
 import { ApiClient } from "@/lib/api"
+import { getLayoutByReportType } from "@/lib/reportLayouts"
+import EnhancedLayoutEntryForm, { type LayoutSchema } from "@/components/data-entry/EnhancedLayoutEntryForm"
+import { exportToExcel } from "@/lib/export-utils"
 import * as XLSX from "xlsx"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -120,9 +124,50 @@ const MONTHS = [
 ]
 
 const QUARTERS = ["Q1 (Jan–Mar)", "Q2 (Apr–Jun)", "Q3 (Jul–Sep)", "Q4 (Oct–Dec)"]
+const HALF_YEARS = ["H1 (Jan–Jun)", "H2 (Jul–Dec)"]
 const QUARTER_MONTHS: Record<string, string[]> = {
   Q1: ["01", "02", "03"], Q2: ["04", "05", "06"],
   Q3: ["07", "08", "09"], Q4: ["10", "11", "12"],
+}
+function getPeriodStartEnd(
+  periodType: "monthly" | "quarterly" | "half-yearly" | "annual",
+  year: number,
+  subPeriod: string
+): { periodStart: string; periodEnd: string; label: string } {
+  if (periodType === "annual") {
+    return {
+      periodStart: `${year}-01-01`,
+      periodEnd: `${year}-12-31`,
+      label: String(year),
+    }
+  }
+  if (periodType === "half-yearly") {
+    if (subPeriod === "H1") {
+      return { periodStart: `${year}-01-01`, periodEnd: `${year}-06-30`, label: `H1 ${year}` }
+    }
+    return { periodStart: `${year}-07-01`, periodEnd: `${year}-12-31`, label: `H2 ${year}` }
+  }
+  if (periodType === "quarterly") {
+    const q = subPeriod.replace("Q", "")
+    const startMonth = (parseInt(q, 10) - 1) * 3
+    const endMonth = startMonth + 3
+    const start = new Date(year, startMonth, 1)
+    const end = new Date(year, endMonth, 0)
+    return {
+      periodStart: start.toISOString().slice(0, 10),
+      periodEnd: end.toISOString().slice(0, 10),
+      label: `${subPeriod} ${year}`,
+    }
+  }
+  // monthly: subPeriod is "1".."12"
+  const m = parseInt(subPeriod, 10)
+  const start = new Date(year, m - 1, 1)
+  const end = new Date(year, m, 0)
+  return {
+    periodStart: start.toISOString().slice(0, 10),
+    periodEnd: end.toISOString().slice(0, 10),
+    label: `${MONTHS[m - 1]} ${year}`,
+  }
 }
 
 function getCurrentYear() { return new Date().getFullYear() }
@@ -271,6 +316,27 @@ const ReportsPage: React.FC = () => {
   const [rateSort, setRateSort] = useState<"name" | "completeness" | "submitted">("completeness")
   const [rateSortDir, setRateSortDir] = useState<SortDir>("desc")
 
+  // ── Report Generation tab ─────────────────────────────────────────────────
+  type GenPeriodType = "monthly" | "quarterly" | "half-yearly" | "annual"
+  const [genPeriodType, setGenPeriodType] = useState<GenPeriodType>("quarterly")
+  const [genYear, setGenYear] = useState(String(getCurrentYear()))
+  const [genSubPeriod, setGenSubPeriod] = useState("Q1")
+  const [genReportTypeId, setGenReportTypeId] = useState<string>("")
+  const [genOrgId, setGenOrgId] = useState<string>("")
+  const [assignedReportTypes, setAssignedReportTypes] = useState<Array<{ id: number; name: string }>>([])
+  const [genReportSearch, setGenReportSearch] = useState("")
+  const [genLoading, setGenLoading] = useState(false)
+  const [genError, setGenError] = useState<string | null>(null)
+  const [genLayout, setGenLayout] = useState<LayoutSchema | null>(null)
+  const [genValues, setGenValues] = useState<Record<string, number | string | null>>({})
+  const [genMeta, setGenMeta] = useState<{
+    reportTypeName: string
+    orgUnitName: string
+    periodLabel: string
+    orgUnitId: number
+  } | null>(null)
+  const [genExporting, setGenExporting] = useState(false)
+
   // ── Reports list ordering ─────────────────────────────────────────────────
   const ordering = useMemo(() => {
     const prefix = sortDir === "desc" ? "-" : ""
@@ -325,6 +391,134 @@ const ReportsPage: React.FC = () => {
     setPage(1)
   }
 
+  // ── Load assigned report types for Report Generation ───────────────────────
+  useEffect(() => {
+    // Non-staff: use their own org unit and entry-available report types
+    if (!isStaff && !isSuperuser) {
+      if (!djangoUser?.org_unit) {
+        setAssignedReportTypes([])
+        return
+      }
+      ApiClient.getAvailableReportTypesForEntry()
+        .then((res) => {
+          const list = res.data || []
+          setAssignedReportTypes(list.map((rt: { id: number; name: string }) => ({ id: rt.id, name: rt.name })))
+          if (list.length > 0 && !genReportTypeId) setGenReportTypeId(String(list[0].id))
+        })
+        .catch(() => setAssignedReportTypes([]))
+      return
+    }
+
+    // Staff/superusers: load report types for the selected org unit
+    if (!genOrgId) {
+      setAssignedReportTypes([])
+      return
+    }
+    ApiClient.getOrgUnitAssignments(Number(genOrgId))
+      .then((res) => {
+        const list = res.data || []
+        const mapped = list.map((a: { report_type: number; report_type_name: string }) => ({
+          id: a.report_type,
+          name: a.report_type_name,
+        }))
+        setAssignedReportTypes(mapped)
+        if (mapped.length > 0 && !genReportTypeId) setGenReportTypeId(String(mapped[0].id))
+      })
+      .catch(() => setAssignedReportTypes([]))
+  }, [isStaff, isSuperuser, djangoUser?.org_unit, genOrgId, genReportTypeId])
+
+  // ── Report Generation: build sub-period options ───────────────────────────
+  const genSubPeriodOptions = useMemo(() => {
+    if (genPeriodType === "monthly") return MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))
+    if (genPeriodType === "quarterly") return QUARTERS.map((_, i) => ({ value: `Q${i + 1}`, label: QUARTERS[i] }))
+    if (genPeriodType === "half-yearly") return HALF_YEARS.map((_, i) => ({ value: `H${i + 1}`, label: HALF_YEARS[i] }))
+    return []
+  }, [genPeriodType])
+
+  const filteredGenReportTypes = useMemo(
+    () =>
+      assignedReportTypes.filter((rt) =>
+        rt.name.toLowerCase().includes(genReportSearch.trim().toLowerCase()),
+      ),
+    [assignedReportTypes, genReportSearch],
+  )
+
+  // ── Report Generation: generate aggregated report ─────────────────────────
+  const handleGenerateReport = useCallback(async () => {
+    const orgUnitId = (isStaff || isSuperuser)
+      ? (genOrgId ? Number(genOrgId) : null)
+      : djangoUser?.org_unit
+    if (!orgUnitId || !genReportTypeId) {
+      setGenError("Select an organisation unit and report type.")
+      return
+    }
+    const sub = genPeriodType === "annual" ? "" : genSubPeriod
+    if (!sub && genPeriodType !== "annual") return
+    const { periodStart, periodEnd, label } = getPeriodStartEnd(
+      genPeriodType,
+      parseInt(genYear, 10),
+      sub || "H1"
+    )
+    setGenLoading(true)
+    setGenError(null)
+    setGenLayout(null)
+    setGenValues({})
+    setGenMeta(null)
+    try {
+      const [aggRes, layoutRes] = await Promise.all([
+        ApiClient.getAggregatedReport({
+          report_type: parseInt(genReportTypeId, 10),
+          org_unit: orgUnitId,
+          period_start: periodStart,
+          period_end: periodEnd,
+        }),
+        getLayoutByReportType(parseInt(genReportTypeId, 10), "published").catch(() => null),
+      ])
+      const agg = aggRes.data as {
+        values: Record<string, number>
+        remarks: Record<string, string>
+        report_type_name: string
+        org_unit_name: string
+      }
+      const valuesByCode: Record<string, number | string | null> = {}
+      Object.entries(agg.values || {}).forEach(([code, val]) => {
+        valuesByCode[code] = val
+        const remark = (agg.remarks || {})[code]
+        if (remark != null && remark !== "") valuesByCode[`remark.${code}`] = remark
+      })
+      setGenValues(valuesByCode)
+      setGenMeta({
+        reportTypeName: agg.report_type_name || "",
+        orgUnitName: agg.org_unit_name || "",
+        periodLabel: label,
+        orgUnitId,
+      })
+      if (layoutRes?.schema) setGenLayout(layoutRes.schema as LayoutSchema)
+      else setGenLayout(null)
+    } catch (e) {
+      setGenError("Failed to generate report. You may not have access or there is no data for this period.")
+    } finally {
+      setGenLoading(false)
+    }
+  }, [djangoUser?.org_unit, genReportTypeId, genPeriodType, genYear, genSubPeriod])
+
+  const handleExportGeneratedReport = useCallback(async () => {
+    if (!genMeta || !genLayout) return
+    setGenExporting(true)
+    try {
+      await exportToExcel({
+        reportType: genMeta.reportTypeName,
+        orgUnit: genMeta.orgUnitName,
+        period: genMeta.periodLabel,
+        values: genValues,
+        layout: genLayout,
+        computedValues: {},
+      })
+    } finally {
+      setGenExporting(false)
+    }
+  }, [genMeta, genLayout, genValues])
+
   // ── Last 12-month period options ──────────────────────────────────────────
   const periodOptions = useMemo(() => {
     const now = new Date()
@@ -378,7 +572,7 @@ const ReportsPage: React.FC = () => {
     } finally { setExporting(false) }
   }
 
-  // ── Initialise rate tab data (once) ──────────────────────────────────────
+  // ── Initialise org/unit + assignment data (once) ──────────────────────────
   const initRateData = useCallback(async () => {
     if (rateInitialised) return
     try {
@@ -388,16 +582,31 @@ const ReportsPage: React.FC = () => {
         ApiClient.getOrgUnits(),
         ApiClient.getReportTypeAssignments({ page_size: 1000 }),
       ])
-      setFlatUnits(flattenTree(treeRes.data || []))
+      const flat = flattenTree(treeRes.data || [])
+      setFlatUnits(flat)
       const assignData = assignRes.data
       setAssignments(Array.isArray(assignData) ? assignData : (assignData.results || []))
+      if (!isStaff && !isSuperuser && djangoUser?.org_unit) {
+        setRateOrgFilter(String(djangoUser.org_unit))
+      }
+      if ((isStaff || isSuperuser) && !genOrgId && flat.length) {
+        const root = flat.find((u) => u.level === 0) ?? flat[0]
+        if (root) setGenOrgId(String(root.id))
+      }
       setRateInitialised(true)
     } catch {
       setRateError("Failed to load organisation data. Please try again.")
     } finally {
       setRateLoading(false)
     }
-  }, [rateInitialised])
+  }, [rateInitialised, isStaff, isSuperuser, djangoUser?.org_unit, genOrgId])
+
+  // Ensure org tree is available for staff/superusers when using generation tab
+  useEffect(() => {
+    if ((isStaff || isSuperuser) && !rateInitialised) {
+      void initRateData()
+    }
+  }, [isStaff, isSuperuser, rateInitialised, initRateData])
 
   // ── Generate reporting rate summary ───────────────────────────────────────
   const handleGenerate = async () => {
@@ -420,9 +629,11 @@ const ReportsPage: React.FC = () => {
         periodMatches(r.reporting_period, periodType, rateYear, ratePeriod)
       )
 
-      // Determine which org units to include
+      // Determine which org units to include (non-staff limited to their org only)
       const orgsToUse =
-        rateOrgFilter === "all"
+        !isStaff && djangoUser?.org_unit
+          ? flatUnits.filter((u) => u.id === djangoUser.org_unit)
+          : rateOrgFilter === "all"
           ? flatUnits
           : getSubtree(flatUnits, Number(rateOrgFilter))
 
@@ -488,19 +699,6 @@ const ReportsPage: React.FC = () => {
     a.click()
   }
 
-  // ── Access guard ──────────────────────────────────────────────────────────
-  if (!isSuperuser && !isStaff) {
-    return (
-      <div className="max-w-2xl mx-auto pt-16 text-center px-6">
-        <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-          <FileText className="h-6 w-6 text-gray-400" />
-        </div>
-        <h1 className="text-xl font-bold text-gray-900 mb-2">Access Restricted</h1>
-        <p className="text-sm text-gray-500">Reports are only available to staff and administrators.</p>
-      </div>
-    )
-  }
-
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -537,6 +735,13 @@ const ReportsPage: React.FC = () => {
           >
             <BarChart3 className="h-3.5 w-3.5" />
             Reporting Rate Summary
+          </TabsTrigger>
+          <TabsTrigger
+            value="generation"
+            className="gap-2 text-xs data-[state=active]:bg-[#C9433B] data-[state=active]:text-white data-[state=active]:shadow-sm"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Report Generation
           </TabsTrigger>
         </TabsList>
 
@@ -1045,6 +1250,227 @@ const ReportsPage: React.FC = () => {
                 </p>
               </CardContent>
             </Card>
+          )}
+        </TabsContent>
+
+        {/* ── Tab 3: Report Generation ──────────────────────────────────────── */}
+        <TabsContent value="generation" className="space-y-5 mt-0">
+          <Card className="border-gray-200 shadow-sm">
+            <CardHeader className="pb-3 pt-4 px-5">
+              <CardTitle className="text-sm font-semibold text-gray-900">Generate Aggregated Report</CardTitle>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Select period type, year, and report type. Data is aggregated for the selected period (e.g. quarterly = sum of 3 months). Reports use the same layout as data entry.
+              </p>
+            </CardHeader>
+            <CardContent className="px-5 pb-5">
+              {!isStaff && !isSuperuser && !djangoUser?.org_unit ? (
+                <Alert variant="destructive">
+                  <AlertDescription>Your account has no organisation unit assigned. You cannot generate reports.</AlertDescription>
+                </Alert>
+              ) : (
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-600">Period type</label>
+                    <Select
+                      value={genPeriodType}
+                      onValueChange={(v) => {
+                        setGenPeriodType(v as GenPeriodType)
+                        if (v === "monthly") setGenSubPeriod(String(new Date().getMonth() + 1))
+                        else if (v === "quarterly") setGenSubPeriod("Q1")
+                        else if (v === "half-yearly") setGenSubPeriod("H1")
+                      }}
+                    >
+                      <SelectTrigger className="w-36 h-8 text-sm border-gray-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="quarterly">Quarterly</SelectItem>
+                        <SelectItem value="half-yearly">Half-yearly</SelectItem>
+                        <SelectItem value="annual">Annual</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {(isStaff || isSuperuser) && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-gray-600">Organisation unit</label>
+                      <Select value={genOrgId} onValueChange={setGenOrgId}>
+                        <SelectTrigger className="w-56 h-8 text-sm border-gray-200">
+                          <SelectValue placeholder="Select org unit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {flatUnits.map((u) => (
+                            <SelectItem key={u.id} value={String(u.id)}>
+                              {`${"— ".repeat(u.level)}${u.name}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-600">Year</label>
+                    <Select value={genYear} onValueChange={setGenYear}>
+                      <SelectTrigger className="w-28 h-8 text-sm border-gray-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getYearOptions().map((y) => (
+                          <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {genPeriodType !== "annual" && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-gray-600">
+                        {genPeriodType === "monthly" ? "Month" : genPeriodType === "quarterly" ? "Quarter" : "Half"}
+                      </label>
+                      <Select
+                        value={genSubPeriod}
+                        onValueChange={setGenSubPeriod}
+                      >
+                        <SelectTrigger className="w-44 h-8 text-sm border-gray-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {genSubPeriodOptions.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-600">Report type</label>
+                    <Select value={genReportTypeId} onValueChange={setGenReportTypeId}>
+                      <SelectTrigger className="w-56 h-8 text-sm border-gray-200">
+                        <SelectValue placeholder="Select report type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <div className="p-2 border-b border-gray-100">
+                          <Input
+                            placeholder="Search report types..."
+                            value={genReportSearch}
+                            onChange={(e) => setGenReportSearch(e.target.value)}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        {filteredGenReportTypes.map((rt) => {
+                          const selected = genReportTypeId === String(rt.id)
+                          return (
+                            <SelectItem
+                              key={rt.id}
+                              value={String(rt.id)}
+                              className="flex items-center gap-2 text-sm"
+                            >
+                              <span
+                                className={`flex h-3.5 w-3.5 items-center justify-center rounded border ${
+                                  selected
+                                    ? "border-[#C9433B] bg-[#C9433B]"
+                                    : "border-gray-300 bg-white"
+                                }`}
+                              >
+                                {selected && <Check className="h-2.5 w-2.5 text-white" />}
+                              </span>
+                              <span className="truncate">{rt.name}</span>
+                            </SelectItem>
+                          )
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={handleGenerateReport}
+                    disabled={genLoading || assignedReportTypes.length === 0}
+                    className="h-8 gap-2 text-white text-sm"
+                    style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}
+                  >
+                    {genLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    )}
+                    {genLoading ? "Generating…" : "Generate"}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {genError && (
+            <Alert variant="destructive"><AlertDescription>{genError}</AlertDescription></Alert>
+          )}
+
+          {genMeta && (genLayout || Object.keys(genValues).length > 0) && (
+            <Card className="border-gray-200 shadow-sm">
+              <CardHeader className="pb-3 pt-4 px-5 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm font-semibold text-gray-900">
+                    {genMeta.reportTypeName} — {genMeta.periodLabel}
+                  </CardTitle>
+                  <p className="text-xs text-gray-400 mt-0.5">{genMeta.orgUnitName}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportGeneratedReport}
+                  disabled={genExporting}
+                  className="h-8 text-xs border-gray-200 gap-1.5"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Export Excel
+                </Button>
+              </CardHeader>
+              <CardContent className="px-5 pb-5">
+                {genLayout ? (
+                  <EnhancedLayoutEntryForm
+                    schema={genLayout}
+                    values={genValues}
+                    onChange={() => {}}
+                    readOnly
+                    dataSaved
+                    savedCodes={new Set(Object.keys(genValues).filter((k) => !k.startsWith("remark.")))}
+                    unsavedCodes={new Set()}
+                    autoSaving={false}
+                  />
+                ) : (
+                  <div className="border border-gray-200 rounded-lg overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-gray-50 border-b border-gray-200">
+                          <TableHead className="text-xs font-semibold text-gray-600">Data element / Code</TableHead>
+                          <TableHead className="text-xs font-semibold text-gray-600 text-right">Value</TableHead>
+                          <TableHead className="text-xs font-semibold text-gray-600">Remark</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.entries(genValues)
+                          .filter(([k]) => !k.startsWith("remark."))
+                          .map(([code, val]) => {
+                            const remark = genValues[`remark.${code}`] ?? ""
+                            return (
+                              <TableRow key={code} className="border-b border-gray-100">
+                                <TableCell className="text-sm text-gray-800 py-2">{code}</TableCell>
+                                <TableCell className="text-sm font-semibold text-gray-900 text-right py-2">
+                                  {val ?? "—"}
+                                </TableCell>
+                                <TableCell className="text-sm text-gray-500 py-2">
+                                  {typeof remark === "string" ? remark : ""}
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {genMeta && !genLayout && Object.keys(genValues).filter((k) => !k.startsWith("remark.")).length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-6">No data for this period.</p>
           )}
         </TabsContent>
       </Tabs>

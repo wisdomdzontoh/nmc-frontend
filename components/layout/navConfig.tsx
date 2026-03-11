@@ -50,8 +50,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/reports",
     icon: ClipboardList,
     group: "Top apps",
-    description: "View submitted reports",
-    staffOnly: true,
+    description: "View and generate reports",
   },
   {
     label: "Analytics",

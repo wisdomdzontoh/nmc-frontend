@@ -174,6 +174,14 @@ export const ApiClient = {
   
   // Data entry endpoint
   submitDataEntry: (data: unknown) => api.post("/reporting/data-entry/", data),
+
+  // Aggregated report (period-range aggregation for report generation)
+  getAggregatedReport: (params: {
+    report_type: number
+    org_unit: number
+    period_start: string
+    period_end: string
+  }) => api.get("/reporting/aggregated-report/", { params }),
   
   // Analytics endpoints
   getAnalytics: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/analytics/", { params }),
