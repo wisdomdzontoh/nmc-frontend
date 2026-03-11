@@ -256,7 +256,7 @@ export default function DataEntryPage() {
       const payload = buildPayload(vals, c2i)
       await api.post(
         "/reporting/data-entry/",
-        { report_type: d.id, org_unit: o.id, reporting_period: p.startDate, values: payload },
+        { report_type: d.id, org_unit: o.id, reporting_period: p.startDate, values: payload, is_draft: true },
         { timeout: 30000 }
       )
       setSavedCodes(new Set(Object.keys(vals)))
@@ -575,7 +575,7 @@ export default function DataEntryPage() {
 
       await api.post(
         "/reporting/data-entry/",
-        { report_type: dataset.id, org_unit: org.id, reporting_period: period.startDate, values: payloadValues },
+        { report_type: dataset.id, org_unit: org.id, reporting_period: period.startDate, values: payloadValues, is_draft: false },
         { timeout: 30000 }
       )
 
