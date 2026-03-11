@@ -162,7 +162,7 @@ export default function DataEntryPage() {
     } catch {
       return false
     }
-  }, [dataset, period, djangoUser, tick])
+  }, [dataset, period, djangoUser])
 
   const isReadOnly = !isViewingOwnOrg || !isReportTypeEditable || isPeriodLocked || org === null
   const canSubmit = !!dataset && !!org && !!period && isViewingOwnOrg && isReportTypeEditable && !isPeriodLocked
