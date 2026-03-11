@@ -17,7 +17,7 @@ const schema = z.object({
   code: z
     .string()
     .min(1, "Code is required")
-    .max(64, "Code must be at most 64 characters")
+    .max(255, "Code must be at most 255 characters")
     .regex(/^[A-Z0-9_]+$/, "Use UPPER_SNAKE_CASE (letters, digits, underscore)"),
   description: z.string().optional(),
   value_type: z.enum(["NUMBER", "TEXT", "BOOLEAN"]).default("NUMBER"),
