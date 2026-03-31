@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { User, Save, Loader2, CheckCircle } from "lucide-react"
+import { User, Save, Loader2, CheckCircle, Lock } from "lucide-react"
 import { SectionLoader } from "@/components/ui/PageLoader"
 
 interface UserSettings {
@@ -21,6 +21,14 @@ interface UserSettings {
   email: string
 }
 
+interface PasswordForm {
+  current_password: string
+  new_password: string
+  confirm_password: string
+}
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://nmc-backend-mr7q.onrender.com/api"
+
 const SettingsPage: React.FC = () => {
   const { djangoUser } = useAuth()
   const [userSettings, setUserSettings] = useState<UserSettings>({
@@ -28,10 +36,18 @@ const SettingsPage: React.FC = () => {
     last_name: "",
     email: "",
   })
+  const [passwordForm, setPasswordForm] = useState<PasswordForm>({
+    current_password: "",
+    new_password: "",
+    confirm_password: "",
+  })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [changingPassword, setChangingPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null)
 
   // Load settings
   useEffect(() => {
@@ -39,15 +55,12 @@ const SettingsPage: React.FC = () => {
       try {
         setLoading(true)
         setError(null)
-        
-        // Load user settings from current user data
         if (djangoUser) {
-          setUserSettings(prev => ({
-            ...prev,
+          setUserSettings({
             first_name: djangoUser.first_name || "",
             last_name: djangoUser.last_name || "",
-            email: djangoUser.email || ""
-          }))
+            email: djangoUser.email || "",
+          })
         }
       } catch (err: unknown) {
         console.error("Failed to load settings:", err)
@@ -56,7 +69,6 @@ const SettingsPage: React.FC = () => {
         setLoading(false)
       }
     }
-
     loadSettings()
   }, [djangoUser])
 
@@ -66,16 +78,60 @@ const SettingsPage: React.FC = () => {
       setSaving(true)
       setError(null)
       setSuccess(null)
-      
-      // Mock API call - replace with actual API
       await new Promise(resolve => setTimeout(resolve, 1000))
-      
       setSuccess("User settings saved successfully!")
     } catch (err: unknown) {
       console.error("Failed to save user settings:", err)
       setError("Failed to save user settings. Please try again.")
     } finally {
       setSaving(false)
+    }
+  }
+
+  // Change password
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPasswordError(null)
+    setPasswordSuccess(null)
+
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      setPasswordError("New passwords do not match.")
+      return
+    }
+    if (passwordForm.new_password.length < 8) {
+      setPasswordError("New password must be at least 8 characters.")
+      return
+    }
+
+    try {
+      setChangingPassword(true)
+      const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
+      const res = await fetch(`${API_BASE_URL}/users/auth/change-password/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          current_password: passwordForm.current_password,
+          new_password: passwordForm.new_password,
+          confirm_password: passwordForm.confirm_password,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setPasswordError(data.detail || "Failed to change password.")
+        return
+      }
+
+      setPasswordSuccess("Password changed successfully.")
+      setPasswordForm({ current_password: "", new_password: "", confirm_password: "" })
+    } catch {
+      setPasswordError("An unexpected error occurred. Please try again.")
+    } finally {
+      setChangingPassword(false)
     }
   }
 
@@ -101,7 +157,6 @@ const SettingsPage: React.FC = () => {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      
       {success && (
         <Alert>
           <CheckCircle className="h-4 w-4" />
@@ -111,8 +166,9 @@ const SettingsPage: React.FC = () => {
 
       {/* Settings Tabs */}
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-1 max-w-xs">
+        <TabsList className="grid w-full grid-cols-2 max-w-xs">
           <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
 
         {/* Profile Settings */}
@@ -171,6 +227,83 @@ const SettingsPage: React.FC = () => {
                   )}
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Security Settings */}
+        <TabsContent value="security" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Lock className="mr-2 h-5 w-5" />
+                Change Password
+              </CardTitle>
+              <CardDescription>
+                Update your password to keep your account secure
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+                {passwordError && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{passwordError}</AlertDescription>
+                  </Alert>
+                )}
+                {passwordSuccess && (
+                  <Alert>
+                    <CheckCircle className="h-4 w-4" />
+                    <AlertDescription>{passwordSuccess}</AlertDescription>
+                  </Alert>
+                )}
+
+                <div>
+                  <label className="text-sm font-medium">Current Password</label>
+                  <Input
+                    type="password"
+                    value={passwordForm.current_password}
+                    onChange={(e) => setPasswordForm(prev => ({ ...prev, current_password: e.target.value }))}
+                    placeholder="Enter current password"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">New Password</label>
+                  <Input
+                    type="password"
+                    value={passwordForm.new_password}
+                    onChange={(e) => setPasswordForm(prev => ({ ...prev, new_password: e.target.value }))}
+                    placeholder="Enter new password"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Confirm New Password</label>
+                  <Input
+                    type="password"
+                    value={passwordForm.confirm_password}
+                    onChange={(e) => setPasswordForm(prev => ({ ...prev, confirm_password: e.target.value }))}
+                    placeholder="Confirm new password"
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={changingPassword}>
+                    {changingPassword ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="mr-2 h-4 w-4" />
+                        Update Password
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
             </CardContent>
           </Card>
         </TabsContent>
