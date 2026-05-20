@@ -182,6 +182,13 @@ export const ApiClient = {
     period_start: string
     period_end: string
   }) => api.get("/reporting/aggregated-report/", { params }),
+
+  getReportingRateSummary: (params: {
+    period_type: "monthly" | "quarterly" | "yearly"
+    year: number | string
+    period?: string
+    org_unit?: string | number
+  }) => api.get("/reporting/reporting-rate-summary/", { params }),
   
   // Analytics endpoints
   getAnalytics: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/analytics/", { params }),

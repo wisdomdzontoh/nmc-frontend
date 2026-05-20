@@ -14,7 +14,9 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
+  Clock,
 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { SectionLoader } from "@/components/ui/PageLoader"
 import DataEntryTopBar from "@/components/data-entry/DataEntryTopBar"
@@ -107,6 +109,8 @@ export default function DataEntryPage() {
   const [dataElements, setDataElements] = React.useState<Array<{ id: string; code: string; name: string }>>([])
   const [lastSubmittedBy, setLastSubmittedBy] = React.useState<string | null>(null)
   const [lastSubmittedAt, setLastSubmittedAt] = React.useState<string | null>(null)
+  const [reportStatus, setReportStatus] = React.useState<"draft" | "submitted" | null>(null)
+  const [loadingReport, setLoadingReport] = React.useState(false)
 
   // ── Auto-save state ──────────────────────────────────────────────────────
   /** Codes that exist on the server (loaded or last successful auto-save) */
@@ -128,6 +132,8 @@ export default function DataEntryPage() {
   const periodRef = React.useRef<Period | null>(null)
   const codeToIdRef = React.useRef<Record<string, number>>({})
   const canAutoSaveRef = React.useRef(false)
+  /** Bumps on each selection change so in-flight loads cannot apply stale data */
+  const reportFetchGenRef = React.useRef(0)
 
   // ── Sync refs every render ────────────────────────────────────────────────
   valuesRef.current = valuesByCode
@@ -263,6 +269,7 @@ export default function DataEntryPage() {
       setUnsavedCodes(new Set())
       setDataSaved(true)
       setLastAutoSaved(new Date())
+      if (reportStatus !== "submitted") setReportStatus("draft")
       clearDraft()
     } catch (err) {
       // Silent failure — will retry on next change; localStorage still has the data
@@ -270,7 +277,7 @@ export default function DataEntryPage() {
     } finally {
       setAutoSaving(false)
     }
-  }, [buildPayload, clearDraft])
+  }, [buildPayload, clearDraft, reportStatus])
 
   // ── Unsaved-changes guard (browser navigation / tab close) ────────────────
   React.useEffect(() => {
@@ -367,32 +374,35 @@ export default function DataEntryPage() {
     }
   }, [dataset?.id, org?.id, period?.startDate, period?.id, period?.name, period?.endDate])
 
-  // ── Reset when dataset changes ────────────────────────────────────────────
+  const selectionKey =
+    dataset?.id && org?.id && period?.startDate
+      ? `${dataset.id}:${org.id}:${period.startDate}`
+      : null
+
+  // ── Clear form when report type, org unit, or period changes ─────────────
   React.useEffect(() => {
     setValuesById({})
     setValuesByCode({})
-    setLayout(null)
+    valuesRef.current = {}
     setDataSaved(false)
+    setReportStatus(null)
     setLastSubmittedBy(null)
     setLastSubmittedAt(null)
     setSavedCodes(new Set())
     setUnsavedCodes(new Set())
     setLastAutoSaved(null)
     setDraftRestored(false)
-    valuesRef.current = {}
+    setLoadingReport(false)
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
-  }, [dataset?.id])
+  }, [dataset?.id, org?.id, period?.startDate])
 
-  // ── Fetch published layout ────────────────────────────────────────────────
+  // ── Fetch published layout (report type only) ─────────────────────────────
   React.useEffect(() => {
     if (!dataset) {
       setLayout(null)
-      setValuesByCode({})
-      setValuesById({})
       return
     }
-    setValuesByCode({})
-    setValuesById({})
+    let cancelled = false
     ;(async () => {
       try {
         setLoadingLayout(true)
@@ -401,94 +411,116 @@ export default function DataEntryPage() {
           { timeout: 30000 }
         )
         const schema = resp.data?.schema
+        if (cancelled) return
         if (schema?.sections && Array.isArray(schema.sections)) {
           setLayout(convertLayoutSchema(schema))
         } else {
           setLayout(null)
         }
       } catch (e) {
+        if (cancelled) return
         const err = e as { response?: { status?: number } }
         if (err?.response?.status !== 404) console.warn("[entry] layout fetch failed:", e)
         setLayout(null)
       } finally {
-        setLoadingLayout(false)
+        if (!cancelled) setLoadingLayout(false)
       }
     })()
-  }, [dataset?.id, dataset])
+    return () => {
+      cancelled = true
+    }
+  }, [dataset?.id])
 
-  // ── Load existing report (prefill) ────────────────────────────────────────
+  // ── Load report for current selection (abortable, no layout dependency) ───
   React.useEffect(() => {
-    if (!dataset?.id || !org?.id || !period?.startDate || !layout) return
+    if (!selectionKey || !dataset?.id || !org?.id || !period?.startDate) return
+
+    const generation = ++reportFetchGenRef.current
+    const controller = new AbortController()
 
     ;(async () => {
+      setLoadingReport(true)
       try {
-        setSaving(true)
         const res = await api.get("/reporting/data-entry/", {
           params: {
             report_type: dataset.id,
             org_unit: org.id,
             reporting_period: period.startDate,
           },
+          signal: controller.signal,
         })
 
-        const report = res.data
-        if (!report?.values || !Array.isArray(report.values)) {
-          setLastSubmittedBy(null)
-          setLastSubmittedAt(null)
-          return
+        if (generation !== reportFetchGenRef.current) return
+
+        const report = res.data as {
+          status?: string
+          submitted_by_name?: string | null
+          submitted_at?: string | null
+          values?: Array<{
+            data_element_code: string
+            value: number | null
+            remark?: string | null
+          }>
         }
 
+        setReportStatus(report.status === "submitted" ? "submitted" : "draft")
         setLastSubmittedBy(report.submitted_by_name || null)
         setLastSubmittedAt(report.submitted_at || null)
 
         const byCode: Record<string, number | string | null> = {}
-        for (const v of report.values) {
-          byCode[v.data_element_code] = v.value
-          if (v.remark) byCode[`remark.${v.data_element_code}`] = v.remark
+        if (report.values && Array.isArray(report.values)) {
+          for (const v of report.values) {
+            byCode[v.data_element_code] = v.value
+            if (v.remark) byCode[`remark.${v.data_element_code}`] = v.remark
+          }
         }
         setValuesByCode(byCode)
         valuesRef.current = byCode
-
-        // Mark all loaded codes as already saved (they came from the server)
         setSavedCodes(new Set(Object.keys(byCode)))
         setUnsavedCodes(new Set())
-
-        // Clear any stale draft since server data is newer
+        setDataSaved(Object.keys(byCode).length > 0)
         clearDraft()
       } catch (err) {
+        if (controller.signal.aborted) return
+        if (generation !== reportFetchGenRef.current) return
+
         const error = err as { response?: { status?: number } }
         if (error?.response?.status === 404) {
-          // No server data — try to restore a local draft
-          const key = dataset?.id && org?.id && period?.startDate
-            ? `nmc_draft_${dataset.id}_${org.id}_${period.startDate}`
-            : null
-          if (key) {
-            try {
-              const raw = localStorage.getItem(key)
-              if (raw) {
-                const draft = JSON.parse(raw) as { values: ValuesByCode; ts: number }
-                if (draft.values && Object.keys(draft.values).length > 0) {
-                  setValuesByCode(draft.values)
-                  valuesRef.current = draft.values
-                  setUnsavedCodes(new Set(Object.keys(draft.values)))
-                  setDraftRestored(true)
-                }
-              }
-            } catch {
-              /* corrupted draft — ignore */
-            }
-          }
+          setReportStatus(null)
           setLastSubmittedBy(null)
           setLastSubmittedAt(null)
+
+          const key = `nmc_draft_${dataset.id}_${org.id}_${period.startDate}`
+          try {
+            const raw = localStorage.getItem(key)
+            if (raw) {
+              const draft = JSON.parse(raw) as { values: ValuesByCode; ts: number }
+              if (draft.values && Object.keys(draft.values).length > 0) {
+                setValuesByCode(draft.values)
+                valuesRef.current = draft.values
+                setUnsavedCodes(new Set(Object.keys(draft.values)))
+                setDraftRestored(true)
+                setReportStatus("draft")
+              }
+            }
+          } catch {
+            /* corrupted draft */
+          }
         } else {
           console.error("[entry] prefill error:", err)
-          toast.error("Could not load your saved data.")
+          toast.error("Could not load report data for this selection.")
         }
       } finally {
-        setSaving(false)
+        if (generation === reportFetchGenRef.current) {
+          setLoadingReport(false)
+        }
       }
     })()
-  }, [dataset?.id, org?.id, period?.startDate, layout, clearDraft])
+
+    return () => {
+      controller.abort()
+    }
+  }, [selectionKey, dataset?.id, org?.id, period?.startDate, clearDraft])
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -504,6 +536,9 @@ export default function DataEntryPage() {
     setUnsavedCodes(new Set())
     setLastAutoSaved(null)
     setDraftRestored(false)
+    setReportStatus(null)
+    setLoadingReport(false)
+    reportFetchGenRef.current += 1
     valuesRef.current = {}
     try {
       if (typeof window !== "undefined") window.localStorage.removeItem(DATA_ENTRY_SELECTION_KEY)
@@ -594,6 +629,7 @@ export default function DataEntryPage() {
         "You"
       setLastSubmittedBy(name)
       setLastSubmittedAt(new Date().toISOString())
+      setReportStatus("submitted")
     } catch (e) {
       console.error("[entry] submit error:", e)
       toast.error("Submission failed. Please try again.")
@@ -606,6 +642,7 @@ export default function DataEntryPage() {
   if (loading) return <SectionLoader message="Loading data entry…" />
 
   const showForm = !!dataset && !!org && !!period
+  const formReady = showForm && !loadingReport && !loadingLayout
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
@@ -618,6 +655,8 @@ export default function DataEntryPage() {
         orgTree={orgTree}
         period={period}
         onPeriodChange={setPeriod}
+        reportStatus={showForm ? reportStatus : null}
+        loadingReport={showForm && loadingReport}
         onClear={onClear}
       />
 
@@ -650,13 +689,13 @@ export default function DataEntryPage() {
           </Alert>
         )}
 
-        {showForm && !loadingLayout ? (
+        {showForm ? (
           <div className="space-y-4">
             {/* Report context card */}
             <Card className="bg-white border border-gray-200 shadow-sm">
               <CardContent className="p-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
                     <div className="flex items-start gap-2">
                       <div className="w-1 h-full min-h-8 rounded-full flex-shrink-0" style={{ background: "#C9433B" }} />
                       <div>
@@ -678,10 +717,36 @@ export default function DataEntryPage() {
                         <p className="text-sm font-semibold text-gray-900 mt-0.5">{period!.name}</p>
                       </div>
                     </div>
+                    <div className="flex items-start gap-2">
+                      <div className="w-1 h-full min-h-8 rounded-full flex-shrink-0 bg-gray-300" />
+                      <div>
+                        <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Status</p>
+                        {loadingReport ? (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
+                            <span className="text-sm text-gray-500">Loading…</span>
+                          </div>
+                        ) : reportStatus === "submitted" ? (
+                          <Badge variant="outline" className="mt-1 bg-emerald-50 text-emerald-700 border-emerald-200 gap-1">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Submitted
+                          </Badge>
+                        ) : reportStatus === "draft" ? (
+                          <Badge variant="outline" className="mt-1 bg-amber-50 text-amber-700 border-amber-200 gap-1">
+                            <Clock className="h-3 w-3" />
+                            Draft
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="mt-1 bg-gray-50 text-gray-600 border-gray-200">
+                            New entry
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Auto-save status badge */}
-                  <div className="flex-shrink-0">
+                  <div className="flex-shrink-0 flex flex-col items-end gap-2">
                     {autoSaving ? (
                       <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-200 bg-blue-50">
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
@@ -760,8 +825,26 @@ export default function DataEntryPage() {
               </Alert>
             )}
 
+            {loadingReport && (
+              <Alert className="border-gray-200 bg-gray-50">
+                <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#C9433B" }} />
+                <AlertDescription className="text-gray-700">
+                  Loading report data for this period…
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {reportStatus === "submitted" && !loadingReport && !isReadOnly && (
+              <Alert className="border-emerald-200 bg-emerald-50">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <AlertDescription className="text-emerald-800">
+                  This report has been <strong>submitted</strong>. You can still update values until the period is locked; changes are saved automatically.
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Layout indicator */}
-            {layout && (
+            {formReady && layout && (
               <div className="flex items-center gap-2 px-1">
                 <div className="w-2 h-2 rounded-full" style={{ background: "#E8877A" }} />
                 <span className="text-xs text-gray-400">
@@ -771,7 +854,14 @@ export default function DataEntryPage() {
             )}
 
             {/* Form */}
-            {layout ? (
+            {!formReady ? (
+              loadingLayout ? (
+                <div className="flex items-center justify-center py-16 text-sm text-gray-500">
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" style={{ color: "#C9433B" }} />
+                  Preparing form…
+                </div>
+              ) : null
+            ) : layout ? (
               <div id="data-entry-form" className={isReadOnly ? "opacity-70" : ""}>
                 <EnhancedLayoutEntryForm
                   schema={layout}
@@ -800,6 +890,7 @@ export default function DataEntryPage() {
             )}
 
             {/* Action bar */}
+            {formReady && (
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-2 border-t border-gray-200">
               {/* Left: export + save-now */}
               <div className="flex items-center gap-2 flex-wrap">
@@ -866,6 +957,7 @@ export default function DataEntryPage() {
                 </Button>
               </div>
             </div>
+            )}
           </div>
         ) : !loadingLayout ? (
           <Card className="border-dashed border-2 border-gray-200 shadow-none bg-white">

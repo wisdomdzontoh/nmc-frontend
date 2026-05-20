@@ -31,6 +31,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   FileText,
   Calendar,
@@ -50,7 +52,6 @@ import {
   CheckCircle2,
   XCircle,
   Minus,
-  Check,
 } from "lucide-react"
 import { SectionLoader } from "@/components/ui/PageLoader"
 import { ApiClient } from "@/lib/api"
@@ -70,7 +71,8 @@ interface Report {
   reporting_period: string
   submitted_by: number | null
   submitted_by_name?: string | null
-  submitted_at: string
+  submitted_at: string | null
+  status: "draft" | "submitted"
 }
 
 interface ReportValue {
@@ -96,14 +98,6 @@ interface FlatOrgUnit {
   parentId: number | null
 }
 
-interface Assignment {
-  id: number
-  org_unit: number
-  org_unit_name: string
-  report_type: number
-  report_type_name: string
-}
-
 interface SummaryRow {
   orgUnitId: number
   orgUnitName: string
@@ -125,10 +119,6 @@ const MONTHS = [
 
 const QUARTERS = ["Q1 (Jan–Mar)", "Q2 (Apr–Jun)", "Q3 (Jul–Sep)", "Q4 (Oct–Dec)"]
 const HALF_YEARS = ["H1 (Jan–Jun)", "H2 (Jul–Dec)"]
-const QUARTER_MONTHS: Record<string, string[]> = {
-  Q1: ["01", "02", "03"], Q2: ["04", "05", "06"],
-  Q3: ["07", "08", "09"], Q4: ["10", "11", "12"],
-}
 function getPeriodStartEnd(
   periodType: "monthly" | "quarterly" | "half-yearly" | "annual",
   year: number,
@@ -175,17 +165,6 @@ function getCurrentYear() { return new Date().getFullYear() }
 function getYearOptions(): number[] {
   const cur = getCurrentYear()
   return Array.from({ length: 7 }, (_, i) => cur - i)
-}
-
-function periodMatches(rp: string, type: string, year: string, period: string): boolean {
-  if (type === "yearly") return rp.startsWith(year)
-  if (type === "quarterly") {
-    const months = QUARTER_MONTHS[period] || []
-    return months.some((m) => rp.startsWith(`${year}-${m}`))
-  }
-  // monthly — period is "1".."12"
-  const m = String(Number(period)).padStart(2, "0")
-  return rp.startsWith(`${year}-${m}`)
 }
 
 function flattenTree(nodes: OrgUnitNode[], level = 0, parentId: number | null = null): FlatOrgUnit[] {
@@ -285,7 +264,9 @@ const ReportsPage: React.FC = () => {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [searchText, setSearchText] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [periodFilter, setPeriodFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "submitted">("all")
   const [sortField, setSortField] = useState<SortField>("submitted_at")
   const [sortDir, setSortDir] = useState<SortDir>("desc")
   const [loadingReports, setLoadingReports] = useState(true)
@@ -299,9 +280,9 @@ const ReportsPage: React.FC = () => {
 
   // ── Reporting rate state ─────────────────────────────────────────────────
   const [flatUnits, setFlatUnits] = useState<FlatOrgUnit[]>([])
-  const [assignments, setAssignments] = useState<Assignment[]>([])
-  const [allReportsForRate, setAllReportsForRate] = useState<Report[]>([])
   const [rateLoading, setRateLoading] = useState(false)
+  const [ratePeriodLabel, setRatePeriodLabel] = useState<string | null>(null)
+  const [rateSlotCount, setRateSlotCount] = useState(1)
   const [rateError, setRateError] = useState<string | null>(null)
   const [summaryRows, setSummaryRows] = useState<SummaryRow[] | null>(null)
   const [rateInitialised, setRateInitialised] = useState(false)
@@ -321,36 +302,51 @@ const ReportsPage: React.FC = () => {
   const [genPeriodType, setGenPeriodType] = useState<GenPeriodType>("quarterly")
   const [genYear, setGenYear] = useState(String(getCurrentYear()))
   const [genSubPeriod, setGenSubPeriod] = useState("Q1")
-  const [genReportTypeId, setGenReportTypeId] = useState<string>("")
+  const [genSelectedTypeIds, setGenSelectedTypeIds] = useState<number[]>([])
   const [genOrgId, setGenOrgId] = useState<string>("")
   const [assignedReportTypes, setAssignedReportTypes] = useState<Array<{ id: number; name: string }>>([])
   const [genReportSearch, setGenReportSearch] = useState("")
+  const [genTypesOpen, setGenTypesOpen] = useState(false)
   const [genLoading, setGenLoading] = useState(false)
   const [genError, setGenError] = useState<string | null>(null)
-  const [genLayout, setGenLayout] = useState<LayoutSchema | null>(null)
-  const [genValues, setGenValues] = useState<Record<string, number | string | null>>({})
-  const [genMeta, setGenMeta] = useState<{
+  const [genResults, setGenResults] = useState<Array<{
+    reportTypeId: number
     reportTypeName: string
     orgUnitName: string
     periodLabel: string
     orgUnitId: number
-  } | null>(null)
-  const [genExporting, setGenExporting] = useState(false)
+    layout: LayoutSchema | null
+    values: Record<string, number | string | null>
+    error?: string
+  }>>([])
+  const [genExportingId, setGenExportingId] = useState<number | null>(null)
 
-  // ── Reports list ordering ─────────────────────────────────────────────────
+  // ── Debounce search for server-side query ─────────────────────────────────
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchText.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [searchText])
+
+  // ── Reports list ordering (server-side) ───────────────────────────────────
   const ordering = useMemo(() => {
     const prefix = sortDir === "desc" ? "-" : ""
+    if (sortField === "report_type_name") return `${prefix}report_type__name`
+    if (sortField === "org_unit_name") return `${prefix}org_unit__name`
     if (sortField === "submitted_at" || sortField === "reporting_period") return `${prefix}${sortField}`
-    return "-submitted_at"
+    return "-reporting_period"
   }, [sortField, sortDir])
 
-  // ── Load reports list ─────────────────────────────────────────────────────
+  // ── Load reports list (server-side search, filter, sort, pagination) ────
   useEffect(() => {
     const load = async () => {
       setLoadingReports(true)
       setReportsError(null)
       try {
-        const res = await ApiClient.getReports({ page, page_size: pageSize, ordering })
+        const params: Record<string, string | number> = { page, page_size: pageSize, ordering }
+        if (debouncedSearch) params.search = debouncedSearch
+        if (periodFilter !== "all") params.period = periodFilter
+        if (statusFilter !== "all") params.status = statusFilter
+        const res = await ApiClient.getReports(params)
         const data = res.data
         if (Array.isArray(data)) {
           setReports(data); setTotalCount(data.length)
@@ -365,23 +361,12 @@ const ReportsPage: React.FC = () => {
       }
     }
     load()
-  }, [page, pageSize, ordering])
+  }, [page, pageSize, ordering, debouncedSearch, periodFilter, statusFilter])
 
-  // ── Filtered + client-sorted reports ─────────────────────────────────────
-  const filteredReports = useMemo(() => {
-    let data = [...reports]
-    const q = searchText.trim().toLowerCase()
-    if (q) data = data.filter((r) => r.report_type_name.toLowerCase().includes(q) || r.org_unit_name.toLowerCase().includes(q))
-    if (periodFilter !== "all") data = data.filter((r) => r.reporting_period.startsWith(periodFilter))
-    if (sortField === "report_type_name" || sortField === "org_unit_name") {
-      data.sort((a, b) => {
-        const av = a[sortField].toLowerCase()
-        const bv = b[sortField].toLowerCase()
-        return av < bv ? (sortDir === "asc" ? -1 : 1) : av > bv ? (sortDir === "asc" ? 1 : -1) : 0
-      })
-    }
-    return data
-  }, [reports, searchText, periodFilter, sortField, sortDir])
+  const accessibleFlatUnits = useMemo(() => {
+    if ((isStaff || isSuperuser) || !djangoUser?.org_unit) return flatUnits
+    return getSubtree(flatUnits, djangoUser.org_unit)
+  }, [flatUnits, isStaff, isSuperuser, djangoUser?.org_unit])
 
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize))
 
@@ -402,8 +387,11 @@ const ReportsPage: React.FC = () => {
       ApiClient.getAvailableReportTypesForEntry()
         .then((res) => {
           const list = res.data || []
-          setAssignedReportTypes(list.map((rt: { id: number; name: string }) => ({ id: rt.id, name: rt.name })))
-          if (list.length > 0 && !genReportTypeId) setGenReportTypeId(String(list[0].id))
+          const mapped = list.map((rt: { id: number; name: string }) => ({ id: rt.id, name: rt.name }))
+          setAssignedReportTypes(mapped)
+          setGenSelectedTypeIds((prev) =>
+            prev.filter((id) => mapped.some((rt: { id: number }) => rt.id === id)),
+          )
         })
         .catch(() => setAssignedReportTypes([]))
       return
@@ -412,6 +400,7 @@ const ReportsPage: React.FC = () => {
     // Staff/superusers: load report types for the selected org unit
     if (!genOrgId) {
       setAssignedReportTypes([])
+      setGenSelectedTypeIds([])
       return
     }
     ApiClient.getOrgUnitAssignments(Number(genOrgId))
@@ -422,10 +411,15 @@ const ReportsPage: React.FC = () => {
           name: a.report_type_name,
         }))
         setAssignedReportTypes(mapped)
-        if (mapped.length > 0 && !genReportTypeId) setGenReportTypeId(String(mapped[0].id))
+        setGenSelectedTypeIds((prev) =>
+          prev.filter((id) => mapped.some((rt: { id: number }) => rt.id === id)),
+        )
       })
-      .catch(() => setAssignedReportTypes([]))
-  }, [isStaff, isSuperuser, djangoUser?.org_unit, genOrgId, genReportTypeId])
+      .catch(() => {
+        setAssignedReportTypes([])
+        setGenSelectedTypeIds([])
+      })
+  }, [isStaff, isSuperuser, djangoUser?.org_unit, genOrgId])
 
   // ── Report Generation: build sub-period options ───────────────────────────
   const genSubPeriodOptions = useMemo(() => {
@@ -443,13 +437,29 @@ const ReportsPage: React.FC = () => {
     [assignedReportTypes, genReportSearch],
   )
 
-  // ── Report Generation: generate aggregated report ─────────────────────────
+  const toggleGenReportType = (id: number) => {
+    setGenSelectedTypeIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    )
+  }
+
+  const selectAllGenReportTypes = () => {
+    setGenSelectedTypeIds(filteredGenReportTypes.map((rt) => rt.id))
+  }
+
+  const clearGenReportTypes = () => setGenSelectedTypeIds([])
+
+  // ── Report Generation: generate aggregated reports (multi-select) ───────
   const handleGenerateReport = useCallback(async () => {
     const orgUnitId = (isStaff || isSuperuser)
       ? (genOrgId ? Number(genOrgId) : null)
-      : djangoUser?.org_unit
-    if (!orgUnitId || !genReportTypeId) {
-      setGenError("Select an organisation unit and report type.")
+      : (genOrgId ? Number(genOrgId) : djangoUser?.org_unit)
+    if (!orgUnitId) {
+      setGenError("Select an organisation unit.")
+      return
+    }
+    if (genSelectedTypeIds.length === 0) {
+      setGenError("Select at least one report type.")
       return
     }
     const sub = genPeriodType === "annual" ? "" : genSubPeriod
@@ -457,67 +467,102 @@ const ReportsPage: React.FC = () => {
     const { periodStart, periodEnd, label } = getPeriodStartEnd(
       genPeriodType,
       parseInt(genYear, 10),
-      sub || "H1"
+      sub || "H1",
     )
     setGenLoading(true)
     setGenError(null)
-    setGenLayout(null)
-    setGenValues({})
-    setGenMeta(null)
+    setGenResults([])
     try {
-      const [aggRes, layoutRes] = await Promise.all([
-        ApiClient.getAggregatedReport({
-          report_type: parseInt(genReportTypeId, 10),
-          org_unit: orgUnitId,
-          period_start: periodStart,
-          period_end: periodEnd,
+      const results = await Promise.all(
+        genSelectedTypeIds.map(async (typeId) => {
+          const typeName =
+            assignedReportTypes.find((rt) => rt.id === typeId)?.name ?? `Report ${typeId}`
+          try {
+            const [aggRes, layoutRes] = await Promise.all([
+              ApiClient.getAggregatedReport({
+                report_type: typeId,
+                org_unit: orgUnitId,
+                period_start: periodStart,
+                period_end: periodEnd,
+              }),
+              getLayoutByReportType(typeId, "published").catch(() => null),
+            ])
+            const agg = aggRes.data as {
+              values: Record<string, number>
+              remarks: Record<string, string>
+              report_type_name: string
+              org_unit_name: string
+            }
+            const valuesByCode: Record<string, number | string | null> = {}
+            Object.entries(agg.values || {}).forEach(([code, val]) => {
+              valuesByCode[code] = val
+              const remark = (agg.remarks || {})[code]
+              if (remark != null && remark !== "") valuesByCode[`remark.${code}`] = remark
+            })
+            return {
+              reportTypeId: typeId,
+              reportTypeName: agg.report_type_name || typeName,
+              orgUnitName: agg.org_unit_name || "",
+              periodLabel: label,
+              orgUnitId,
+              layout: layoutRes?.schema ? (layoutRes.schema as LayoutSchema) : null,
+              values: valuesByCode,
+            }
+          } catch {
+            return {
+              reportTypeId: typeId,
+              reportTypeName: typeName,
+              orgUnitName: "",
+              periodLabel: label,
+              orgUnitId,
+              layout: null,
+              values: {},
+              error: "Failed to generate. You may not have access or there is no data for this period.",
+            }
+          }
         }),
-        getLayoutByReportType(parseInt(genReportTypeId, 10), "published").catch(() => null),
-      ])
-      const agg = aggRes.data as {
-        values: Record<string, number>
-        remarks: Record<string, string>
-        report_type_name: string
-        org_unit_name: string
+      )
+      setGenResults(results)
+      const failures = results.filter((r) => r.error).length
+      if (failures === results.length) {
+        setGenError("No reports could be generated for the selected types and period.")
+      } else if (failures > 0) {
+        setGenError(`${failures} of ${results.length} report(s) could not be generated.`)
       }
-      const valuesByCode: Record<string, number | string | null> = {}
-      Object.entries(agg.values || {}).forEach(([code, val]) => {
-        valuesByCode[code] = val
-        const remark = (agg.remarks || {})[code]
-        if (remark != null && remark !== "") valuesByCode[`remark.${code}`] = remark
-      })
-      setGenValues(valuesByCode)
-      setGenMeta({
-        reportTypeName: agg.report_type_name || "",
-        orgUnitName: agg.org_unit_name || "",
-        periodLabel: label,
-        orgUnitId,
-      })
-      if (layoutRes?.schema) setGenLayout(layoutRes.schema as LayoutSchema)
-      else setGenLayout(null)
-    } catch (e) {
-      setGenError("Failed to generate report. You may not have access or there is no data for this period.")
     } finally {
       setGenLoading(false)
     }
-  }, [djangoUser?.org_unit, genReportTypeId, genPeriodType, genYear, genSubPeriod])
+  }, [
+    djangoUser?.org_unit,
+    genSelectedTypeIds,
+    genPeriodType,
+    genYear,
+    genSubPeriod,
+    assignedReportTypes,
+    isStaff,
+    isSuperuser,
+    genOrgId,
+  ])
 
-  const handleExportGeneratedReport = useCallback(async () => {
-    if (!genMeta || !genLayout) return
-    setGenExporting(true)
-    try {
-      await exportToExcel({
-        reportType: genMeta.reportTypeName,
-        orgUnit: genMeta.orgUnitName,
-        period: genMeta.periodLabel,
-        values: genValues,
-        layout: genLayout,
-        computedValues: {},
-      })
-    } finally {
-      setGenExporting(false)
-    }
-  }, [genMeta, genLayout, genValues])
+  const handleExportGeneratedReport = useCallback(
+    async (result: (typeof genResults)[number]) => {
+      if (!result.layout) return
+      setGenExportingId(result.reportTypeId)
+      try {
+        await exportToExcel({
+          reportType: result.reportTypeName,
+          orgUnit: result.orgUnitName,
+          period: result.periodLabel,
+          values: result.values,
+          layout: result.layout,
+          computedValues: {},
+        })
+      } finally {
+        setGenExportingId(null)
+      }
+    },
+    [],
+  )
 
   // ── Last 12-month period options ──────────────────────────────────────────
   const periodOptions = useMemo(() => {
@@ -578,20 +623,19 @@ const ReportsPage: React.FC = () => {
     try {
       setRateLoading(true)
       setRateError(null)
-      const [treeRes, assignRes] = await Promise.all([
-        ApiClient.getOrgUnits(),
-        ApiClient.getReportTypeAssignments({ page_size: 1000 }),
-      ])
+      const treeRes = await ApiClient.getOrgUnits()
       const flat = flattenTree(treeRes.data || [])
       setFlatUnits(flat)
-      const assignData = assignRes.data
-      setAssignments(Array.isArray(assignData) ? assignData : (assignData.results || []))
       if (!isStaff && !isSuperuser && djangoUser?.org_unit) {
         setRateOrgFilter(String(djangoUser.org_unit))
       }
-      if ((isStaff || isSuperuser) && !genOrgId && flat.length) {
-        const root = flat.find((u) => u.level === 0) ?? flat[0]
-        if (root) setGenOrgId(String(root.id))
+      if (!genOrgId) {
+        if ((isStaff || isSuperuser) && flat.length) {
+          const root = flat.find((u) => u.level === 0) ?? flat[0]
+          if (root) setGenOrgId(String(root.id))
+        } else if (djangoUser?.org_unit) {
+          setGenOrgId(String(djangoUser.org_unit))
+        }
       }
       setRateInitialised(true)
     } catch {
@@ -601,53 +645,53 @@ const ReportsPage: React.FC = () => {
     }
   }, [rateInitialised, isStaff, isSuperuser, djangoUser?.org_unit, genOrgId])
 
-  // Ensure org tree is available for staff/superusers when using generation tab
+  // Load org tree for rate/generation tabs
   useEffect(() => {
-    if ((isStaff || isSuperuser) && !rateInitialised) {
+    if (!rateInitialised && (djangoUser?.org_unit || isStaff || isSuperuser)) {
       void initRateData()
     }
-  }, [isStaff, isSuperuser, rateInitialised, initRateData])
+  }, [djangoUser?.org_unit, isStaff, isSuperuser, rateInitialised, initRateData])
 
-  // ── Generate reporting rate summary ───────────────────────────────────────
+  // ── Generate reporting rate summary (server-side aggregation) ───────────
   const handleGenerate = async () => {
     try {
       setRateLoading(true)
       setRateError(null)
       setSummaryRows(null)
+      setRatePeriodLabel(null)
 
-      // Ensure meta data is loaded
       if (!rateInitialised) await initRateData()
 
-      // Fetch all reports for the selected year (wide net, filter client-side)
-      const res = await ApiClient.getReports({ page_size: 2000, ordering: "reporting_period" })
-      const data = res.data
-      const allRpts: Report[] = Array.isArray(data) ? data : (data.results || [])
-      setAllReportsForRate(allRpts)
-
-      // Filter to selected period
-      const periodReports = allRpts.filter((r) =>
-        periodMatches(r.reporting_period, periodType, rateYear, ratePeriod)
-      )
-
-      // Determine which org units to include (non-staff limited to their org only)
-      const orgsToUse =
-        !isStaff && djangoUser?.org_unit
-          ? flatUnits.filter((u) => u.id === djangoUser.org_unit)
-          : rateOrgFilter === "all"
-          ? flatUnits
-          : getSubtree(flatUnits, Number(rateOrgFilter))
-
-      // Compute summary rows
-      const rows: SummaryRow[] = orgsToUse.map((ou) => {
-        const ouAssignments = assignments.filter((a) => a.org_unit === ou.id)
-        const ouReports = periodReports.filter((r) => r.org_unit === ou.id)
-        const expected = ouAssignments.length
-        const submitted = ouReports.length
-        const completeness = expected > 0 ? Math.round((submitted / expected) * 100) : null
-        return { orgUnitId: ou.id, orgUnitName: ou.name, level: ou.level, expected, submitted, completeness }
+      const res = await ApiClient.getReportingRateSummary({
+        period_type: periodType,
+        year: rateYear,
+        period: periodType === "yearly" ? undefined : ratePeriod,
+        org_unit: rateOrgFilter === "all" ? "all" : rateOrgFilter,
       })
-
-      setSummaryRows(rows)
+      const data = res.data as {
+        period_label: string
+        slot_count: number
+        rows: Array<{
+          org_unit_id: number
+          org_unit_name: string
+          level: number
+          expected: number
+          submitted: number
+          completeness: number | null
+        }>
+      }
+      setRatePeriodLabel(data.period_label)
+      setRateSlotCount(data.slot_count ?? 1)
+      setSummaryRows(
+        (data.rows || []).map((r) => ({
+          orgUnitId: r.org_unit_id,
+          orgUnitName: r.org_unit_name,
+          level: r.level,
+          expected: r.expected,
+          submitted: r.submitted,
+          completeness: r.completeness,
+        })),
+      )
     } catch {
       setRateError("Failed to generate summary. Please try again.")
     } finally {
@@ -708,7 +752,7 @@ const ReportsPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Reports</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            Browse submissions and monitor reporting completeness across org units
+            Browse report instances for your organisation and units below you, and monitor reporting completeness
           </p>
         </div>
         {djangoUser?.org_unit_name && (
@@ -726,7 +770,7 @@ const ReportsPage: React.FC = () => {
             className="gap-2 text-xs data-[state=active]:bg-[#C9433B] data-[state=active]:text-white data-[state=active]:shadow-sm"
           >
             <FileText className="h-3.5 w-3.5" />
-            Submitted Reports
+            All Reports
           </TabsTrigger>
           <TabsTrigger
             value="rate"
@@ -759,6 +803,16 @@ const ReportsPage: React.FC = () => {
                   className="pl-8 h-8 text-sm bg-white"
                 />
               </div>
+              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as typeof statusFilter); setPage(1) }}>
+                <SelectTrigger className="w-36 h-8 text-sm bg-white border-gray-200">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="submitted">Submitted</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={periodFilter} onValueChange={(v) => { setPeriodFilter(v); setPage(1) }}>
                 <SelectTrigger className="w-48 h-8 text-sm bg-white border-gray-200">
                   <SelectValue placeholder="Filter by period" />
@@ -817,14 +871,14 @@ const ReportsPage: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredReports.length === 0 ? (
+                      {reports.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={6} className="h-32 text-center text-sm text-gray-400">
                             No reports found. Try adjusting your search or filter.
                           </TableCell>
                         </TableRow>
                       ) : (
-                        filteredReports.map((r) => (
+                        reports.map((r) => (
                           <TableRow key={r.id} className="hover:bg-gray-50/70 border-b border-gray-100">
                             <TableCell className="pl-5 py-3">
                               <span className="font-medium text-gray-900 text-sm">{r.report_type_name}</span>
@@ -834,16 +888,29 @@ const ReportsPage: React.FC = () => {
                               {new Date(r.reporting_period).toLocaleDateString("en-US", { year: "numeric", month: "short" })}
                             </TableCell>
                             <TableCell className="text-sm text-gray-700 py-3">
-                              <div>{new Date(r.submitted_at).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })}</div>
-                              {r.submitted_by_name && (
-                                <div className="text-[11px] text-gray-400 mt-0.5">by {r.submitted_by_name}</div>
+                              {r.submitted_at ? (
+                                <>
+                                  <div>{new Date(r.submitted_at).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })}</div>
+                                  {r.submitted_by_name && (
+                                    <div className="text-[11px] text-gray-400 mt-0.5">by {r.submitted_by_name}</div>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-gray-400">—</span>
                               )}
                             </TableCell>
                             <TableCell className="py-3">
-                              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 text-[11px]">
-                                <CheckCircle className="h-3 w-3" />
-                                Submitted
-                              </Badge>
+                              {r.status === "draft" ? (
+                                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 gap-1 text-[11px]">
+                                  <Clock className="h-3 w-3" />
+                                  Draft
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 text-[11px]">
+                                  <CheckCircle className="h-3 w-3" />
+                                  Submitted
+                                </Badge>
+                              )}
                             </TableCell>
                             <TableCell className="text-right pr-5 py-3 space-x-1.5">
                               <Button variant="outline" size="sm" onClick={() => handleView(r)} className="h-7 text-xs border-gray-200">
@@ -891,7 +958,8 @@ const ReportsPage: React.FC = () => {
             <CardHeader className="pb-3 pt-4 px-5">
               <CardTitle className="text-sm font-semibold text-gray-900">Generate Reporting Rate Summary</CardTitle>
               <p className="text-xs text-gray-400 mt-0.5">
-                Select a period and optionally an org unit to compute expected vs submitted report counts.
+                Expected = assigned report types × months in the period (e.g. quarterly = ×3).
+                Submitted counts only assigned types. Completeness is capped at 100%.
               </p>
             </CardHeader>
             <CardContent className="px-5 pb-5">
@@ -957,13 +1025,12 @@ const ReportsPage: React.FC = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All org units</SelectItem>
-                      {flatUnits.filter((u) => u.level === 0).map((u) => (
-                        <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
-                      ))}
-                      {flatUnits.filter((u) => u.level === 1).map((u) => (
+                      {(isStaff || isSuperuser) && (
+                        <SelectItem value="all">All org units</SelectItem>
+                      )}
+                      {accessibleFlatUnits.map((u) => (
                         <SelectItem key={u.id} value={String(u.id)}>
-                          &nbsp;&nbsp;{u.name}
+                          {`${"— ".repeat(u.level)}${u.name}`}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1067,10 +1134,11 @@ const ReportsPage: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="text-sm font-semibold text-gray-900">
-                        Org Unit Completeness — {formatPeriodLabel(periodType, rateYear, ratePeriod)}
+                        Org Unit Completeness — {ratePeriodLabel ?? formatPeriodLabel(periodType, rateYear, ratePeriod)}
                       </CardTitle>
                       <p className="text-[11px] text-gray-400 mt-0.5">
                         {sortedSummaryRows.length} org unit{sortedSummaryRows.length !== 1 ? "s" : ""} ·
+                        {rateSlotCount > 1 ? ` ${rateSlotCount} months per assignment ·` : ""}
                         Click column headers to sort
                       </p>
                     </div>
@@ -1259,7 +1327,7 @@ const ReportsPage: React.FC = () => {
             <CardHeader className="pb-3 pt-4 px-5">
               <CardTitle className="text-sm font-semibold text-gray-900">Generate Aggregated Report</CardTitle>
               <p className="text-xs text-gray-400 mt-0.5">
-                Select period type, year, and report type. Data is aggregated for the selected period (e.g. quarterly = sum of 3 months). Reports use the same layout as data entry.
+                Select one or more report types and generate aggregated reports in one run (e.g. quarterly = sum of 3 months).
               </p>
             </CardHeader>
             <CardContent className="px-5 pb-5">
@@ -1291,7 +1359,7 @@ const ReportsPage: React.FC = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  {(isStaff || isSuperuser) && (
+                  {((isStaff || isSuperuser) || accessibleFlatUnits.length > 1) && (
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-gray-600">Organisation unit</label>
                       <Select value={genOrgId} onValueChange={setGenOrgId}>
@@ -1299,7 +1367,7 @@ const ReportsPage: React.FC = () => {
                           <SelectValue placeholder="Select org unit" />
                         </SelectTrigger>
                         <SelectContent>
-                          {flatUnits.map((u) => (
+                          {((isStaff || isSuperuser) ? flatUnits : accessibleFlatUnits).map((u) => (
                             <SelectItem key={u.id} value={String(u.id)}>
                               {`${"— ".repeat(u.level)}${u.name}`}
                             </SelectItem>
@@ -1342,47 +1410,74 @@ const ReportsPage: React.FC = () => {
                     </div>
                   )}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-600">Report type</label>
-                    <Select value={genReportTypeId} onValueChange={setGenReportTypeId}>
-                      <SelectTrigger className="w-56 h-8 text-sm border-gray-200">
-                        <SelectValue placeholder="Select report type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <div className="p-2 border-b border-gray-100">
+                    <label className="text-xs font-medium text-gray-600">Report types</label>
+                    <Popover open={genTypesOpen} onOpenChange={setGenTypesOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-64 h-8 text-sm border-gray-200 justify-between font-normal"
+                        >
+                          <span className="truncate text-left">
+                            {genSelectedTypeIds.length === 0
+                              ? "Select report types…"
+                              : `${genSelectedTypeIds.length} selected`}
+                          </span>
+                          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72 p-0" align="start">
+                        <div className="p-2 border-b border-gray-100 space-y-2">
                           <Input
-                            placeholder="Search report types..."
+                            placeholder="Search report types…"
                             value={genReportSearch}
                             onChange={(e) => setGenReportSearch(e.target.value)}
                             className="h-8 text-xs"
                           />
-                        </div>
-                        {filteredGenReportTypes.map((rt) => {
-                          const selected = genReportTypeId === String(rt.id)
-                          return (
-                            <SelectItem
-                              key={rt.id}
-                              value={String(rt.id)}
-                              className="flex items-center gap-2 text-sm"
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs flex-1"
+                              onClick={selectAllGenReportTypes}
                             >
-                              <span
-                                className={`flex h-3.5 w-3.5 items-center justify-center rounded border ${
-                                  selected
-                                    ? "border-[#C9433B] bg-[#C9433B]"
-                                    : "border-gray-300 bg-white"
-                                }`}
+                              Select all
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs flex-1"
+                              onClick={clearGenReportTypes}
+                            >
+                              Clear
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="max-h-56 overflow-y-auto p-2 space-y-1">
+                          {filteredGenReportTypes.length === 0 ? (
+                            <p className="text-xs text-gray-400 px-2 py-3 text-center">No report types</p>
+                          ) : (
+                            filteredGenReportTypes.map((rt) => (
+                              <label
+                                key={rt.id}
+                                className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-50 cursor-pointer text-sm"
                               >
-                                {selected && <Check className="h-2.5 w-2.5 text-white" />}
-                              </span>
-                              <span className="truncate">{rt.name}</span>
-                            </SelectItem>
-                          )
-                        })}
-                      </SelectContent>
-                    </Select>
+                                <Checkbox
+                                  checked={genSelectedTypeIds.includes(rt.id)}
+                                  onCheckedChange={() => toggleGenReportType(rt.id)}
+                                />
+                                <span className="truncate">{rt.name}</span>
+                              </label>
+                            ))
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <Button
                     onClick={handleGenerateReport}
-                    disabled={genLoading || assignedReportTypes.length === 0}
+                    disabled={genLoading || assignedReportTypes.length === 0 || genSelectedTypeIds.length === 0}
                     className="h-8 gap-2 text-white text-sm"
                     style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}
                   >
@@ -1402,75 +1497,85 @@ const ReportsPage: React.FC = () => {
             <Alert variant="destructive"><AlertDescription>{genError}</AlertDescription></Alert>
           )}
 
-          {genMeta && (genLayout || Object.keys(genValues).length > 0) && (
-            <Card className="border-gray-200 shadow-sm">
-              <CardHeader className="pb-3 pt-4 px-5 flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-semibold text-gray-900">
-                    {genMeta.reportTypeName} — {genMeta.periodLabel}
-                  </CardTitle>
-                  <p className="text-xs text-gray-400 mt-0.5">{genMeta.orgUnitName}</p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportGeneratedReport}
-                  disabled={genExporting}
-                  className="h-8 text-xs border-gray-200 gap-1.5"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Export Excel
-                </Button>
-              </CardHeader>
-              <CardContent className="px-5 pb-5">
-                {genLayout ? (
-                  <EnhancedLayoutEntryForm
-                    schema={genLayout}
-                    values={genValues}
-                    onChange={() => {}}
-                    readOnly
-                    dataSaved
-                    savedCodes={new Set(Object.keys(genValues).filter((k) => !k.startsWith("remark.")))}
-                    unsavedCodes={new Set()}
-                    autoSaving={false}
-                  />
-                ) : (
-                  <div className="border border-gray-200 rounded-lg overflow-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-gray-50 border-b border-gray-200">
-                          <TableHead className="text-xs font-semibold text-gray-600">Data element / Code</TableHead>
-                          <TableHead className="text-xs font-semibold text-gray-600 text-right">Value</TableHead>
-                          <TableHead className="text-xs font-semibold text-gray-600">Remark</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {Object.entries(genValues)
-                          .filter(([k]) => !k.startsWith("remark."))
-                          .map(([code, val]) => {
-                            const remark = genValues[`remark.${code}`] ?? ""
-                            return (
-                              <TableRow key={code} className="border-b border-gray-100">
-                                <TableCell className="text-sm text-gray-800 py-2">{code}</TableCell>
-                                <TableCell className="text-sm font-semibold text-gray-900 text-right py-2">
-                                  {val ?? "—"}
-                                </TableCell>
-                                <TableCell className="text-sm text-gray-500 py-2">
-                                  {typeof remark === "string" ? remark : ""}
-                                </TableCell>
-                              </TableRow>
-                            )
-                          })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {genMeta && !genLayout && Object.keys(genValues).filter((k) => !k.startsWith("remark.")).length === 0 && (
-            <p className="text-sm text-gray-400 text-center py-6">No data for this period.</p>
+          {genResults.length > 0 && (
+            <div className="space-y-4">
+              {genResults.map((result) => (
+                <Card key={result.reportTypeId} className="border-gray-200 shadow-sm">
+                  <CardHeader className="pb-3 pt-4 px-5 flex flex-row items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <CardTitle className="text-sm font-semibold text-gray-900 truncate">
+                        {result.reportTypeName} — {result.periodLabel}
+                      </CardTitle>
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">
+                        {result.orgUnitName || "—"}
+                      </p>
+                    </div>
+                    {result.layout && !result.error && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleExportGeneratedReport(result)}
+                        disabled={genExportingId === result.reportTypeId}
+                        className="h-8 text-xs border-gray-200 gap-1.5 shrink-0"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Export Excel
+                      </Button>
+                    )}
+                  </CardHeader>
+                  <CardContent className="px-5 pb-5">
+                    {result.error ? (
+                      <Alert variant="destructive" className="py-2">
+                        <AlertDescription className="text-xs">{result.error}</AlertDescription>
+                      </Alert>
+                    ) : result.layout ? (
+                      <EnhancedLayoutEntryForm
+                        schema={result.layout}
+                        values={result.values}
+                        onChange={() => {}}
+                        readOnly
+                        dataSaved
+                        savedCodes={new Set(Object.keys(result.values).filter((k) => !k.startsWith("remark.")))}
+                        unsavedCodes={new Set()}
+                        autoSaving={false}
+                      />
+                    ) : Object.keys(result.values).filter((k) => !k.startsWith("remark.")).length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-4">No data for this period.</p>
+                    ) : (
+                      <div className="border border-gray-200 rounded-lg overflow-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-gray-50 border-b border-gray-200">
+                              <TableHead className="text-xs font-semibold text-gray-600">Data element / Code</TableHead>
+                              <TableHead className="text-xs font-semibold text-gray-600 text-right">Value</TableHead>
+                              <TableHead className="text-xs font-semibold text-gray-600">Remark</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {Object.entries(result.values)
+                              .filter(([k]) => !k.startsWith("remark."))
+                              .map(([code, val]) => {
+                                const remark = result.values[`remark.${code}`] ?? ""
+                                return (
+                                  <TableRow key={code} className="border-b border-gray-100">
+                                    <TableCell className="text-sm text-gray-800 py-2">{code}</TableCell>
+                                    <TableCell className="text-sm font-semibold text-gray-900 text-right py-2">
+                                      {val ?? "—"}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-gray-500 py-2">
+                                      {typeof remark === "string" ? remark : ""}
+                                    </TableCell>
+                                  </TableRow>
+                                )
+                              })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </TabsContent>
       </Tabs>
@@ -1500,6 +1605,10 @@ const ReportsPage: React.FC = () => {
                   { label: "Report type", value: selectedReport.report_type_name },
                   { label: "Organisation unit", value: selectedReport.org_unit_name },
                   { label: "Period", value: new Date(selectedReport.reporting_period).toLocaleDateString("en-US", { year: "numeric", month: "long" }) },
+                  {
+                    label: "Status",
+                    value: selectedReport.status === "draft" ? "Draft" : "Submitted",
+                  },
                   {
                     label: "Submitted",
                     value: selectedReport.submitted_at
