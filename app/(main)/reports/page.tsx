@@ -52,6 +52,7 @@ import {
   CheckCircle2,
   XCircle,
   Minus,
+  ListChecks,
 } from "lucide-react"
 import { SectionLoader } from "@/components/ui/PageLoader"
 import { ApiClient } from "@/lib/api"
@@ -106,6 +107,17 @@ interface SummaryRow {
   submitted: number
   completeness: number | null
 }
+
+interface ComplianceRow {
+  orgUnitId: number
+  orgUnitName: string
+  level: number
+  expectedReports: string[]
+  submittedReports: string[]
+  unsubmittedReports: string[]
+}
+
+type SummaryPeriodType = "monthly" | "quarterly" | "half_yearly" | "yearly"
 
 type SortField = "report_type_name" | "org_unit_name" | "reporting_period" | "submitted_at"
 type SortDir = "asc" | "desc"
@@ -221,8 +233,51 @@ function getStatus(pct: number | null, expected: number): StatusConfig {
 
 function formatPeriodLabel(type: string, year: string, period: string): string {
   if (type === "yearly") return year
-  if (type === "quarterly") return `${period} ${year}`
+  if (type === "quarterly" || type === "half_yearly") return `${period} ${year}`
   return `${MONTHS[Number(period) - 1]} ${year}`
+}
+
+function defaultSubPeriodForType(type: SummaryPeriodType): string {
+  if (type === "quarterly") return "Q1"
+  if (type === "half_yearly") return "H1"
+  return String(new Date().getMonth() + 1)
+}
+
+function subPeriodLabelForType(type: SummaryPeriodType): string {
+  if (type === "monthly") return "Month"
+  if (type === "quarterly") return "Quarter"
+  if (type === "half_yearly") return "Half"
+  return ""
+}
+
+function ReportNameBadges({
+  names,
+  variant,
+}: {
+  names: string[]
+  variant: "expected" | "submitted" | "unsubmitted"
+}) {
+  if (names.length === 0) {
+    return <span className="text-xs text-gray-400">—</span>
+  }
+  const classes = {
+    expected: "bg-gray-50 text-gray-700 border-gray-200",
+    submitted: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    unsubmitted: "bg-amber-50 text-amber-800 border-amber-200",
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {names.map((name) => (
+        <Badge
+          key={name}
+          variant="outline"
+          className={`text-[11px] font-normal ${classes[variant]}`}
+        >
+          {name}
+        </Badge>
+      ))}
+    </div>
+  )
 }
 
 // ── Sortable column header ─────────────────────────────────────────────────────
@@ -266,6 +321,9 @@ const ReportsPage: React.FC = () => {
   const [searchText, setSearchText] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [periodFilter, setPeriodFilter] = useState("all")
+  const [submissionsPeriodType, setSubmissionsPeriodType] = useState<"all" | SummaryPeriodType>("all")
+  const [submissionsYear, setSubmissionsYear] = useState(String(getCurrentYear()))
+  const [submissionsSubPeriod, setSubmissionsSubPeriod] = useState(String(new Date().getMonth() + 1))
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "submitted">("all")
   const [sortField, setSortField] = useState<SortField>("submitted_at")
   const [sortDir, setSortDir] = useState<SortDir>("desc")
@@ -287,8 +345,8 @@ const ReportsPage: React.FC = () => {
   const [summaryRows, setSummaryRows] = useState<SummaryRow[] | null>(null)
   const [rateInitialised, setRateInitialised] = useState(false)
 
-  // Filters
-  const [periodType, setPeriodType] = useState<"monthly" | "quarterly" | "yearly">("monthly")
+  // Filters (shared by rate + compliance tabs)
+  const [periodType, setPeriodType] = useState<SummaryPeriodType>("monthly")
   const [rateYear, setRateYear] = useState(String(getCurrentYear()))
   const [ratePeriod, setRatePeriod] = useState(String(new Date().getMonth() + 1))
   const [rateOrgFilter, setRateOrgFilter] = useState("all")
@@ -296,6 +354,13 @@ const ReportsPage: React.FC = () => {
   // Rate summary sort
   const [rateSort, setRateSort] = useState<"name" | "completeness" | "submitted">("completeness")
   const [rateSortDir, setRateSortDir] = useState<SortDir>("desc")
+
+  // Compliance tab
+  const [complianceRows, setComplianceRows] = useState<ComplianceRow[] | null>(null)
+  const [complianceLoading, setComplianceLoading] = useState(false)
+  const [complianceError, setComplianceError] = useState<string | null>(null)
+  const [compliancePeriodLabel, setCompliancePeriodLabel] = useState<string | null>(null)
+  const [complianceSortDir, setComplianceSortDir] = useState<SortDir>("asc")
 
   // ── Report Generation tab ─────────────────────────────────────────────────
   type GenPeriodType = "monthly" | "quarterly" | "half-yearly" | "annual"
@@ -344,7 +409,15 @@ const ReportsPage: React.FC = () => {
       try {
         const params: Record<string, string | number> = { page, page_size: pageSize, ordering }
         if (debouncedSearch) params.search = debouncedSearch
-        if (periodFilter !== "all") params.period = periodFilter
+        if (submissionsPeriodType !== "all") {
+          params.period_type = submissionsPeriodType
+          params.year = submissionsYear
+          if (submissionsPeriodType !== "yearly") {
+            params.period = submissionsSubPeriod
+          }
+        } else if (periodFilter !== "all") {
+          params.period = periodFilter
+        }
         if (statusFilter !== "all") params.status = statusFilter
         const res = await ApiClient.getReports(params)
         const data = res.data
@@ -361,7 +434,17 @@ const ReportsPage: React.FC = () => {
       }
     }
     load()
-  }, [page, pageSize, ordering, debouncedSearch, periodFilter, statusFilter])
+  }, [
+    page,
+    pageSize,
+    ordering,
+    debouncedSearch,
+    periodFilter,
+    submissionsPeriodType,
+    submissionsYear,
+    submissionsSubPeriod,
+    statusFilter,
+  ])
 
   const accessibleFlatUnits = useMemo(() => {
     if ((isStaff || isSuperuser) || !djangoUser?.org_unit) return flatUnits
@@ -699,6 +782,88 @@ const ReportsPage: React.FC = () => {
     }
   }
 
+  const handleGenerateCompliance = async () => {
+    try {
+      setComplianceLoading(true)
+      setComplianceError(null)
+      setComplianceRows(null)
+      setCompliancePeriodLabel(null)
+
+      if (!rateInitialised) await initRateData()
+
+      const res = await ApiClient.getReportingComplianceDetail({
+        period_type: periodType,
+        year: rateYear,
+        period: periodType === "yearly" ? undefined : ratePeriod,
+        org_unit: rateOrgFilter === "all" ? "all" : rateOrgFilter,
+      })
+      const data = res.data as {
+        period_label: string
+        rows: Array<{
+          org_unit_id: number
+          org_unit_name: string
+          level: number
+          expected_reports: string[]
+          submitted_reports: string[]
+          unsubmitted_reports: string[]
+        }>
+      }
+      setCompliancePeriodLabel(data.period_label)
+      setComplianceRows(
+        (data.rows || []).map((r) => ({
+          orgUnitId: r.org_unit_id,
+          orgUnitName: r.org_unit_name,
+          level: r.level,
+          expectedReports: r.expected_reports || [],
+          submittedReports: r.submitted_reports || [],
+          unsubmittedReports: r.unsubmitted_reports || [],
+        })),
+      )
+    } catch {
+      setComplianceError("Failed to generate compliance report. Please try again.")
+    } finally {
+      setComplianceLoading(false)
+    }
+  }
+
+  const sortedComplianceRows = useMemo(() => {
+    if (!complianceRows) return []
+    return [...complianceRows].sort((a, b) => {
+      const av = a.orgUnitName.toLowerCase()
+      const bv = b.orgUnitName.toLowerCase()
+      if (av < bv) return complianceSortDir === "asc" ? -1 : 1
+      if (av > bv) return complianceSortDir === "asc" ? 1 : -1
+      return 0
+    })
+  }, [complianceRows, complianceSortDir])
+
+  const exportComplianceSummary = () => {
+    if (!sortedComplianceRows.length) return
+    const periodLabel = compliancePeriodLabel ?? formatPeriodLabel(periodType, rateYear, ratePeriod)
+    const header = [
+      ["Report Compliance", `Period: ${periodLabel}`],
+      [],
+      ["Org Unit", "Level", "Expected Reports", "Submitted Reports", "Unsubmitted Reports"],
+    ]
+    const rows = sortedComplianceRows.map((r) => [
+      r.orgUnitName,
+      r.level + 1,
+      r.expectedReports.length ? r.expectedReports.join("; ") : "Not assigned",
+      r.submittedReports.join("; ") || "—",
+      r.unsubmittedReports.join("; ") || "—",
+    ])
+    const ws = XLSX.utils.aoa_to_sheet([...header, ...rows])
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Compliance")
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" })
+    const a = document.createElement("a")
+    a.href = URL.createObjectURL(
+      new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+    )
+    a.download = `report_compliance_${periodType}_${periodLabel.replace(/\s/g, "_")}.xlsx`
+    a.click()
+  }
+
   // ── Sorted summary rows ───────────────────────────────────────────────────
   const sortedSummaryRows = useMemo(() => {
     if (!summaryRows) return []
@@ -781,6 +946,14 @@ const ReportsPage: React.FC = () => {
             Reporting Rate Summary
           </TabsTrigger>
           <TabsTrigger
+            value="compliance"
+            className="gap-2 text-xs data-[state=active]:bg-[#C9433B] data-[state=active]:text-white data-[state=active]:shadow-sm"
+            onClick={initRateData}
+          >
+            <ListChecks className="h-3.5 w-3.5" />
+            Report Compliance
+          </TabsTrigger>
+          <TabsTrigger
             value="generation"
             className="gap-2 text-xs data-[state=active]:bg-[#C9433B] data-[state=active]:text-white data-[state=active]:shadow-sm"
           >
@@ -813,17 +986,76 @@ const ReportsPage: React.FC = () => {
                   <SelectItem value="draft">Draft</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={periodFilter} onValueChange={(v) => { setPeriodFilter(v); setPage(1) }}>
-                <SelectTrigger className="w-48 h-8 text-sm bg-white border-gray-200">
-                  <SelectValue placeholder="Filter by period" />
+              <Select
+                value={submissionsPeriodType}
+                onValueChange={(v) => {
+                  const t = v as "all" | SummaryPeriodType
+                  setSubmissionsPeriodType(t)
+                  setPage(1)
+                  if (t !== "all") setSubmissionsSubPeriod(defaultSubPeriodForType(t))
+                }}
+              >
+                <SelectTrigger className="w-40 h-8 text-sm bg-white border-gray-200">
+                  <SelectValue placeholder="Period type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All periods</SelectItem>
-                  {periodOptions.map((p) => (
-                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                  ))}
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                  <SelectItem value="half_yearly">Half-yearly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
                 </SelectContent>
               </Select>
+              {submissionsPeriodType !== "all" && (
+                <>
+                  <Select value={submissionsYear} onValueChange={(v) => { setSubmissionsYear(v); setPage(1) }}>
+                    <SelectTrigger className="w-28 h-8 text-sm bg-white border-gray-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getYearOptions().map((y) => (
+                        <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {submissionsPeriodType !== "yearly" && (
+                    <Select
+                      value={submissionsSubPeriod}
+                      onValueChange={(v) => { setSubmissionsSubPeriod(v); setPage(1) }}
+                    >
+                      <SelectTrigger className="w-44 h-8 text-sm bg-white border-gray-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {submissionsPeriodType === "monthly"
+                          ? MONTHS.map((m, i) => (
+                              <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
+                            ))
+                          : submissionsPeriodType === "quarterly"
+                          ? QUARTERS.map((_, i) => (
+                              <SelectItem key={i} value={`Q${i + 1}`}>{QUARTERS[i]}</SelectItem>
+                            ))
+                          : HALF_YEARS.map((_, i) => (
+                              <SelectItem key={i} value={`H${i + 1}`}>{HALF_YEARS[i]}</SelectItem>
+                            ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </>
+              )}
+              {submissionsPeriodType === "all" && (
+                <Select value={periodFilter} onValueChange={(v) => { setPeriodFilter(v); setPage(1) }}>
+                  <SelectTrigger className="w-48 h-8 text-sm bg-white border-gray-200">
+                    <SelectValue placeholder="Filter by month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All months</SelectItem>
+                    {periodOptions.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Select value={String(pageSize)} onValueChange={(v) => { setPage(1); setPageSize(Number(v)) }}>
                 <SelectTrigger className="w-24 h-8 text-sm bg-white border-gray-200">
                   <SelectValue />
@@ -967,13 +1199,21 @@ const ReportsPage: React.FC = () => {
                 {/* Period type */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-gray-600">Period type</label>
-                  <Select value={periodType} onValueChange={(v) => { setPeriodType(v as typeof periodType); setRatePeriod(v === "quarterly" ? "Q1" : v === "monthly" ? String(new Date().getMonth() + 1) : "") }}>
+                  <Select
+                    value={periodType}
+                    onValueChange={(v) => {
+                      const t = v as SummaryPeriodType
+                      setPeriodType(t)
+                      setRatePeriod(t === "yearly" ? "" : defaultSubPeriodForType(t))
+                    }}
+                  >
                     <SelectTrigger className="w-36 h-8 text-sm border-gray-200">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="monthly">Monthly</SelectItem>
                       <SelectItem value="quarterly">Quarterly</SelectItem>
+                      <SelectItem value="half_yearly">Half-yearly</SelectItem>
                       <SelectItem value="yearly">Yearly</SelectItem>
                     </SelectContent>
                   </Select>
@@ -998,7 +1238,7 @@ const ReportsPage: React.FC = () => {
                 {periodType !== "yearly" && (
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-gray-600">
-                      {periodType === "monthly" ? "Month" : "Quarter"}
+                      {subPeriodLabelForType(periodType)}
                     </label>
                     <Select value={ratePeriod} onValueChange={setRatePeriod}>
                       <SelectTrigger className="w-44 h-8 text-sm border-gray-200">
@@ -1009,8 +1249,12 @@ const ReportsPage: React.FC = () => {
                           ? MONTHS.map((m, i) => (
                               <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
                             ))
-                          : QUARTERS.map((q, i) => (
+                          : periodType === "quarterly"
+                          ? QUARTERS.map((q, i) => (
                               <SelectItem key={i} value={`Q${i + 1}`}>{q}</SelectItem>
+                            ))
+                          : HALF_YEARS.map((h, i) => (
+                              <SelectItem key={i} value={`H${i + 1}`}>{h}</SelectItem>
                             ))}
                       </SelectContent>
                     </Select>
@@ -1321,7 +1565,238 @@ const ReportsPage: React.FC = () => {
           )}
         </TabsContent>
 
-        {/* ── Tab 3: Report Generation ──────────────────────────────────────── */}
+        {/* ── Tab 3: Report Compliance ─────────────────────────────────────── */}
+        <TabsContent value="compliance" className="space-y-5 mt-0">
+          <Card className="border-gray-200 shadow-sm">
+            <CardHeader className="pb-3 pt-4 px-5">
+              <CardTitle className="text-sm font-semibold text-gray-900">Generate Report Compliance</CardTitle>
+              <p className="text-xs text-gray-400 mt-0.5">
+                For each org unit, see assigned report types and which are fully submitted vs missing for the selected period.
+              </p>
+            </CardHeader>
+            <CardContent className="px-5 pb-5">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-600">Period type</label>
+                  <Select
+                    value={periodType}
+                    onValueChange={(v) => {
+                      const t = v as SummaryPeriodType
+                      setPeriodType(t)
+                      setRatePeriod(t === "yearly" ? "" : defaultSubPeriodForType(t))
+                    }}
+                  >
+                    <SelectTrigger className="w-36 h-8 text-sm border-gray-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="quarterly">Quarterly</SelectItem>
+                      <SelectItem value="half_yearly">Half-yearly</SelectItem>
+                      <SelectItem value="yearly">Yearly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-600">Year</label>
+                  <Select value={rateYear} onValueChange={setRateYear}>
+                    <SelectTrigger className="w-28 h-8 text-sm border-gray-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getYearOptions().map((y) => (
+                        <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {periodType !== "yearly" && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-600">
+                      {subPeriodLabelForType(periodType)}
+                    </label>
+                    <Select value={ratePeriod} onValueChange={setRatePeriod}>
+                      <SelectTrigger className="w-44 h-8 text-sm border-gray-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {periodType === "monthly"
+                          ? MONTHS.map((m, i) => (
+                              <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
+                            ))
+                          : periodType === "quarterly"
+                          ? QUARTERS.map((q, i) => (
+                              <SelectItem key={i} value={`Q${i + 1}`}>{q}</SelectItem>
+                            ))
+                          : HALF_YEARS.map((h, i) => (
+                              <SelectItem key={i} value={`H${i + 1}`}>{h}</SelectItem>
+                            ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-600">Org unit (root)</label>
+                  <Select value={rateOrgFilter} onValueChange={setRateOrgFilter}>
+                    <SelectTrigger className="w-52 h-8 text-sm border-gray-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(isStaff || isSuperuser) && (
+                        <SelectItem value="all">All org units</SelectItem>
+                      )}
+                      {accessibleFlatUnits.map((u) => (
+                        <SelectItem key={u.id} value={String(u.id)}>
+                          {`${"— ".repeat(u.level)}${u.name}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  onClick={handleGenerateCompliance}
+                  disabled={complianceLoading}
+                  className="h-8 gap-2 text-white text-sm"
+                  style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}
+                >
+                  {complianceLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  )}
+                  {complianceLoading ? "Generating…" : "Generate Report"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {complianceError && (
+            <Alert variant="destructive"><AlertDescription>{complianceError}</AlertDescription></Alert>
+          )}
+
+          {complianceRows && (
+            <Card className="border-gray-200 shadow-sm overflow-hidden">
+              <CardHeader className="pt-4 pb-3 px-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-sm font-semibold text-gray-900">
+                      Report Compliance — {compliancePeriodLabel ?? formatPeriodLabel(periodType, rateYear, ratePeriod)}
+                    </CardTitle>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      {sortedComplianceRows.length} org unit{sortedComplianceRows.length !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={exportComplianceSummary}
+                    disabled={!sortedComplianceRows.length}
+                    className="h-8 text-xs border-gray-200 gap-1.5"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Export XLSX
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50 border-b border-gray-200 hover:bg-gray-50">
+                        <TableHead className="pl-5 w-[22%]">
+                          <button
+                            type="button"
+                            className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:text-gray-900"
+                            onClick={() => setComplianceSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                          >
+                            <Building2 className="h-3.5 w-3.5" />
+                            Org Unit
+                            {complianceSortDir === "asc" ? (
+                              <ChevronUp className="h-3.5 w-3.5" />
+                            ) : (
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </TableHead>
+                        <TableHead className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-[26%]">
+                          Expected
+                        </TableHead>
+                        <TableHead className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-[26%]">
+                          Submitted
+                        </TableHead>
+                        <TableHead className="pr-5 text-xs font-semibold text-gray-600 uppercase tracking-wider w-[26%]">
+                          Unsubmitted
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedComplianceRows.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="h-24 text-center text-sm text-gray-400">
+                            No data available for this selection.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        sortedComplianceRows.map((row) => (
+                          <TableRow key={row.orgUnitId} className="hover:bg-gray-50/60 border-b border-gray-100 align-top">
+                            <TableCell className="pl-5 py-3">
+                              <div className="flex items-center gap-2">
+                                {row.level > 0 && (
+                                  <div
+                                    className="flex-shrink-0 rounded-sm"
+                                    style={{
+                                      width: `${row.level * 12}px`,
+                                      height: "2px",
+                                      background: "#e5e7eb",
+                                      marginLeft: "4px",
+                                    }}
+                                  />
+                                )}
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">{row.orgUnitName}</p>
+                                  <p className="text-[10px] text-gray-400">Level {row.level + 1}</p>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-3">
+                              {row.expectedReports.length === 0 ? (
+                                <span className="text-xs text-gray-400">Not assigned</span>
+                              ) : (
+                                <ReportNameBadges names={row.expectedReports} variant="expected" />
+                              )}
+                            </TableCell>
+                            <TableCell className="py-3">
+                              <ReportNameBadges names={row.submittedReports} variant="submitted" />
+                            </TableCell>
+                            <TableCell className="pr-5 py-3">
+                              <ReportNameBadges names={row.unsubmittedReports} variant="unsubmitted" />
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {!complianceRows && !complianceLoading && (
+            <Card className="border-dashed border-2 border-gray-200 shadow-none bg-white">
+              <CardContent className="text-center py-16">
+                <div className="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center bg-gray-100">
+                  <ListChecks className="h-7 w-7 text-gray-400" />
+                </div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-1">No compliance report generated yet</h3>
+                <p className="text-xs text-gray-400 max-w-xs mx-auto">
+                  Select a period and org unit, then click <strong>Generate Report</strong> to see expected, submitted, and unsubmitted report names.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ── Tab 4: Report Generation ──────────────────────────────────────── */}
         <TabsContent value="generation" className="space-y-5 mt-0">
           <Card className="border-gray-200 shadow-sm">
             <CardHeader className="pb-3 pt-4 px-5">

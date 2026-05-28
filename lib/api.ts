@@ -184,11 +184,18 @@ export const ApiClient = {
   }) => api.get("/reporting/aggregated-report/", { params }),
 
   getReportingRateSummary: (params: {
-    period_type: "monthly" | "quarterly" | "yearly"
+    period_type: "monthly" | "quarterly" | "half_yearly" | "yearly"
     year: number | string
     period?: string
     org_unit?: string | number
   }) => api.get("/reporting/reporting-rate-summary/", { params }),
+
+  getReportingComplianceDetail: (params: {
+    period_type: "monthly" | "quarterly" | "half_yearly" | "yearly"
+    year: number | string
+    period?: string
+    org_unit?: string | number
+  }) => api.get("/reporting/reporting-compliance-detail/", { params }),
   
   // Analytics endpoints
   getAnalytics: (params?: Record<string, string | number | boolean | null | undefined>) => api.get("/analytics/", { params }),

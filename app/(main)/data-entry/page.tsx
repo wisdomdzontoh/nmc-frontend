@@ -111,6 +111,7 @@ export default function DataEntryPage() {
   const [lastSubmittedAt, setLastSubmittedAt] = React.useState<string | null>(null)
   const [reportStatus, setReportStatus] = React.useState<"draft" | "submitted" | null>(null)
   const [loadingReport, setLoadingReport] = React.useState(false)
+  const [targetOrgAssignedTypeIds, setTargetOrgAssignedTypeIds] = React.useState<number[]>([])
 
   // ── Auto-save state ──────────────────────────────────────────────────────
   /** Codes that exist on the server (loaded or last successful auto-save) */
@@ -148,9 +149,62 @@ export default function DataEntryPage() {
   }, [])
 
   // ── Permission checks ────────────────────────────────────────────────────
+  const isPrivileged = Boolean(djangoUser?.is_staff || djangoUser?.is_superuser)
+  const isSuperuser = Boolean(djangoUser?.is_superuser)
   const userOrgUnitId = djangoUser?.org_unit ?? null
   const isViewingOwnOrg = userOrgUnitId !== null && org?.id === userOrgUnitId
-  const isReportTypeEditable = dataset ? editableReportTypes.some((rt) => rt.id === dataset.id) : false
+  const canEnterForSelectedOrg = isPrivileged || isViewingOwnOrg
+  const isReportTypeEditable = dataset
+    ? editableReportTypes.some((rt) => rt.id === dataset.id)
+    : false
+  const meetsReportPortfolio = isSuperuser || isReportTypeEditable
+
+  const isReportAssignedAtTargetOrg = React.useMemo(() => {
+    if (!dataset || !org) return false
+    if (!isPrivileged) {
+      return isViewingOwnOrg && isReportTypeEditable
+    }
+    return targetOrgAssignedTypeIds.includes(dataset.id)
+  }, [
+    dataset,
+    org,
+    isPrivileged,
+    isViewingOwnOrg,
+    isReportTypeEditable,
+    targetOrgAssignedTypeIds,
+  ])
+
+  const datasetsForPicker = React.useMemo(() => {
+    if (!isPrivileged || !org) return datasets
+    const allowedAtTarget = new Set(targetOrgAssignedTypeIds)
+    const portfolio = new Set(editableReportTypes.map((rt) => rt.id))
+    return datasets.filter(
+      (rt) =>
+        allowedAtTarget.has(rt.id) && (isSuperuser || portfolio.has(rt.id)),
+    )
+  }, [datasets, editableReportTypes, targetOrgAssignedTypeIds, isPrivileged, isSuperuser, org])
+
+  React.useEffect(() => {
+    if (!isPrivileged || !org?.id) {
+      setTargetOrgAssignedTypeIds([])
+      return
+    }
+    let cancelled = false
+    ApiClient.getOrgUnitAssignments(org.id)
+      .then((res) => {
+        if (cancelled) return
+        const ids = (res.data || [])
+          .filter((a: { is_active?: boolean }) => a.is_active !== false)
+          .map((a: { report_type: number }) => a.report_type)
+        setTargetOrgAssignedTypeIds(ids)
+      })
+      .catch(() => {
+        if (!cancelled) setTargetOrgAssignedTypeIds([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [org?.id, isPrivileged])
 
   const isPeriodLocked = React.useMemo(() => {
     if (!dataset || !period) return false
@@ -170,8 +224,16 @@ export default function DataEntryPage() {
     }
   }, [dataset, period, djangoUser])
 
-  const isReadOnly = !isViewingOwnOrg || !isReportTypeEditable || isPeriodLocked || org === null
-  const canSubmit = !!dataset && !!org && !!period && isViewingOwnOrg && isReportTypeEditable && !isPeriodLocked
+  const canSubmit =
+    !!dataset &&
+    !!org &&
+    !!period &&
+    canEnterForSelectedOrg &&
+    meetsReportPortfolio &&
+    isReportAssignedAtTargetOrg &&
+    !isPeriodLocked
+
+  const isReadOnly = org === null || !canSubmit
 
   // Update auto-save eligibility ref every render
   canAutoSaveRef.current = canSubmit && !saving
@@ -649,7 +711,7 @@ export default function DataEntryPage() {
       <DataEntryTopBar
         dataset={dataset}
         onDatasetChange={setDataset}
-        datasets={datasets}
+        datasets={datasetsForPicker}
         org={org}
         onOrgChange={setOrg}
         orgTree={orgTree}
@@ -809,14 +871,19 @@ export default function DataEntryPage() {
                       This reporting period <strong>({period!.name})</strong> is locked.
                       Data cannot be modified after {dataset!.lock_period_days} days from the period end date.
                     </>
-                  ) : !isViewingOwnOrg ? (
+                  ) : !canEnterForSelectedOrg ? (
                     <>
                       You are viewing data for <strong>{org!.name}</strong>.
                       You can only enter data for your assigned organisation unit.
                     </>
-                  ) : !isReportTypeEditable ? (
+                  ) : !meetsReportPortfolio ? (
                     <>
                       The report type <strong>{dataset!.name}</strong> is not assigned to your organisation unit.
+                    </>
+                  ) : !isReportAssignedAtTargetOrg ? (
+                    <>
+                      The report type <strong>{dataset!.name}</strong> is not assigned to{" "}
+                      <strong>{org!.name}</strong>.
                     </>
                   ) : (
                     "You cannot make entries for this selection."
