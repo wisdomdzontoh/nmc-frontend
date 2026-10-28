@@ -68,10 +68,10 @@ export default function FormulaBar({ cell, cellReference, onUpdate }: FormulaBar
   }
 
   return (
-    <div className="px-4 py-2 border-b bg-gray-50 flex items-center gap-3">
+    <div className="px-4 py-2 border-b bg-surface-subtle flex items-center gap-3">
       <div className="flex items-center gap-2 min-w-[80px]">
-        <Calculator className="h-4 w-4 text-gray-500" />
-        <span className="text-sm font-mono font-semibold text-gray-700">{cellReference || "—"}</span>
+        <Calculator className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-mono font-semibold text-foreground">{cellReference || "—"}</span>
       </div>
       <Input
         value={value}
@@ -84,7 +84,7 @@ export default function FormulaBar({ cell, cellReference, onUpdate }: FormulaBar
         disabled={!cell}
         className="flex-1 font-mono text-sm"
       />
-      <div className="text-xs text-gray-500 hidden lg:block">
+      <div className="text-xs text-muted-foreground hidden lg:block">
         <span className="font-semibold">Formulas:</span> =SUM(A1:A5), =AVERAGE(B1:B10), =A1+B1*C1
       </div>
     </div>

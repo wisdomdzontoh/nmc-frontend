@@ -1,32 +1,39 @@
 "use client";
 
 import * as React from "react";
+import { usePathname } from "next/navigation";
+
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 
+const SIDEBAR_KEY = "nmc_sidebar_open";
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const pathname = usePathname();
 
-  // Restore persisted sidebar state on mount
+  // Restore the remembered collapse state
   React.useEffect(() => {
-    if (typeof window === "undefined") return;
     try {
-      const stored = window.localStorage.getItem("nmc_sidebar_open");
-      if (stored !== null) {
-        setSidebarOpen(stored === "true");
-      }
+      const stored = window.localStorage.getItem(SIDEBAR_KEY);
+      if (stored !== null) setSidebarOpen(stored === "true");
     } catch {
-      // ignore storage errors
+      // storage blocked — keep the default
     }
   }, []);
+
+  // Close the mobile drawer whenever the page changes
+  React.useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
 
   const handleToggleSidebar = React.useCallback(() => {
     setSidebarOpen((prev) => {
       const next = !prev;
       try {
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem("nmc_sidebar_open", String(next));
-        }
+        window.localStorage.setItem(SIDEBAR_KEY, String(next));
       } catch {
         // ignore storage errors
       }
@@ -34,43 +41,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     });
   }, []);
 
-  // Sidebar width values must stay in sync with Sidebar.tsx (w-60 / w-16)
-  const sidebarWidth = sidebarOpen ? 240 : 64; // px
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* ── Fixed header ────────────────────────────────────────── */}
-      <div className="fixed top-0 left-0 right-0 z-50">
-        <Header sidebarOpen={sidebarOpen} onToggleSidebar={handleToggleSidebar} />
+    // `relative` on the shell and on <main> keeps absolutely positioned children (sr-only labels,
+    // markers, popover helpers) inside the scroll area, so they can't stretch the window and
+    // scroll the whole app off screen.
+    <div className="relative flex h-screen overflow-hidden bg-background">
+      {/* Fixed sidebar from tablet width up; below that the same menu slides out */}
+      <div className="hidden md:flex" data-app-chrome>
+        <Sidebar open={sidebarOpen} onToggle={handleToggleSidebar} />
       </div>
+      <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+        <SheetContent side="left" showCloseButton={false} className="w-64 max-w-[85vw] gap-0 border-0 p-0">
+          <SheetTitle className="sr-only">Main menu</SheetTitle>
+          <Sidebar open variant="drawer" onNavigate={() => setMenuOpen(false)} />
+        </SheetContent>
+      </Sheet>
 
-      {/* ── Fixed sidebar ───────────────────────────────────────── */}
-      {/*
-        We push the sidebar down by the header height (2px accent + 68px row = 70px).
-        The sidebar takes up the remaining viewport height below the header.
-      */}
-      <div
-        className="fixed left-0 bottom-0 z-40 overflow-hidden"
-        style={{ top: "70px" }}
-      >
-        <Sidebar open={sidebarOpen} />
-      </div>
-
-      {/* ── Main content area ───────────────────────────────────── */}
-      {/*
-        Offset the content by:
-          - top: header height (70px)
-          - left: sidebar width (dynamic)
-        This keeps the header + sidebar visible while content scrolls.
-      */}
-      <main
-        className="transition-all duration-200 ease-in-out min-h-screen"
-        style={{ paddingTop: "70px", paddingLeft: `${sidebarWidth}px` }}
-      >
-        <div className="px-4 sm:px-6 lg:px-8 py-5 min-h-[calc(100vh-70px)]">
-          {children}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div data-app-chrome>
+          <Header onOpenMenu={() => setMenuOpen(true)} />
         </div>
-      </main>
+        <main id="main-content" className="canvas-dots scrollbar-thin relative min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-screen-2xl px-4 py-4 sm:px-6 sm:py-6">{children}</div>
+        </main>
+      </div>
     </div>
   );
 }

@@ -171,8 +171,8 @@ const PeriodSelectionModal: React.FC<PeriodSelectionModalProps> = ({
             <button
               className={`px-4 py-2 text-sm font-medium border-b-2 ${
                 activeTab === "relative"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setActiveTab("relative")}
             >
@@ -181,8 +181,8 @@ const PeriodSelectionModal: React.FC<PeriodSelectionModalProps> = ({
             <button
               className={`px-4 py-2 text-sm font-medium border-b-2 ${
                 activeTab === "fixed"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setActiveTab("fixed")}
             >
@@ -201,7 +201,7 @@ const PeriodSelectionModal: React.FC<PeriodSelectionModalProps> = ({
                     <select
                       value={periodType}
                       onChange={(e) => setPeriodType(e.target.value as "months" | "quarters" | "years")}
-                      className="w-full p-2 border border-gray-300 rounded-md"
+                      className="w-full p-2 border border-border rounded-md"
                     >
                       <option value="months">Months</option>
                       <option value="quarters">Quarters</option>
@@ -214,15 +214,15 @@ const PeriodSelectionModal: React.FC<PeriodSelectionModalProps> = ({
                     {relativePeriods.map((period) => (
                       <div
                         key={period.id}
-                        className={`p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${
-                          selectedPeriod?.id === period.id ? "border-blue-500 bg-blue-50" : "border-gray-200"
+                        className={`p-3 border rounded-lg cursor-pointer hover:bg-surface-subtle ${
+                          selectedPeriod?.id === period.id ? "border-primary-border bg-primary-soft" : "border-border"
                         }`}
                         onClick={() => handlePeriodSelect(period)}
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium">{period.name}</span>
                           {selectedPeriod?.id === period.id && (
-                            <CheckCircle className="h-4 w-4 text-blue-500" />
+                            <CheckCircle className="h-4 w-4 text-primary" />
                           )}
                         </div>
                       </div>
@@ -236,15 +236,15 @@ const PeriodSelectionModal: React.FC<PeriodSelectionModalProps> = ({
                   {fixedPeriods.map((period) => (
                     <div
                       key={period.id}
-                      className={`p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${
-                        selectedPeriod?.id === period.id ? "border-blue-500 bg-blue-50" : "border-gray-200"
+                      className={`p-3 border rounded-lg cursor-pointer hover:bg-surface-subtle ${
+                        selectedPeriod?.id === period.id ? "border-primary-border bg-primary-soft" : "border-border"
                       }`}
                       onClick={() => handlePeriodSelect(period)}
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">{period.name}</span>
                         {selectedPeriod?.id === period.id && (
-                          <CheckCircle className="h-4 w-4 text-blue-500" />
+                          <CheckCircle className="h-4 w-4 text-primary" />
                         )}
                       </div>
                     </div>
@@ -258,18 +258,18 @@ const PeriodSelectionModal: React.FC<PeriodSelectionModalProps> = ({
               <h3 className="text-sm font-medium mb-4">Selected Periods</h3>
               {selectedPeriod ? (
                 <div className="space-y-2">
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="p-3 bg-primary-soft border border-primary-border rounded-lg">
                     <div className="flex items-center">
-                      <CheckCircle className="h-4 w-4 text-red-500 mr-2" />
+                      <CheckCircle className="h-4 w-4 text-primary mr-2" />
                       <span className="text-sm font-medium">{selectedPeriod.name}</span>
                     </div>
-                    <div className="text-xs text-gray-600 mt-1">
+                    <div className="text-xs text-muted-foreground mt-1">
                       {new Date(selectedPeriod.startDate).toLocaleDateString()} - {new Date(selectedPeriod.endDate).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-muted-foreground">
                   No periods selected
                 </div>
               )}

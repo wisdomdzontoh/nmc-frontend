@@ -222,7 +222,7 @@ export default function Renderer({ layout, data, remarks = {}, formatNumber }: R
                               const result = evaluateFormula(c.compute, formulaContext)
 
                               if (typeof result === "string" && result.startsWith("#")) {
-                                content = <span className="text-red-600 text-xs">{result}</span>
+                                content = <span className="text-error text-xs">{result}</span>
                               } else if (isNumberLike(result) && formatNumber) {
                                 content = formatNumber(Number(result))
                               } else {

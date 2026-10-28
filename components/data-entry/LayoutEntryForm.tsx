@@ -101,7 +101,7 @@ function CellInput({
       value={localValue}
       readOnly={readOnly}
       onChange={(e) => handleChange(e.target.value)}
-      className="min-h-[80px] text-sm resize-none bg-white w-full border-2 focus:ring-2 focus:ring-blue-100"
+      className="min-h-[80px] text-sm resize-none bg-card w-full border-2 focus:ring-2 focus:ring-info-border"
       placeholder="Enter remarks…"
     />
   ) : (
@@ -112,10 +112,10 @@ function CellInput({
       readOnly={readOnly}
       onChange={(e) => handleChange(e.target.value)}
       className={cn(
-        "text-right h-14 text-lg font-semibold px-4 border-2 focus:ring-2 focus:ring-blue-100 bg-white w-full min-w-[100px]",
+        "text-right h-14 text-lg font-semibold px-4 border-2 focus:ring-2 focus:ring-info-border bg-card w-full min-w-[100px]",
         readOnly
-          ? "border-purple-200 text-purple-700 bg-purple-50/30 cursor-not-allowed"
-          : "border-blue-200 focus:border-blue-400 hover:border-blue-300"
+          ? "border-purple-border text-purple bg-purple-bg/30 cursor-not-allowed"
+          : "border-info-border focus:border-info hover:border-info-border"
       )}
       placeholder="0"
     />
@@ -162,11 +162,11 @@ function TableArray({
                       colSpan={hc.colSpan || 1}
                       rowSpan={hc.rowSpan || 1}
                       className={cn(
-                        "border border-gray-300 px-4 py-3 text-left text-[14px] font-bold bg-blue-50 whitespace-nowrap",
+                        "border border-border px-4 py-3 text-left text-[14px] font-bold bg-info-bg whitespace-nowrap",
                         "sticky top-0",
                         hc.align === "center" && "text-center",
                         hc.align === "right" && "text-right",
-                        isFirstColumn && "sticky left-0 z-30 shadow-[2px_0_4px_rgba(0,0,0,0.1)]"
+                        isFirstColumn && "sticky left-0 z-30 shadow-[2px_0_4px_hsl(var(--foreground)/0.06)]"
                       )}
                       style={{
                         minWidth: '120px',
@@ -187,7 +187,7 @@ function TableArray({
 
         <tbody>
           {body.map((row, ri) => (
-            <tr key={`tr-${ri}`} className="hover:bg-blue-50/20">
+            <tr key={`tr-${ri}`} className="hover:bg-info-bg/20">
               {row.cells.map((c, ci) => {
                 let content: React.ReactNode = c.text ?? ""
                 let extraClass = ""
@@ -207,12 +207,12 @@ function TableArray({
                       readOnly={readOnly}
                     />
                   )
-                  extraClass = "bg-blue-50/30"
+                  extraClass = "bg-info-bg/30"
                 } else if (c.compute) {
                   const code = String(c.bind || c.compute)
                   const computed = values[code] ?? null
                   content = (
-                    <div className="flex items-center gap-2 text-purple-700 text-lg font-semibold justify-end pr-2">
+                    <div className="flex items-center gap-2 text-purple text-lg font-semibold justify-end pr-2">
                       <Calculator className="h-5 w-5 opacity-70" />
                       <span className="font-mono">
                         {computed !== null && computed !== undefined
@@ -221,16 +221,16 @@ function TableArray({
                       </span>
                     </div>
                   )
-                  extraClass = "bg-purple-50/30"
+                  extraClass = "bg-purple-bg/30"
                 } else if (typeof c.text === "string" && c.text.trim() !== "") {
                   content = <span className="text-sm font-semibold">{c.text}</span>
                 }
 
                 // Determine background color for first column
                 const getFirstColumnBg = () => {
-                  if (extraClass.includes('bg-blue-50')) return 'rgb(239 246 255)'
-                  if (extraClass.includes('bg-purple-50')) return 'rgb(250 245 255)'
-                  return 'white'
+                  if (extraClass.includes('bg-info-bg')) return 'hsl(var(--info-bg))'
+                  if (extraClass.includes('bg-purple-bg')) return 'hsl(var(--purple-bg))'
+                  return 'hsl(var(--card))'
                 }
 
                 return (
@@ -239,12 +239,12 @@ function TableArray({
                     colSpan={c.colSpan || 1}
                     rowSpan={c.rowSpan || 1}
                     className={cn(
-                      "border border-gray-300 px-4 py-4 align-top",
+                      "border border-border px-4 py-4 align-top",
                       c.bold && "font-semibold",
                       c.align === "center" && "text-center",
                       c.align === "right" && "text-right",
                       extraClass,
-                      isFirstColumn && "sticky left-0 z-10 shadow-[2px_0_4px_rgba(0,0,0,0.1)]"
+                      isFirstColumn && "sticky left-0 z-10 shadow-[2px_0_4px_hsl(var(--foreground)/0.06)]"
                     )}
                     style={{
                       minWidth: '120px',
@@ -281,8 +281,8 @@ export default function LayoutEntryForm({
 
   if (!sections.length) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border p-6 text-center">
-        <p className="text-gray-500">
+      <div className="bg-card rounded-lg shadow-sm border p-6 text-center">
+        <p className="text-muted-foreground">
           No layout sections found. Please check the layout configuration.
         </p>
       </div>
@@ -290,7 +290,7 @@ export default function LayoutEntryForm({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+    <div className="bg-card rounded-lg shadow-sm border overflow-hidden">
       {layout.title && (
         <div className="px-3 py-2 text-sm font-semibold border-b">
           {layout.title}
@@ -302,9 +302,9 @@ export default function LayoutEntryForm({
           if (section.type === "heading") {
             return (
               <div
-                key={section.id || `heading-${sIdx}`}
+                key={`${section.id ?? "heading"}-${sIdx}`}
                 className={cn(
-                  "px-4 py-3 font-semibold border-b bg-gradient-to-r from-blue-50 to-blue-100",
+                  "px-4 py-3 font-semibold border-b bg-gradient-to-r from-info-bg to-info-bg",
                   section.level === 1 && "text-lg",
                   section.level === 2 && "text-base",
                   (!section.level || section.level === 3) && "text-sm"
@@ -318,8 +318,8 @@ export default function LayoutEntryForm({
           if (section.type === "text") {
             return (
               <div
-                key={section.id || `text-${sIdx}`}
-                className="px-4 py-3 text-sm text-gray-700 border-b bg-gray-50"
+                key={`${section.id ?? "text"}-${sIdx}`}
+                className="px-4 py-3 text-sm text-foreground border-b bg-surface-subtle"
               >
                 {section.content}
               </div>
@@ -328,7 +328,7 @@ export default function LayoutEntryForm({
 
           if (section.type === "table") {
             return (
-              <div key={section.id || `table-${sIdx}`}>
+              <div key={`${section.id ?? "table"}-${sIdx}`}>
                 <TableArray
                   section={section as TableArraySection}
                   values={values}
@@ -342,17 +342,17 @@ export default function LayoutEntryForm({
           return <React.Fragment key={`unknown-${sIdx}`} />
         })}
 
-        <div className="px-4 py-3 border-t bg-gray-50 flex items-center gap-6 text-xs text-gray-600">
+        <div className="px-4 py-3 border-t bg-surface-subtle flex items-center gap-6 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-blue-50 border border-blue-200 rounded" />
+            <div className="w-4 h-4 bg-info-bg border border-info-border rounded" />
             <span>Data Entry</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-purple-50 border border-purple-200 rounded" />
+            <div className="w-4 h-4 bg-purple-bg border border-purple-border rounded" />
             <span>Calculated</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-amber-50 border border-amber-200 rounded" />
+            <div className="w-4 h-4 bg-pending-bg border border-pending-border rounded" />
             <span>Header</span>
           </div>
         </div>

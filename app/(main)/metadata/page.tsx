@@ -44,6 +44,8 @@ import {
   BarChart3
 } from "lucide-react"
 import { SectionLoader } from "@/components/ui/PageLoader"
+import { PageCard } from "@/components/layout/PageCard"
+import { InlineNotice } from "@/components/common/inline-notice"
 
 interface ReportType {
   id: number
@@ -222,60 +224,40 @@ const MetadataPage: React.FC = () => {
   )
 
   if (loading) {
-    return <SectionLoader message="Loading metadata…" />
+    return <SectionLoader message="Loading report types and periods…" />
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Metadata Management</h1>
-          <p className="text-muted-foreground">
-            Manage report types, periods, and other system metadata
-          </p>
-        </div>
-      </div>
-
-      {/* Error Alert */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Search */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Search Metadata</CardTitle>
-          <CardDescription>
-            Find metadata items by name or description
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+    <div className="space-y-6">
+      <PageCard
+        title="Report types and periods"
+        description="Set up the report types people fill in and the reporting periods they cover."
+        actions={
+          <div className="relative w-64">
+            <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <Input
-              placeholder="Search metadata..."
+              placeholder="Search by name or description"
+              aria-label="Search report types and periods"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-9"
             />
           </div>
-        </CardContent>
-      </Card>
+        }
+      />
 
-      {/* Tabs */}
+      {error && <InlineNotice tone="error" title="Something didn't load or save">{error}</InlineNotice>}
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="report-types">Report Types</TabsTrigger>
-          <TabsTrigger value="report-periods">Report Periods</TabsTrigger>
+        <TabsList className="tabs-line">
+          <TabsTrigger value="report-types">Report types</TabsTrigger>
+          <TabsTrigger value="report-periods">Report periods</TabsTrigger>
         </TabsList>
 
         {/* Report Types Tab */}
         <TabsContent value="report-types" className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Report Types</h2>
+            <h2 className="text-base font-semibold">Report types</h2>
             <Dialog open={isCreateReportTypeDialogOpen} onOpenChange={setIsCreateReportTypeDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
@@ -331,11 +313,11 @@ const MetadataPage: React.FC = () => {
             {filteredReportTypes.length === 0 ? (
               <Card className="col-span-full">
                 <CardContent className="text-center py-12">
-                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">
                     No report types found
                   </h3>
-                  <p className="text-gray-500 mb-4">
+                  <p className="text-muted-foreground mb-4">
                     {searchTerm ? "Try adjusting your search terms." : "Get started by creating your first report type."}
                   </p>
                   {!searchTerm && (
@@ -352,7 +334,7 @@ const MetadataPage: React.FC = () => {
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-2">
-                        <FileText className="h-5 w-5 text-blue-600" />
+                        <FileText className="h-5 w-5 text-info" />
                         <CardTitle className="text-lg">{reportType.name}</CardTitle>
                       </div>
                       <Badge variant={reportType.is_active ? "default" : "secondary"}>
@@ -362,12 +344,12 @@ const MetadataPage: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     {reportType.description && (
-                      <p className="text-sm text-gray-600 mb-4">
+                      <p className="text-sm text-muted-foreground mb-4">
                         {reportType.description}
                       </p>
                     )}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center text-sm text-gray-500">
+                      <div className="flex items-center text-sm text-muted-foreground">
                         <BarChart3 className="h-4 w-4 mr-1" />
                         {reportType.report_count || 0} reports
                       </div>
@@ -378,7 +360,7 @@ const MetadataPage: React.FC = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="text-error hover:text-error hover:bg-error-bg"
                           onClick={() => setDeleteReportTypeId(reportType.id)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -395,7 +377,7 @@ const MetadataPage: React.FC = () => {
         {/* Report Periods Tab */}
         <TabsContent value="report-periods" className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Report Periods</h2>
+            <h2 className="text-base font-semibold">Report periods</h2>
             <Dialog open={isCreateReportPeriodDialogOpen} onOpenChange={setIsCreateReportPeriodDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
@@ -469,11 +451,11 @@ const MetadataPage: React.FC = () => {
             {filteredReportPeriods.length === 0 ? (
               <Card className="col-span-full">
                 <CardContent className="text-center py-12">
-                  <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">
                     No report periods found
                   </h3>
-                  <p className="text-gray-500 mb-4">
+                  <p className="text-muted-foreground mb-4">
                     {searchTerm ? "Try adjusting your search terms." : "Get started by creating your first report period."}
                   </p>
                   {!searchTerm && (
@@ -490,7 +472,7 @@ const MetadataPage: React.FC = () => {
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-2">
-                        <Calendar className="h-5 w-5 text-red-600" />
+                        <Calendar className="h-5 w-5 text-error" />
                         <CardTitle className="text-lg">{reportPeriod.name}</CardTitle>
                       </div>
                       <Badge variant={reportPeriod.is_active ? "default" : "secondary"}>
@@ -500,18 +482,18 @@ const MetadataPage: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     {reportPeriod.description && (
-                      <p className="text-sm text-gray-600 mb-4">
+                      <p className="text-sm text-muted-foreground mb-4">
                         {reportPeriod.description}
                       </p>
                     )}
                     <div className="space-y-2 mb-4">
-                      <div className="flex items-center text-sm text-gray-500">
+                      <div className="flex items-center text-sm text-muted-foreground">
                         <Calendar className="h-4 w-4 mr-1" />
                         {new Date(reportPeriod.start_date).toLocaleDateString()} - {new Date(reportPeriod.end_date).toLocaleDateString()}
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-muted-foreground">
                         Created {new Date(reportPeriod.created_at).toLocaleDateString()}
                       </div>
                       <div className="flex space-x-2">
@@ -521,7 +503,7 @@ const MetadataPage: React.FC = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="text-error hover:text-error hover:bg-error-bg"
                           onClick={() => setDeleteReportPeriodId(reportPeriod.id)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -547,7 +529,7 @@ const MetadataPage: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteReportType} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={handleDeleteReportType} className="bg-error hover:bg-error">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -565,7 +547,7 @@ const MetadataPage: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteReportPeriod} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={handleDeleteReportPeriod} className="bg-error hover:bg-error">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

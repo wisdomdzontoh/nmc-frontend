@@ -3,6 +3,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { PageLoader } from "@/components/ui/PageLoader";
 
 export default function Home() {
   const { djangoUser: user, loading, isAuthenticated } = useAuth();
@@ -18,9 +19,5 @@ export default function Home() {
     }
   }, [isAuthenticated, user, loading, router]);
 
-  return (
-    <div className="flex h-screen items-center justify-center">
-      <p>Loading...</p>
-    </div>
-  );
+  return <PageLoader message="Loading…" />;
 }

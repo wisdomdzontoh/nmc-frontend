@@ -3,7 +3,8 @@
 import * as React from "react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
+import { PickerTrigger } from "./PickerTrigger"
 
 export type Period = { id: string; name: string; startDate: string; endDate: string }
 
@@ -59,14 +60,15 @@ export default function PeriodInlineDropdown({ value, onChange }: Props) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" className="px-3 h-10 rounded-none border-x">
-          <span className="text-sm text-muted-foreground mr-2">Period</span>
-          <span className="font-medium">{value ? value.name : "Choose a period"}</span>
-          <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
+        <PickerTrigger
+          label="Period"
+          chosen={value ? value.name : null}
+          placeholder="Choose a period"
+          icon={<CalendarDays className="h-4 w-4" />}
+        />
       </PopoverTrigger>
 
-      <PopoverContent align="start" className="p-0 w-[360px]" sideOffset={6}>
+      <PopoverContent align="start" className="p-0 w-[min(360px,calc(100vw-2rem))]" sideOffset={6}>
         <div className="flex items-center justify-between p-2 border-b gap-2">
           <Button variant="outline" size="sm" onClick={() => setYear((y) => y - 1)}>
             <ChevronLeft className="h-4 w-4 mr-1" /> {year - 1}
@@ -75,14 +77,14 @@ export default function PeriodInlineDropdown({ value, onChange }: Props) {
             <button
               type="button"
               onClick={() => setMode("monthly")}
-              className={`text-xs px-2 py-1 rounded border ${mode === "monthly" ? "bg-blue-50 border-blue-200 text-blue-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+              className={`text-xs px-2 py-1 rounded border ${mode === "monthly" ? "bg-primary-soft border-primary-border text-primary font-semibold" : "border-border text-muted-foreground hover:bg-surface-subtle"}`}
             >
               Monthly
             </button>
             <button
               type="button"
               onClick={() => setMode("quarterly")}
-              className={`text-xs px-2 py-1 rounded border ${mode === "quarterly" ? "bg-blue-50 border-blue-200 text-blue-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+              className={`text-xs px-2 py-1 rounded border ${mode === "quarterly" ? "bg-primary-soft border-primary-border text-primary font-semibold" : "border-border text-muted-foreground hover:bg-surface-subtle"}`}
             >
               Quarterly
             </button>
@@ -100,7 +102,7 @@ export default function PeriodInlineDropdown({ value, onChange }: Props) {
                 onChange(p)
                 setOpen(false)
               }}
-              className={`w-full text-left px-4 py-3 hover:bg-gray-50 ${value?.id === p.id ? "bg-blue-50" : ""}`}
+              className={`w-full text-left px-4 py-3 text-sm hover:bg-surface-subtle ${value?.id === p.id ? "bg-primary-soft font-semibold text-primary" : ""}`}
             >
               {p.name}
             </button>

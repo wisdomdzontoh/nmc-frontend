@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { EmptyState } from "@/components/common/empty-state"
 import ExcelLikeTable from "@/components/report-designer/ExcelLikeTable"
 import CellFormatToolbar from "@/components/report-designer/CellFormatToolbar"
 import FormulaBar from "@/components/report-designer/FormulaBar"
@@ -138,7 +138,7 @@ export default function ReportDesignerPage() {
   const addHeading = () => {
     // give headings an id so we can scroll to them
     const hdrId = `hdr_${Date.now()}`
-    const heading: HeadingSection = { type: "heading", text: "SECTION TITLE" }
+    const heading: HeadingSection = { id: hdrId, type: "heading", text: "SECTION TITLE" }
     const newSchema = { ...schema, sections: [...schema.sections, heading] }
     updateSchema(newSchema)
 
@@ -188,7 +188,7 @@ export default function ReportDesignerPage() {
 
     if (section.type === "heading") {
       const h = section as HeadingSection
-      duplicatedSection = { ...h, text: `${h.text} (Copy)` }
+      duplicatedSection = { ...h, id: `hdr_${Date.now()}`, text: `${h.text} (Copy)` }
     } else {
       const t = section as TableSection
       duplicatedSection = {
@@ -364,40 +364,49 @@ export default function ReportDesignerPage() {
 
   if (!isSuperuser && !isStaff) {
     return (
-      <div className="p-6 max-w-2xl mx-auto text-center">
-        <h1 className="text-2xl font-bold mb-2">Report Designer</h1>
-        <Alert>
-          <AlertDescription>
-            Report design is only available to staff and administrators. Contact your administrator if you need access.
-          </AlertDescription>
-        </Alert>
-      </div>
+      <section className="rounded-xl border border-border bg-card">
+        <EmptyState
+          illustration="no-access"
+          title="You don't have access to report design"
+          description="Designing report forms is for administrators. If you need it, ask your administrator."
+          action={{ label: "Back to dashboard", href: "/dashboard" }}
+        />
+      </section>
     )
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="-mx-4 -my-4 flex h-[calc(100vh-4rem)] flex-col bg-surface-subtle sm:-mx-6 sm:-my-6">
       {/* Header */}
-      <div className="bg-white border-b">
-        <div className="px-4 py-3 flex items-center gap-3 border-b">
+      <div className="border-b border-border bg-card">
+        <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
           <Button
             size="sm"
             variant="ghost"
             onClick={() => router.push("/design-reports")}
-            className="mr-2"
-            title="Back to Reports"
+            title="Back to all layouts"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            All layouts
           </Button>
 
-          <FileSpreadsheet className="h-5 w-5 text-gray-600" />
+          <span className="icon-chip h-9 w-9" aria-hidden="true">
+            <FileSpreadsheet className="h-4 w-4" />
+          </span>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Report Layout Name"
-            className="w-80 font-medium"
+            placeholder="Layout name, e.g. Monthly registration return"
+            aria-label="Layout name"
+            className="w-full font-semibold sm:w-80"
           />
-          <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Code" className="w-40" />
+          <Input
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Code, e.g. MRR"
+            aria-label="Layout code"
+            className="font-clinical w-36"
+          />
           <Select
             value={reportTypeId ? String(reportTypeId) : ""}
             onValueChange={(v) => {
@@ -405,8 +414,8 @@ export default function ReportDesignerPage() {
               setSelectedCell(null)
             }}
           >
-            <SelectTrigger className="w-64">
-              <SelectValue placeholder="Select report type" />
+            <SelectTrigger className="w-64" aria-label="Report this layout is for">
+              <SelectValue placeholder="Choose the report" />
             </SelectTrigger>
             <SelectContent>
               {(Array.isArray(reportTypes) ? reportTypes : []).map((rt) => (
@@ -419,21 +428,21 @@ export default function ReportDesignerPage() {
 
           <div className="flex-1" />
 
-          <Button size="sm" variant="outline" onClick={handleUndo} disabled={!canUndo()} title="Undo (Ctrl+Z)">
+          <Button size="icon" variant="ghost" onClick={handleUndo} disabled={!canUndo()} title="Undo (Ctrl+Z)" aria-label="Undo">
             <Undo2 className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="outline" onClick={handleRedo} disabled={!canRedo()} title="Redo (Ctrl+Y)">
+          <Button size="icon" variant="ghost" onClick={handleRedo} disabled={!canRedo()} title="Redo (Ctrl+Y)" aria-label="Redo">
             <Redo2 className="h-4 w-4" />
           </Button>
 
-          <div className="h-6 w-px bg-gray-300" />
+          <div className="h-6 w-px bg-border" aria-hidden="true" />
 
-          <Button size="sm" variant="outline" onClick={handleSave} title="Save (Ctrl+S)">
-            <Save className="h-4 w-4 mr-2" />
-            Save
+          <Button variant="outline" onClick={handleSave} title="Save (Ctrl+S)">
+            <Save className="h-4 w-4" aria-hidden="true" />
+            Save draft
           </Button>
-          <Button size="sm" onClick={handlePublish} disabled={!layoutId}>
-            <Upload className="h-4 w-4 mr-2" />
+          <Button onClick={handlePublish} disabled={!layoutId} title={!layoutId ? "Save the layout first, then publish it" : undefined}>
+            <Upload className="h-4 w-4" aria-hidden="true" />
             Publish
           </Button>
         </div>
@@ -445,10 +454,10 @@ export default function ReportDesignerPage() {
       <div className="flex-1 flex min-h-0">
         {/* Left panel */}
         {leftPanelOpen ? (
-          <div className="w-56 bg-white border-r flex flex-col">
+          <div className="w-56 bg-card border-r flex flex-col">
             <div className="p-4 border-b">
               <div className="flex items-center justify-between mb-3">
-                <div className="text-sm font-semibold text-gray-700">Insert</div>
+                <div className="text-sm font-semibold text-foreground">Insert</div>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -472,8 +481,8 @@ export default function ReportDesignerPage() {
             </div>
 
             <div className="flex-1 overflow-auto p-4 min-h-0">
-              <div className="text-sm font-semibold mb-3 text-gray-700">Shortcuts</div>
-              <div className="space-y-2 text-xs text-gray-600">
+              <div className="text-sm font-semibold mb-3 text-foreground">Shortcuts</div>
+              <div className="space-y-2 text-xs text-muted-foreground">
                 <div><strong>Ctrl+Z:</strong> Undo</div>
                 <div><strong>Ctrl+Y:</strong> Redo</div>
                 <div><strong>Ctrl+S:</strong> Save</div>
@@ -482,24 +491,24 @@ export default function ReportDesignerPage() {
                 <div><strong>Del/Backspace:</strong> Clear cell</div>
                 <div><strong>Tab:</strong> Next cell</div>
                 <div><strong>Shift+Tab:</strong> Previous cell</div>
-                <div className="pt-2 mt-2 border-t border-gray-200">
-                  <div className="text-xs text-gray-500">
+                <div className="pt-2 mt-2 border-t border-border">
+                  <div className="text-xs text-muted-foreground">
                     <strong>Tip:</strong> Right-click on row numbers or column headers to insert/delete rows and columns
                   </div>
                 </div>
-                <div className="pt-2 mt-2 border-t border-gray-200">
-                  <div className="text-xs text-gray-500">
+                <div className="pt-2 mt-2 border-t border-border">
+                  <div className="text-xs text-muted-foreground">
                     <strong>Drag & Drop:</strong> Use the grip handle to reorder sections
                   </div>
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-muted-foreground">
                   <strong>Duplicate:</strong> Click the copy icon to duplicate sections
                 </div>
               </div>
             </div>
           </div>
         ) : (
-          <div className="w-10 bg-white border-r flex items-start justify-center pt-4">
+          <div className="w-10 bg-card border-r flex items-start justify-center pt-4">
             <Button
               size="sm"
               variant="ghost"
@@ -515,8 +524,8 @@ export default function ReportDesignerPage() {
         {/* Center */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-            <div className="bg-white border-b px-4">
-              <TabsList className="h-10">
+            <div className="border-b border-border bg-card px-4">
+              <TabsList className="tabs-line border-b-0">
                 <TabsTrigger value="design" className="gap-2">
                   <Code className="h-4 w-4" />
                   Design
@@ -528,21 +537,21 @@ export default function ReportDesignerPage() {
               </TabsList>
             </div>
 
-            <TabsContent value="design" className="flex-1 overflow-y-auto min-h-0 bg-gray-50 p-6 m-0">
+            <TabsContent value="design" className="flex-1 overflow-y-auto min-h-0 bg-surface-subtle p-6 m-0">
               <div className="max-w-6xl mx-auto space-y-6 pb-24">
                 {schema.sections.map((sec, idx: number) => {
                   // ensure each section has an id for scroll target - for tables use true id, for headings synthesize
-                  const sectionId = sec.type === "table" ? (sec as TableSection).id : `hdr_${idx}`
+                  const sectionId = sec.type === "table" ? (sec as TableSection).id : (sec as HeadingSection).id ?? `hdr_${idx}`
                   if (sec.type === "heading") {
                     const h = sec as HeadingSection
                     return (
                       <div
                         id={`section-${sectionId}`}
-                        key={sectionId}
-                        className={`bg-white rounded-lg p-4 border-2 group relative shadow-sm transition-all ${
+                        key={`${sectionId}-${idx}`}
+                        className={`bg-card rounded-lg p-4 border-2 group relative shadow-sm transition-all ${
                           draggedIndex === idx 
-                            ? "border-blue-400 shadow-lg opacity-50" 
-                            : "border-gray-200 hover:border-gray-300"
+                            ? "border-primary border-dashed shadow-lg opacity-50" 
+                            : "border-border hover:border-border"
                         }`}
                         draggable
                         onDragStart={(e) => {
@@ -571,8 +580,8 @@ export default function ReportDesignerPage() {
                         }}
                       >
                         <div className="flex items-center gap-2 mb-2">
-                          <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
-                          <span className="text-xs text-gray-500 font-medium">HEADING</span>
+                          <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
+                          <span className="stat-card-label">Heading</span>
                         </div>
                         <Input
                           value={h.text}
@@ -592,7 +601,7 @@ export default function ReportDesignerPage() {
                             onClick={() => duplicateSection(idx)}
                             title="Duplicate section"
                           >
-                            <Copy className="h-4 w-4 text-blue-600" />
+                            <Copy className="h-4 w-4 text-muted-foreground" />
                           </Button>
                         <Button
                           size="sm"
@@ -601,7 +610,7 @@ export default function ReportDesignerPage() {
                           onClick={() => deleteSection(idx)}
                             title="Delete section"
                         >
-                          <Trash2 className="h-4 w-4 text-red-600" />
+                          <Trash2 className="h-4 w-4 text-error" />
                         </Button>
                         </div>
                       </div>
@@ -612,11 +621,11 @@ export default function ReportDesignerPage() {
                   return (
                     <div
                       id={`section-${sectionId}`}
-                      key={sectionId}
-                      className={`bg-white rounded-lg border-2 overflow-hidden group relative shadow-sm transition-all ${
+                      key={`${sectionId}-${idx}`}
+                      className={`bg-card rounded-lg border-2 overflow-hidden group relative shadow-sm transition-all ${
                         draggedIndex === idx 
-                          ? "border-blue-400 shadow-lg opacity-50" 
-                          : "border-gray-200 hover:border-gray-300"
+                          ? "border-primary border-dashed shadow-lg opacity-50" 
+                          : "border-border hover:border-border"
                       }`}
                       draggable
                       onDragStart={(e) => {
@@ -644,10 +653,10 @@ export default function ReportDesignerPage() {
                         setDraggedIndex(null)
                       }}
                     >
-                      <div className="flex items-center justify-between p-3 border-b bg-gray-50">
+                      <div className="flex items-center justify-between p-3 border-b bg-surface-subtle">
                         <div className="flex items-center gap-2">
-                          <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
-                          <span className="text-xs text-gray-500 font-medium">TABLE</span>
+                          <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
+                          <span className="text-xs text-muted-foreground font-medium">TABLE</span>
                         </div>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button
@@ -657,7 +666,7 @@ export default function ReportDesignerPage() {
                             onClick={() => duplicateSection(idx)}
                             title="Duplicate section"
                           >
-                            <Copy className="h-4 w-4 text-blue-600" />
+                            <Copy className="h-4 w-4 text-muted-foreground" />
                           </Button>
                       <Button
                         size="sm"
@@ -666,7 +675,7 @@ export default function ReportDesignerPage() {
                         onClick={() => deleteSection(idx)}
                             title="Delete section"
                       >
-                        <Trash2 className="h-4 w-4 text-red-600" />
+                        <Trash2 className="h-4 w-4 text-error" />
                       </Button>
                         </div>
                       </div>
@@ -694,8 +703,8 @@ export default function ReportDesignerPage() {
 
                 {/* Empty state */}
                 {schema.sections.length === 0 && (
-                  <div className="text-center py-20 text-gray-500">
-                    <TableIcon className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                  <div className="text-center py-20 text-muted-foreground">
+                    <TableIcon className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
                     <p className="text-lg font-medium mb-2">No elements yet</p>
                     <p className="text-sm">Add a heading or table from the left sidebar to get started</p>
                   </div>
@@ -703,7 +712,7 @@ export default function ReportDesignerPage() {
               </div>
             </TabsContent>
 
-            <TabsContent value="preview" className="flex-1 overflow-y-auto min-h-0 bg-gray-100 p-6 m-0">
+            <TabsContent value="preview" className="flex-1 overflow-y-auto min-h-0 bg-muted p-6 m-0">
               <div className="max-w-6xl mx-auto pb-24">
                 <Renderer layout={schema} data={{}} />
               </div>
@@ -713,10 +722,10 @@ export default function ReportDesignerPage() {
 
         {/* Right panel */}
         {rightPanelOpen ? (
-          <div className="w-80 bg-white border-l flex flex-col">
+          <div className="w-80 bg-card border-l flex flex-col">
             <div className="p-4 border-b">
               <div className="flex items-center justify-between mb-1">
-                <h3 className="text-sm font-semibold text-gray-700">Data Elements</h3>
+                <h3 className="text-sm font-semibold text-foreground">Data Elements</h3>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -727,21 +736,21 @@ export default function ReportDesignerPage() {
                   <PanelRightClose className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="text-xs text-gray-500">Drag to cells or select cell and click +</p>
+              <p className="text-xs text-muted-foreground">Drag to cells or select cell and click +</p>
             </div>
             <div className="flex-1 overflow-hidden min-h-0">
               {reportTypeId ? (
                 <DataElementPalette elements={rtElements} onBind={handleBindElement} />
               ) : (
-                <div className="p-6 text-sm text-gray-500 text-center">
-                  <div className="mb-3 text-gray-400">📊</div>
+                <div className="p-6 text-sm text-muted-foreground text-center">
+                  <div className="mb-3 text-muted-foreground">📊</div>
                   Select a report type above to view available data elements
                 </div>
               )}
             </div>
           </div>
         ) : (
-          <div className="w-10 bg-white border-l flex items-start justify-center pt-4">
+          <div className="w-10 bg-card border-l flex items-start justify-center pt-4">
             <Button
               size="sm"
               variant="ghost"

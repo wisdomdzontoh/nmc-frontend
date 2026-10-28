@@ -20,6 +20,7 @@ export type CellDef = {
   }
   
   export type HeadingSection = {
+    id?: string
     type: "heading"
     text: string
     level?: 1 | 2 | 3

@@ -3,8 +3,8 @@
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 
 /**
- * Themed Toaster — brand-aligned toast notifications.
- * Mounted once in app/layout.tsx; never mount again inside pages.
+ * Themed Toaster — mounted once in app/layout.tsx; never mount again inside pages.
+ * Success toasts close on their own; errors stay until closed (closeButton).
  */
 const Toaster = ({ ...props }: ToasterProps) => {
   return (
@@ -12,25 +12,35 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme="light"
       richColors
       closeButton
-      position="top-right"
+      position="bottom-right"
       className="toaster group"
       toastOptions={{
         classNames: {
-          toast: "font-sans text-sm rounded-lg shadow-md border",
+          toast: "font-sans text-sm rounded-xl border shadow-md",
           title: "font-semibold text-[0.8125rem]",
-          description: "text-xs opacity-80 mt-0.5",
+          description: "text-xs opacity-90 mt-0.5",
           closeButton: "opacity-60 hover:opacity-100",
-          success: "border-green-200",
-          error: "border-red-200",
-          info: "border-blue-200",
-          warning: "border-amber-200",
         },
       }}
-      style={{
-        "--normal-bg": "var(--popover)",
-        "--normal-text": "var(--popover-foreground)",
-        "--normal-border": "var(--border)",
-      } as React.CSSProperties}
+      style={
+        {
+          "--normal-bg": "hsl(var(--popover))",
+          "--normal-text": "hsl(var(--popover-foreground))",
+          "--normal-border": "hsl(var(--border))",
+          "--success-bg": "hsl(var(--success-bg))",
+          "--success-text": "hsl(var(--success))",
+          "--success-border": "hsl(var(--success-border))",
+          "--error-bg": "hsl(var(--error-bg))",
+          "--error-text": "hsl(var(--error))",
+          "--error-border": "hsl(var(--error-border))",
+          "--warning-bg": "hsl(var(--warning-bg))",
+          "--warning-text": "hsl(var(--warning))",
+          "--warning-border": "hsl(var(--warning-border))",
+          "--info-bg": "hsl(var(--info-bg))",
+          "--info-text": "hsl(var(--info))",
+          "--info-border": "hsl(var(--info-border))",
+        } as React.CSSProperties
+      }
       {...props}
     />
   )

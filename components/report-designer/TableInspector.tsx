@@ -247,10 +247,10 @@ export default function TableInspector({
                       onClick={() => selectCell(ri, ci)}
                       className={cn(
                         "border px-2 py-1 cursor-pointer",
-                        isSel ? "outline outline-2 outline-blue-500" : "hover:bg-gray-50",
+                        isSel ? "outline outline-2 outline-info" : "hover:bg-surface-subtle",
                       )}
                     >
-                      {display || <span className="text-gray-400">•</span>}
+                      {display || <span className="text-muted-foreground">•</span>}
                     </td>
                   )
                 })}
@@ -307,13 +307,13 @@ export default function TableInspector({
                 })
               }}
             />
-            <div className="text-[11px] text-gray-500">
+            <div className="text-[11px] text-muted-foreground">
               Shortcuts: <kbd>Enter</kbd> add row, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>=</kbd> add column,{" "}
               <kbd>Tab</kbd>/<kbd>Shift+Tab</kbd> move, <kbd>↑↓←→</kbd> navigate, <kbd>Del</kbd> clear cell.
             </div>
           </div>
         ) : (
-          <div className="text-xs text-gray-500">Click a cell in the mini grid above.</div>
+          <div className="text-xs text-muted-foreground">Click a cell in the mini grid above.</div>
         )}
       </div>
 
@@ -323,7 +323,7 @@ export default function TableInspector({
       </Button>
       {table.header?.rows?.map((hr, ri) => (
         <div key={ri} className="border rounded p-2 mb-2">
-          <div className="text-[11px] text-gray-500 mb-1">Header row {ri + 1}</div>
+          <div className="text-[11px] text-muted-foreground mb-1">Header row {ri + 1}</div>
           {hr.map((hc, ci) => (
             <div key={ci} className="grid grid-cols-4 gap-2 mb-2">
               <Input

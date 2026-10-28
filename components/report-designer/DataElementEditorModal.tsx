@@ -181,7 +181,7 @@ export function DataElementEditorModal({
               }}
               placeholder="e.g. Number of nurses on duty"
             />
-            {fieldErrors.name && <p className="text-xs text-red-500">{fieldErrors.name}</p>}
+            {fieldErrors.name && <p className="text-xs text-error">{fieldErrors.name}</p>}
           </div>
 
           <div className="grid gap-2">
@@ -197,7 +197,7 @@ export function DataElementEditorModal({
               }}
               placeholder="E.g. NURSES_ON_DUTY"
             />
-            {fieldErrors.code && <p className="text-xs text-red-500">{fieldErrors.code}</p>}
+            {fieldErrors.code && <p className="text-xs text-error">{fieldErrors.code}</p>}
           </div>
 
           <div className="grid gap-2">
@@ -240,7 +240,7 @@ export function DataElementEditorModal({
             <Button
               variant="ghost"
               type="button"
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="text-error hover:text-error hover:bg-error-bg"
               onClick={handleDelete}
               disabled={deleting || submitting}
             >

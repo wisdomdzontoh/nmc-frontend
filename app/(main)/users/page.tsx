@@ -47,7 +47,16 @@ import {
   ChevronUp,
   ChevronDown,
   Pencil,
+  Shield,
+  ShieldCheck,
+  CheckCircle2,
+  CircleSlash,
+  Users as UsersIcon,
 } from "lucide-react"
+import { PageCard } from "@/components/layout/PageCard"
+import { StatusPill } from "@/components/common/status-pill"
+import { EmptyState } from "@/components/common/empty-state"
+import { TableSkeleton } from "@/components/common/skeletons"
 import { SectionLoader } from "@/components/ui/PageLoader"
 
 import OrgUnitSelectionModal from "@/components/modals/OrgUnitSelectionModal"
@@ -132,9 +141,9 @@ function getDescendantOrgIds(tree: OrgTreeNode[], rootId: number): number[] {
 /* --------------------------- data table UI -------------------------- */
 
 function RoleBadges({ user }: { user: UserRow }) {
-  if (user.is_superuser) return <Badge variant="destructive">Superuser</Badge>
-  if (user.is_staff) return <Badge>Staff</Badge>
-  return <Badge variant="secondary">User</Badge>
+  if (user.is_superuser) return <StatusPill tone="purple" icon={ShieldCheck}>Superuser</StatusPill>
+  if (user.is_staff) return <StatusPill tone="brand" icon={Shield}>Administrator</StatusPill>
+  return <StatusPill tone="neutral" icon={UserIcon}>Data officer</StatusPill>
 }
 
 const columns: ColumnDef<UserRow>[] = [
@@ -145,10 +154,10 @@ const columns: ColumnDef<UserRow>[] = [
     ),
     cell: ({ row }) => (
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-          <UserIcon className="h-4 w-4 text-gray-600" />
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary" aria-hidden="true">
+          {((row.original.first_name?.[0] ?? "") + (row.original.last_name?.[0] ?? "")).toUpperCase() || <UserIcon className="h-4 w-4" />}
         </div>
-        <div className="font-medium">{row.original.full_name || `${row.original.first_name} ${row.original.last_name}`}</div>
+        <div className="font-medium text-foreground">{row.original.full_name || `${row.original.first_name} ${row.original.last_name}`}</div>
       </div>
     ),
   },
@@ -156,18 +165,18 @@ const columns: ColumnDef<UserRow>[] = [
     accessorKey: "email",
     header: ({ column }) => <HeaderCell column={column} title="Email" />,
     cell: ({ row }) => (
-      <div className="flex items-center gap-2 text-sm text-gray-700">
-        <Mail className="h-4 w-4 text-gray-500" />
+      <div className="flex items-center gap-2 text-sm text-foreground">
+        <Mail className="h-4 w-4 text-muted-foreground" />
         {row.original.email}
       </div>
     ),
   },
   {
     accessorKey: "org_unit_name",
-    header: ({ column }) => <HeaderCell column={column} title="Organization Unit" />,
+    header: ({ column }) => <HeaderCell column={column} title="Organisation unit" />,
     cell: ({ row }) => (
-      <div className="flex items-center gap-2 text-sm text-gray-700">
-        <Building2 className="h-4 w-4 text-gray-500" />
+      <div className="flex items-center gap-2 text-sm text-foreground">
+        <Building2 className="h-4 w-4 text-muted-foreground" />
         {row.original.org_unit_name || "—"}
       </div>
     ),
@@ -186,16 +195,20 @@ const columns: ColumnDef<UserRow>[] = [
     accessorKey: "is_active",
     header: ({ column }) => <HeaderCell column={column} title="Status" />,
     cell: ({ row }) =>
-      row.original.is_active ? <Badge>Active</Badge> : <Badge variant="secondary">Inactive</Badge>,
+      row.original.is_active ? (
+        <StatusPill tone="success" icon={CheckCircle2}>Active</StatusPill>
+      ) : (
+        <StatusPill tone="neutral" icon={CircleSlash}>Inactive</StatusPill>
+      ),
     sortingFn: "basic",
   },
   {
     accessorKey: "date_joined",
     header: ({ column }) => <HeaderCell column={column} title="Joined" />,
     cell: ({ row }) => (
-      <div className="flex items-center gap-2 text-sm text-gray-700">
-        <Calendar className="h-4 w-4 text-gray-500" />
-        {new Date(row.original.date_joined).toLocaleDateString()}
+      <div className="flex items-center gap-2 text-sm text-foreground">
+        <Calendar className="h-4 w-4 text-muted-foreground" />
+        <span className="font-clinical">{new Date(row.original.date_joined).toLocaleDateString("en-GB")}</span>
       </div>
     ),
   },
@@ -203,7 +216,7 @@ const columns: ColumnDef<UserRow>[] = [
     accessorKey: "last_login",
     header: ({ column }) => <HeaderCell column={column} title="Last login" />,
     cell: ({ row }) => (
-      <div className="text-sm text-gray-700">
+      <div className="text-sm text-foreground">
         {row.original.last_login
           ? new Date(row.original.last_login).toLocaleString()
           : "Never"}
@@ -219,9 +232,9 @@ function HeaderCell({ column, title }: { column: Column<UserRow, unknown>; title
       className="flex items-center gap-1 select-none"
       onClick={() => column.toggleSorting(isSorted === "asc")}
     >
-      <span className="text-xs uppercase tracking-wide text-gray-600">{title}</span>
-      {isSorted === "asc" && <ChevronUp className="h-3.5 w-3.5 text-gray-500" />}
-      {isSorted === "desc" && <ChevronDown className="h-3.5 w-3.5 text-gray-500" />}
+      <span className="text-xs font-semibold text-foreground">{title}</span>
+      {isSorted === "asc" && <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />}
+      {isSorted === "desc" && <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
     </button>
   )
 }
@@ -267,7 +280,7 @@ function UsersDataTable({
       {
         id: "actions",
         header: () => (
-          <span className="text-xs uppercase tracking-wide text-gray-600">Actions</span>
+          <span className="text-xs uppercase tracking-wide text-muted-foreground">Actions</span>
         ),
         enableSorting: false,
         cell: ({ row }) => (
@@ -315,17 +328,14 @@ function UsersDataTable({
   const pageEnd = totalRows === 0 ? 0 : Math.min(totalRows, (pageIndex + 1) * pageSize)
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle>Users</CardTitle>
-        <CardDescription>Search, sort and explore users</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <section className="overflow-hidden rounded-xl border border-border bg-card">
+      <div>
+        <div className="table-toolbar justify-between">
           <div className="relative w-full sm:max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
-              placeholder="Search users by name, email, or username…"
+              placeholder="Search by name, email or username"
+              aria-label="Search users"
               value={search}
               onChange={(e) => {
                 setPageIndex(0)
@@ -336,7 +346,7 @@ function UsersDataTable({
           </div>
           <div className="flex flex-wrap gap-3 text-xs">
             <div>
-              <label className="block text-[11px] uppercase text-gray-500 mb-1">
+              <label className="mb-1 block text-2xs font-semibold tracking-wide text-muted-foreground uppercase">
                 Role
               </label>
               <select
@@ -345,7 +355,7 @@ function UsersDataTable({
                   setPageIndex(0)
                   setRoleFilter(e.target.value as typeof roleFilter)
                 }}
-                className="h-8 rounded-md border border-gray-300 bg-white px-2 text-xs"
+                className="h-9 rounded-lg border border-input bg-card px-2.5 text-sm text-foreground hover:border-foreground/40"
               >
                 <option value="all">All</option>
                 <option value="superuser">Superusers</option>
@@ -354,7 +364,7 @@ function UsersDataTable({
               </select>
             </div>
             <div>
-              <label className="block text-[11px] uppercase text-gray-500 mb-1">
+              <label className="mb-1 block text-2xs font-semibold tracking-wide text-muted-foreground uppercase">
                 Status
               </label>
               <select
@@ -363,7 +373,7 @@ function UsersDataTable({
                   setPageIndex(0)
                   setStatusFilter(e.target.value as typeof statusFilter)
                 }}
-                className="h-8 rounded-md border border-gray-300 bg-white px-2 text-xs"
+                className="h-9 rounded-lg border border-input bg-card px-2.5 text-sm text-foreground hover:border-foreground/40"
               >
                 <option value="all">All</option>
                 <option value="active">Active</option>
@@ -373,7 +383,7 @@ function UsersDataTable({
           </div>
         </div>
 
-        <div className="rounded-md border">
+        <div>
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((hg) => (
@@ -402,23 +412,31 @@ function UsersDataTable({
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={tableColumns.length} className="h-24 text-center">
-                    No users found.
+                  <TableCell colSpan={tableColumns.length} className="p-0">
+                    <EmptyState
+                      illustration="no-results"
+                      title={data.length === 0 ? "No users yet" : "No users match these filters"}
+                      description={
+                        data.length === 0
+                          ? "People you add will appear here."
+                          : "Try a different search, role or status."
+                      }
+                    />
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         </div>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-xs text-gray-600">
+        <div className="flex flex-col gap-2 border-t border-border bg-surface-subtle px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-xs text-muted-foreground">
             {totalRows === 0
               ? "No users to display"
               : `Showing ${pageStart}–${pageEnd} of ${totalRows} user(s)`}
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1 text-xs">
-              <span className="text-gray-600">Rows per page:</span>
+              <span className="text-muted-foreground">Rows per page:</span>
               <select
                 value={pageSize}
                 onChange={(e) => {
@@ -426,7 +444,7 @@ function UsersDataTable({
                   setPageIndex(0)
                   setPageSize(size)
                 }}
-                className="h-8 rounded-md border border-gray-300 bg-white px-2 text-xs"
+                className="h-9 rounded-lg border border-input bg-card px-2.5 text-sm text-foreground hover:border-foreground/40"
               >
                 <option value={10}>10</option>
                 <option value={25}>25</option>
@@ -442,7 +460,7 @@ function UsersDataTable({
               >
                 Previous
               </Button>
-              <span className="px-2 text-gray-700">
+              <span className="px-2 text-foreground">
                 Page {totalRows === 0 ? 0 : pageIndex + 1} of {pageCount}
               </span>
               <Button
@@ -456,8 +474,8 @@ function UsersDataTable({
             </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   )
 }
 
@@ -743,41 +761,65 @@ async function handleCreate() {
     }
   }
 
+  const usersHeader = (
+    <PageCard
+      title="Users"
+      description="Add people, change their details and reset passwords for your organisation unit and the units below it."
+      icon={<UsersIcon className="h-5 w-5" aria-hidden="true" />}
+      actions={
+        canManageUsers && !loading ? (
+          <Button onClick={() => setIsCreateDialogOpen(true)} disabled={allowedOrgIds.length === 0}>
+            <Plus className="h-4 w-4" aria-hidden="true" /> Add user
+          </Button>
+        ) : undefined
+      }
+    />
+  )
+
   if (loading) {
-    return <SectionLoader message="Loading users…" />
+    return (
+      <div className="space-y-6">
+        {usersHeader}
+        <section className="rounded-xl border border-border bg-card">
+          <TableSkeleton rows={6} columns={5} />
+        </section>
+      </div>
+    )
   }
 
   if (error === "You do not have permission to view or manage users. Contact your administrator if you need access.") {
     return (
-      <div className="p-6 max-w-2xl mx-auto text-center">
-        <h1 className="text-2xl font-bold mb-2">User Management</h1>
-        <p className="text-gray-600 mb-4">{error}</p>
+      <div className="space-y-6">
+        {usersHeader}
+        <section className="rounded-xl border border-border bg-card">
+          <EmptyState
+            illustration="no-access"
+            title="You don't have access to user management"
+            description="If you need to add or change users, ask your administrator."
+          />
+        </section>
       </div>
     )
   }
 
   if (!isSuperuser && !djangoUser?.org_unit) {
     return (
-      <div className="p-6 max-w-2xl mx-auto text-center">
-        <h1 className="text-2xl font-bold mb-2">User Management</h1>
-        <p className="text-gray-600 mb-4">You are not assigned to any organization unit. User management is disabled.</p>
+      <div className="space-y-6">
+        {usersHeader}
+        <section className="rounded-xl border border-border bg-card">
+          <EmptyState
+            illustration="no-access"
+            title="Your account isn't linked to an organisation unit"
+            description="User management needs an organisation unit. Ask your administrator to assign one to your account."
+          />
+        </section>
       </div>
     )
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-          <p className="text-muted-foreground">Manage users within your organization hierarchy</p>
-        </div>
-        {canManageUsers && (
-          <Button onClick={() => setIsCreateDialogOpen(true)} disabled={allowedOrgIds.length === 0}>
-            <Plus className="mr-2 h-4 w-4" /> Add User
-          </Button>
-        )}
-      </div>
+    <div className="space-y-6">
+      {usersHeader}
 
       {/* Users table */}
       <UsersDataTable
@@ -794,7 +836,7 @@ async function handleCreate() {
         <DialogContent
           className="z-[50] p-0 sm:max-w-xl max-h-[85vh] flex flex-col overflow-hidden"
         >
-          <div className="border-b bg-white">
+          <div className="border-b bg-card">
             <DialogHeader className="p-4">
               <DialogTitle>Create New User</DialogTitle>
               <DialogDescription>
@@ -869,8 +911,8 @@ async function handleCreate() {
             {/* Org Unit (page-level modal trigger) */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Organization Unit *</label>
-              <div className="flex items-center justify-between rounded border p-3 bg-gray-50">
-                <div className="text-sm text-gray-700">
+              <div className="flex items-center justify-between rounded border p-3 bg-surface-subtle">
+                <div className="text-sm text-foreground">
                   {createData.org_unit
                     ? createData.org_unit_name || `Unit ID #${createData.org_unit}`
                     : "No organisation selected"}
@@ -901,7 +943,7 @@ async function handleCreate() {
             )}
           </div>
 
-          <div className="border-t bg-white">
+          <div className="border-t bg-card">
             <DialogFooter className="p-3 sm:p-4">
               <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                 Cancel
@@ -924,7 +966,7 @@ async function handleCreate() {
       {canManageUsers && (
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="z-[50] p-0 sm:max-w-xl max-h-[85vh] flex flex-col overflow-hidden">
-            <div className="border-b bg-white">
+            <div className="border-b bg-card">
               <DialogHeader className="p-4">
                 <DialogTitle>Edit User</DialogTitle>
                 <DialogDescription>
@@ -975,8 +1017,8 @@ async function handleCreate() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Organization Unit</label>
-                <div className="flex items-center justify-between rounded border p-3 bg-gray-50">
-                  <div className="text-sm text-gray-700">
+                <div className="flex items-center justify-between rounded border p-3 bg-surface-subtle">
+                  <div className="text-sm text-foreground">
                     {editData.org_unit
                       ? editData.org_unit_name || `Unit ID #${editData.org_unit}`
                       : "No organisation selected"}
@@ -1015,7 +1057,7 @@ async function handleCreate() {
                 </label>
               </div>
             </div>
-            <div className="border-t bg-white">
+            <div className="border-t bg-card">
               <DialogFooter className="p-3 sm:p-4">
                 <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   Cancel
@@ -1039,7 +1081,7 @@ async function handleCreate() {
       {canManageUsers && (
         <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
           <DialogContent className="z-[50] p-0 sm:max-w-md max-h-[85vh] flex flex-col overflow-hidden">
-            <div className="border-b bg-white">
+            <div className="border-b bg-card">
               <DialogHeader className="p-4">
                 <DialogTitle>Reset Password</DialogTitle>
                 <DialogDescription>
@@ -1068,12 +1110,12 @@ async function handleCreate() {
                   />
                 </div>
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Password must be at least 8 characters long. The user will need to use this
                 new password the next time they sign in.
               </p>
             </div>
-            <div className="border-t bg-white">
+            <div className="border-t bg-card">
               <DialogFooter className="p-3 sm:p-4">
                 <Button variant="outline" onClick={() => setIsResetDialogOpen(false)}>
                   Cancel

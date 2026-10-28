@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import {
+  RefreshCw,
   TrendingUp,
   Database,
   Plus,
@@ -51,6 +52,10 @@ import type { IndicatorDefinition } from "@/lib/advanced-formula-evaluator"
 import { IndicatorModal } from "@/components/indicators/IndicatorModal"
 import { DataElementModal } from "@/components/indicators/DataElementModal"
 import { BulkImportModal } from "@/components/indicators/BulkImportModal"
+import { PageCard } from "@/components/layout/PageCard"
+import { StatCard } from "@/components/common/stat-card"
+import { StatusPill } from "@/components/common/status-pill"
+import { EmptyState } from "@/components/common/empty-state"
 
 interface DataElement {
   id: number
@@ -355,28 +360,17 @@ export default function IndicatorsPage() {
 
   const indicatorPag = usePagination(filteredIndicators, indicatorPageSize)
 
-  // Stat cards
-  const stats = [
-    { label: "Total Indicators", value: indicators.length, icon: TrendingUp, color: "#C9433B", bg: "#FCC6BB" },
-    { label: "Data Elements", value: deTotal, icon: Database, color: "#D96455", bg: "#FEF0EC" },
-    { label: "Percentage (%)", value: indicators.filter(i => i.factor === 100).length, icon: BarChart3, color: "#8B3020", bg: "#FCC6BB" },
-    { label: "Per Thousand", value: indicators.filter(i => i.factor === 1000).length, icon: Hash, color: "#C9433B", bg: "#FCC6BB" },
-  ]
 
   if (!isSuperuser && !isStaff) {
     return (
-      <div className="p-8 max-w-2xl mx-auto text-center">
-        <div className="p-4 rounded-full bg-amber-50 inline-flex mb-4">
-          <TrendingUp className="h-8 w-8 text-amber-600" />
-        </div>
-        <h1 className="text-2xl font-bold mb-2 text-gray-900">Access Restricted</h1>
-        <Alert className="border-amber-200 bg-amber-50">
-          <AlertDescription className="text-amber-800">
-            Indicators and data elements management is only available to staff and administrators.
-            Contact your administrator if you need access.
-          </AlertDescription>
-        </Alert>
-      </div>
+      <section className="rounded-xl border border-border bg-card">
+        <EmptyState
+          illustration="no-access"
+          title="You don't have access to indicators"
+          description="Managing indicators and data elements is for administrators. If you need it, ask your administrator."
+          action={{ label: "Back to dashboard", href: "/dashboard" }}
+        />
+      </section>
     )
   }
 
@@ -385,56 +379,53 @@ export default function IndicatorsPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
-      {/* Page header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Indicators &amp; Data Elements</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage calculation indicators and data elements used in reports
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
-            Last refreshed: {new Date().toLocaleTimeString()}
-          </div>
-          <Button variant="outline" size="sm" onClick={() => { loadData(); loadDataElements(dePage, dePageSize, deSearch, deRtFilter) }} className="border-red-200 text-red-700 hover:bg-red-50">
+    <div className="space-y-6">
+      <PageCard
+        title="Indicators and data elements"
+        description="Data elements are the numbers people enter. Indicators are calculated from them, e.g. a percentage."
+        icon={<TrendingUp className="h-5 w-5" aria-hidden="true" />}
+        actions={
+          <Button
+            variant="secondary"
+            onClick={() => { loadData(); loadDataElements(dePage, dePageSize, deSearch, deRtFilter) }}
+          >
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
             Refresh
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => (
-          <Card key={stat.label} className="border-0 shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-lg flex-shrink-0" style={{ background: stat.bg }}>
-                  <stat.icon className="h-5 w-5" style={{ color: stat.color }} />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">{stat.label}</p>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Indicators" value={indicators.length} tint="red" icon={<TrendingUp className="h-5 w-5" aria-hidden="true" />} />
+        <StatCard label="Data elements" value={deTotal} tint="blue" icon={<Database className="h-5 w-5" aria-hidden="true" />} />
+        <StatCard
+          label="Percentages"
+          value={indicators.filter(i => i.factor === 100).length}
+          hint="Indicators shown as %"
+          tint="teal"
+          icon={<BarChart3 className="h-5 w-5" aria-hidden="true" />}
+        />
+        <StatCard
+          label="Per thousand"
+          value={indicators.filter(i => i.factor === 1000).length}
+          hint="Indicators shown per 1,000"
+          tint="violet"
+          icon={<Hash className="h-5 w-5" aria-hidden="true" />}
+        />
       </div>
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "indicators" | "data-elements")} className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <TabsList className="border border-gray-200 bg-gray-50">
-            <TabsTrigger value="indicators" className="data-[state=active]:bg-white data-[state=active]:text-red-800 data-[state=active]:shadow-sm flex items-center gap-2">
+        <div className="flex flex-col justify-between gap-3 border-b border-border sm:flex-row sm:items-end">
+          <TabsList className="tabs-line w-auto border-b-0">
+            <TabsTrigger value="indicators">
               <TrendingUp className="h-4 w-4" />
               Indicators
               <Badge variant="secondary" className="ml-1 text-xs">{indicators.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="data-elements" className="data-[state=active]:bg-white data-[state=active]:text-red-800 data-[state=active]:shadow-sm flex items-center gap-2">
+            <TabsTrigger value="data-elements">
               <Database className="h-4 w-4" />
-              Data Elements
+              Data elements
               <Badge variant="secondary" className="ml-1 text-xs">{deTotal}</Badge>
             </TabsTrigger>
           </TabsList>
@@ -443,18 +434,16 @@ export default function IndicatorsPage() {
             <div className="flex items-center gap-2">
               {selectedIndicators.size > 0 && (
                 <Button
-                  variant="outline"
-                  size="sm"
+                  variant="destructive-outline"
                   onClick={() => setBulkDeleteIndicatorsOpen(true)}
-                  className="border-red-200 text-red-700 hover:bg-red-50"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete {selectedIndicators.size} selected
                 </Button>
               )}
-              <Button onClick={handleCreateIndicator} className="text-white shadow-sm" style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}>
+              <Button onClick={handleCreateIndicator}>
                 <Plus className="h-4 w-4 mr-2" />
-                Create Indicator
+                Create indicator
               </Button>
             </div>
           )}
@@ -462,22 +451,20 @@ export default function IndicatorsPage() {
             <div className="flex items-center gap-2">
               {selectedDataElements.size > 0 && (
                 <Button
-                  variant="outline"
-                  size="sm"
+                  variant="destructive-outline"
                   onClick={() => setBulkDeleteDataElementsOpen(true)}
-                  className="border-red-200 text-red-700 hover:bg-red-50"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete {selectedDataElements.size} selected
                 </Button>
               )}
-              <Button variant="outline" onClick={() => setBulkImportOpen(true)} className="border-red-200 text-red-700 hover:bg-red-50">
+              <Button variant="outline" onClick={() => setBulkImportOpen(true)}>
                 <Upload className="h-4 w-4 mr-2" />
-                Bulk Import
+                Import from Excel
               </Button>
-              <Button onClick={handleCreateDataElement} className="text-white shadow-sm" style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}>
+              <Button onClick={handleCreateDataElement}>
                 <Plus className="h-4 w-4 mr-2" />
-                Create Data Element
+                Create data element
               </Button>
             </div>
           )}
@@ -486,25 +473,25 @@ export default function IndicatorsPage() {
         {/* ─── Indicators Tab ─── */}
         <TabsContent value="indicators" className="space-y-4 mt-0">
           {/* Filters bar */}
-          <Card className="border border-gray-200 shadow-sm">
+          <Card className="border border-border shadow-sm">
             <CardContent className="p-4">
               <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Search by name or code..."
                     value={indicatorSearch}
                     onChange={(e) => setIndicatorSearch(e.target.value)}
-                    className="pl-9 border-gray-300 focus-visible:ring-red-600"
+                    className="pl-9 border-border"
                   />
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <Filter className="h-4 w-4 text-gray-400" />
+                  <Filter className="h-4 w-4 text-muted-foreground" />
                   <Select
                     value={indicatorTypeFilter}
                     onValueChange={(v) => setIndicatorTypeFilter(v as typeof indicatorTypeFilter)}
                   >
-                    <SelectTrigger className="w-40 border-gray-300 focus:ring-red-600">
+                    <SelectTrigger className="w-40">
                       <SelectValue placeholder="Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -518,7 +505,7 @@ export default function IndicatorsPage() {
                     value={indicatorRtFilter}
                     onValueChange={(v) => { setIndicatorRtFilter(v); indicatorPag.setPage(1) }}
                   >
-                    <SelectTrigger className="w-48 border-gray-300 focus:ring-red-600">
+                    <SelectTrigger className="w-48">
                       <SelectValue placeholder="Report Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -529,14 +516,14 @@ export default function IndicatorsPage() {
                     </SelectContent>
                   </Select>
                   {(indicatorSearch || indicatorTypeFilter !== "all" || indicatorRtFilter !== "all") && (
-                    <Button variant="ghost" size="sm" onClick={() => { setIndicatorSearch(""); setIndicatorTypeFilter("all"); setIndicatorRtFilter("all") }} className="h-9 px-2 text-gray-500 hover:text-gray-700">
+                    <Button variant="ghost" size="sm" onClick={() => { setIndicatorSearch(""); setIndicatorTypeFilter("all"); setIndicatorRtFilter("all") }} className="h-9 px-2 text-muted-foreground hover:text-foreground">
                       <X className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
               </div>
               {filteredIndicators.length !== indicators.length && (
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-muted-foreground mt-2">
                   Showing {filteredIndicators.length} of {indicators.length} indicators
                 </p>
               )}
@@ -544,18 +531,18 @@ export default function IndicatorsPage() {
           </Card>
 
           {filteredIndicators.length === 0 ? (
-            <Card className="border-dashed border-2 border-gray-200">
+            <Card className="border-dashed border-2 border-border">
               <CardContent className="p-12 text-center">
-                <TrendingUp className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-700 mb-1">No indicators found</h3>
-                <p className="text-sm text-gray-500 mb-4">
+                <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-1">No indicators found</h3>
+                <p className="text-sm text-muted-foreground mb-4">
                   {indicatorSearch || indicatorTypeFilter !== "all"
                     ? "Try adjusting your filters."
                     : "Create your first indicator to get started."}
                 </p>
                 {!indicatorSearch && indicatorTypeFilter === "all" && (
-                  <Button onClick={handleCreateIndicator} className="text-white" style={{ background: "#C9433B" }}>
-                    <Plus className="h-4 w-4 mr-2" />Create Indicator
+                  <Button onClick={handleCreateIndicator}>
+                    <Plus className="h-4 w-4 mr-2" />Create indicator
                   </Button>
                 )}
               </CardContent>
@@ -563,28 +550,28 @@ export default function IndicatorsPage() {
           ) : (
             <>
               {/* Table */}
-              <Card className="border border-gray-200 shadow-sm overflow-hidden">
+              <Card className="border border-border shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr style={{ background: "linear-gradient(135deg, #8B3020, #C9433B)" }}>
+                      <tr className="border-b border-border bg-surface-subtle">
                         <th className="px-4 py-3 w-10">
                           <Checkbox
                             checked={selectedIndicators.size === filteredIndicators.length && filteredIndicators.length > 0}
                             onCheckedChange={(checked) => toggleAllIndicators(!!checked)}
-                            className="border-red-200 data-[state=checked]:bg-white data-[state=checked]:text-red-700"
+                            
                           />
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider w-28">Code</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider">Name</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider hidden md:table-cell">Formula</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider w-24">Type</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-red-100 uppercase tracking-wider w-24">Actions</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground w-28">Code</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Name</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground hidden md:table-cell">Formula</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground w-24">Type</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-foreground w-24">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-border">
                       {indicatorPag.paginated.map((indicator, idx) => (
-                        <tr key={indicator.id} className={`transition-colors hover:bg-red-50/50 ${selectedIndicators.has(indicator.id) ? "bg-red-50" : idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
+                        <tr key={indicator.id} className={`transition-colors hover:bg-error-bg/50 ${selectedIndicators.has(indicator.id) ? "bg-error-bg" : idx % 2 === 0 ? "bg-card" : "bg-surface-subtle/50"}`}>
                           <td className="px-4 py-3">
                             <Checkbox
                               checked={selectedIndicators.has(indicator.id)}
@@ -592,43 +579,36 @@ export default function IndicatorsPage() {
                             />
                           </td>
                           <td className="px-4 py-3">
-                            <Badge variant="outline" className="font-mono text-xs border-red-200 text-red-800 bg-red-50">
+                            <Badge variant="outline" className="font-mono text-xs border-error-border text-error bg-error-bg">
                               {indicator.code}
                             </Badge>
                           </td>
                           <td className="px-4 py-3">
                             <div>
-                              <p className="font-medium text-gray-900 leading-tight">{indicator.name}</p>
+                              <p className="font-medium text-foreground leading-tight">{indicator.name}</p>
                               {indicator.description && (
-                                <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{indicator.description}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{indicator.description}</p>
                               )}
                             </div>
                           </td>
                           <td className="px-4 py-3 hidden md:table-cell">
-                            <code className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono break-all">
+                            <code className="text-xs bg-muted text-foreground px-2 py-1 rounded font-mono break-all">
                               {indicator.numerator.formula}
                               {indicator.denominator && ` / ${indicator.denominator.formula}`}
                               {indicator.factor !== 1 && ` × ${indicator.factor}`}
                             </code>
                           </td>
                           <td className="px-4 py-3">
-                            <Badge
-                              variant="secondary"
-                              className="text-xs whitespace-nowrap"
-                              style={{
-                                background: indicator.factor === 100 ? "#FCC6BB" : indicator.factor === 1000 ? "#e8f0ff" : "#f5f5f5",
-                                color: indicator.factor === 100 ? "#C9433B" : indicator.factor === 1000 ? "#5B21B6" : "#374151"
-                              }}
-                            >
+                            <StatusPill tone={indicator.factor === 100 ? "brand" : indicator.factor === 1000 ? "purple" : "neutral"}>
                               {indicator.unit}
-                            </Badge>
+                            </StatusPill>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
-                              <Button variant="ghost" size="sm" onClick={() => handleEditIndicator(indicator)} className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-800">
+                              <Button variant="ghost" size="sm" onClick={() => handleEditIndicator(indicator)} className="h-8 w-8 p-0 hover:bg-muted hover:text-foreground">
                                 <Edit className="h-3.5 w-3.5" />
                               </Button>
-                              <Button variant="ghost" size="sm" onClick={() => setDeleteIndicatorId(indicator.id)} className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50">
+                              <Button variant="ghost" size="sm" onClick={() => setDeleteIndicatorId(indicator.id)} className="h-8 w-8 p-0 text-error hover:text-error hover:bg-error-bg">
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
@@ -656,11 +636,11 @@ export default function IndicatorsPage() {
         {/* ─── Data Elements Tab ─── */}
         <TabsContent value="data-elements" className="space-y-4 mt-0">
           {/* Search bar */}
-          <Card className="border border-gray-200 shadow-sm">
+          <Card className="border border-border shadow-sm">
             <CardContent className="p-4">
               <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Search by name or code..."
                     value={deSearchInput}
@@ -673,14 +653,14 @@ export default function IndicatorsPage() {
                         setDePage(1)
                       }, 400)
                     }}
-                    className="pl-9 border-gray-300 focus-visible:ring-red-600"
+                    className="pl-9 border-border"
                   />
                 </div>
                 <Select
                   value={deRtFilter}
                   onValueChange={(v) => { setDeRtFilter(v); setDePage(1) }}
                 >
-                  <SelectTrigger className="w-48 border-gray-300 focus:ring-red-600 flex-shrink-0">
+                  <SelectTrigger className="w-48  flex-shrink-0">
                     <SelectValue placeholder="Report Type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -691,13 +671,13 @@ export default function IndicatorsPage() {
                   </SelectContent>
                 </Select>
                 {(deSearchInput || deRtFilter !== "all") && (
-                  <Button variant="ghost" size="sm" onClick={() => { setDeSearchInput(""); setDeSearch(""); setDeRtFilter("all"); setDePage(1) }} className="h-9 px-2 text-gray-500 hover:text-gray-700">
+                  <Button variant="ghost" size="sm" onClick={() => { setDeSearchInput(""); setDeSearch(""); setDeRtFilter("all"); setDePage(1) }} className="h-9 px-2 text-muted-foreground hover:text-foreground">
                     <X className="h-4 w-4 mr-1" />Clear
                   </Button>
                 )}
               </div>
               {(deSearch || deRtFilter !== "all") && (
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-muted-foreground mt-2">
                   Showing {dataElements.length} of {deTotal} data elements
                   {deSearch && <> matching &quot;{deSearch}&quot;</>}
                   {deRtFilter !== "all" && <> in &quot;{reportTypes.find(rt => String(rt.id) === deRtFilter)?.name}&quot;</>}
@@ -707,27 +687,27 @@ export default function IndicatorsPage() {
           </Card>
 
           {deLoading ? (
-            <Card className="border border-gray-200 shadow-sm">
+            <Card className="border border-border shadow-sm">
               <CardContent className="p-8 text-center">
-                <Loader2 className="h-8 w-8 text-gray-300 mx-auto mb-2 animate-spin" />
-                <p className="text-sm text-gray-500">Loading data elements…</p>
+                <Loader2 className="h-8 w-8 text-muted-foreground mx-auto mb-2 animate-spin" />
+                <p className="text-sm text-muted-foreground">Loading data elements…</p>
               </CardContent>
             </Card>
           ) : dataElements.length === 0 ? (
-            <Card className="border-dashed border-2 border-gray-200">
+            <Card className="border-dashed border-2 border-border">
               <CardContent className="p-12 text-center">
-                <Database className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-700 mb-1">No data elements found</h3>
-                <p className="text-sm text-gray-500 mb-4">
+                <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-1">No data elements found</h3>
+                <p className="text-sm text-muted-foreground mb-4">
                   {(deSearchInput || deRtFilter !== "all") ? "Try adjusting your filters." : "Create your first data element or import from Excel."}
                 </p>
                 {!deSearchInput && deRtFilter === "all" && (
                   <div className="flex items-center justify-center gap-2">
-                    <Button variant="outline" onClick={() => setBulkImportOpen(true)} className="border-red-200 text-red-700 hover:bg-red-50">
-                      <Upload className="h-4 w-4 mr-2" />Bulk Import
+                    <Button variant="outline" onClick={() => setBulkImportOpen(true)}>
+                      <Upload className="h-4 w-4 mr-2" />Import from Excel
                     </Button>
-                    <Button onClick={handleCreateDataElement} className="text-white" style={{ background: "#C9433B" }}>
-                      <Plus className="h-4 w-4 mr-2" />Create Data Element
+                    <Button onClick={handleCreateDataElement}>
+                      <Plus className="h-4 w-4 mr-2" />Create data element
                     </Button>
                   </div>
                 )}
@@ -735,54 +715,54 @@ export default function IndicatorsPage() {
             </Card>
           ) : (
             <>
-              <Card className="border border-gray-200 shadow-sm overflow-hidden">
+              <Card className="border border-border shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr style={{ background: "linear-gradient(135deg, #8B3020, #C9433B)" }}>
+                      <tr className="border-b border-border bg-surface-subtle">
                         <th className="px-4 py-3 w-10">
                           <Checkbox
                             checked={selectedDataElements.size === dataElements.length && dataElements.length > 0}
                             onCheckedChange={(checked) => toggleAllDataElements(!!checked)}
-                            className="border-red-200 data-[state=checked]:bg-white data-[state=checked]:text-red-700"
+                            
                           />
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider w-16">#</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider w-40">Code</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider">Name</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-red-100 uppercase tracking-wider hidden lg:table-cell">Description</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-red-100 uppercase tracking-wider w-24">Actions</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground w-16">#</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground w-40">Code</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Name</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground hidden lg:table-cell">Description</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-foreground w-24">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-border">
                       {dataElements.map((de, idx) => (
-                        <tr key={de.id} className={`transition-colors hover:bg-red-50/50 ${selectedDataElements.has(de.id) ? "bg-red-50" : idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
+                        <tr key={de.id} className={`transition-colors hover:bg-error-bg/50 ${selectedDataElements.has(de.id) ? "bg-error-bg" : idx % 2 === 0 ? "bg-card" : "bg-surface-subtle/50"}`}>
                           <td className="px-4 py-3">
                             <Checkbox
                               checked={selectedDataElements.has(de.id)}
                               onCheckedChange={() => toggleDataElement(de.id)}
                             />
                           </td>
-                          <td className="px-4 py-3 text-xs text-gray-400">
+                          <td className="px-4 py-3 text-xs text-muted-foreground">
                             {(dePage - 1) * dePageSize + idx + 1}
                           </td>
                           <td className="px-4 py-3">
-                            <Badge variant="outline" className="font-mono text-xs border-red-200 text-red-800 bg-red-50">
+                            <Badge variant="outline" className="font-mono text-xs border-error-border text-error bg-error-bg">
                               {de.code}
                             </Badge>
                           </td>
                           <td className="px-4 py-3">
-                            <span className="font-medium text-gray-900">{de.name}</span>
+                            <span className="font-medium text-foreground">{de.name}</span>
                           </td>
                           <td className="px-4 py-3 hidden lg:table-cell">
-                            <span className="text-xs text-gray-500 line-clamp-2">{de.description || "—"}</span>
+                            <span className="text-xs text-muted-foreground line-clamp-2">{de.description || "—"}</span>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
-                              <Button variant="ghost" size="sm" onClick={() => handleEditDataElement(de)} className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-800">
+                              <Button variant="ghost" size="sm" onClick={() => handleEditDataElement(de)} className="h-8 w-8 p-0 hover:bg-muted hover:text-foreground">
                                 <Edit className="h-3.5 w-3.5" />
                               </Button>
-                              <Button variant="ghost" size="sm" onClick={() => setDeleteDataElementId(de.id)} className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50">
+                              <Button variant="ghost" size="sm" onClick={() => setDeleteDataElementId(de.id)} className="h-8 w-8 p-0 text-error hover:text-error hover:bg-error-bg">
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
@@ -821,7 +801,7 @@ export default function IndicatorsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteIndicator} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDeleteIndicator} className="bg-error hover:bg-error">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -835,7 +815,7 @@ export default function IndicatorsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteDataElement} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDeleteDataElement} className="bg-error hover:bg-error">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -854,7 +834,7 @@ export default function IndicatorsPage() {
             <AlertDialogAction
               onClick={handleBulkDeleteIndicators}
               disabled={bulkDeleting}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-error hover:bg-error"
             >
               {bulkDeleting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</> : "Delete All"}
             </AlertDialogAction>
@@ -876,7 +856,7 @@ export default function IndicatorsPage() {
             <AlertDialogAction
               onClick={handleBulkDeleteDataElements}
               disabled={bulkDeleting}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-error hover:bg-error"
             >
               {bulkDeleting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</> : "Delete All"}
             </AlertDialogAction>
@@ -908,15 +888,15 @@ function PaginationControls({
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1">
-      <div className="flex items-center gap-3 text-sm text-gray-500">
+      <div className="flex items-center gap-3 text-sm text-muted-foreground">
         <span>
-          Showing <span className="font-medium text-gray-700">{start}–{end}</span> of{" "}
-          <span className="font-medium text-gray-700">{total}</span>
+          Showing <span className="font-medium text-foreground">{start}–{end}</span> of{" "}
+          <span className="font-medium text-foreground">{total}</span>
         </span>
         <div className="flex items-center gap-1.5">
-          <Label className="text-xs text-gray-500">Per page:</Label>
+          <Label className="text-xs text-muted-foreground">Per page:</Label>
           <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
-            <SelectTrigger className="h-8 w-16 text-xs border-gray-300">
+            <SelectTrigger className="h-8 w-16 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -926,11 +906,11 @@ function PaginationControls({
         </div>
       </div>
       <div className="flex items-center gap-1">
-        <Button variant="outline" size="sm" onClick={() => setPage(1)} disabled={page === 1} className="h-8 w-8 p-0 border-gray-200">
+        <Button variant="secondary" size="sm" onClick={() => setPage(1)} disabled={page === 1} className="h-8 w-8 p-0 border-border">
           <ChevronLeft className="h-3.5 w-3.5" />
           <ChevronLeft className="h-3.5 w-3.5 -ml-2" />
         </Button>
-        <Button variant="outline" size="sm" onClick={() => setPage(page - 1)} disabled={page === 1} className="h-8 w-8 p-0 border-gray-200">
+        <Button variant="secondary" size="sm" onClick={() => setPage(page - 1)} disabled={page === 1} className="h-8 w-8 p-0 border-border">
           <ChevronLeft className="h-4 w-4" />
         </Button>
 
@@ -949,21 +929,21 @@ function PaginationControls({
           return (
             <Button
               key={p}
-              variant={p === page ? "default" : "outline"}
+              variant={p === page ? "default" : "secondary"}
               size="sm"
               onClick={() => setPage(p)}
-              className="h-8 w-8 p-0 text-xs border-gray-200"
-              style={p === page ? { background: "#C9433B", color: "white", borderColor: "#C9433B" } : {}}
+              className="font-clinical h-8 w-8 p-0 text-xs"
+              aria-current={p === page ? "page" : undefined}
             >
               {p}
             </Button>
           )
         })}
 
-        <Button variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={page === totalPages} className="h-8 w-8 p-0 border-gray-200">
+        <Button variant="secondary" size="sm" onClick={() => setPage(page + 1)} disabled={page === totalPages} className="h-8 w-8 p-0 border-border">
           <ChevronRight className="h-4 w-4" />
         </Button>
-        <Button variant="outline" size="sm" onClick={() => setPage(totalPages)} disabled={page === totalPages} className="h-8 w-8 p-0 border-gray-200">
+        <Button variant="secondary" size="sm" onClick={() => setPage(totalPages)} disabled={page === totalPages} className="h-8 w-8 p-0 border-border">
           <ChevronRight className="h-3.5 w-3.5" />
           <ChevronRight className="h-3.5 w-3.5 -ml-2" />
         </Button>

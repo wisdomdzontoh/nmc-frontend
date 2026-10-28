@@ -1,121 +1,75 @@
 import Link from "next/link"
 import Image from "next/image"
+import { Compass, ShieldAlert } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+
+const QUICK_LINKS = [
+  { href: "/data-entry", label: "Data Entry" },
+  { href: "/reports", label: "Reports" },
+  { href: "/visualizations", label: "Visualizations" },
+  { href: "/settings", label: "Settings" },
+]
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "linear-gradient(180deg, #FFF5F3 0%, #ffffff 100%)" }}>
-      {/* Header bar */}
-      <div className="w-full border-b border-[#C9433B] shadow-md" style={{ background: "linear-gradient(135deg, #C9433B 0%, #D96455 50%, #E8877A 100%)" }}>
-        <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, #F4A99E, #D96455, #F4A99E)" }} />
-        <div className="h-16 flex items-center gap-3 px-6">
-          <div className="relative h-10 w-10 flex-shrink-0">
-            <Image
-              src="/logo.png"
-              alt="NMC Logo"
-              width={40}
-              height={40}
-              className="object-contain"
-              style={{ mixBlendMode: "multiply" }}
-              priority
-            />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-white leading-tight tracking-tight">Nursing &amp; Midwifery Council</h1>
-            <p className="text-xs text-white/65">Republic of Ghana</p>
-          </div>
+    <div className="canvas-dots flex min-h-screen flex-col">
+      <header className="flex h-16 items-center gap-3 border-b border-border bg-card px-6">
+        <span className="relative h-9 w-16 shrink-0">
+          <Image src="/logo.png" alt="" fill sizes="64px" className="object-contain" priority />
+        </span>
+        <div className="leading-tight">
+          <p className="text-sm font-bold text-foreground">Nursing &amp; Midwifery Council</p>
+          <p className="text-xs text-muted-foreground">Republic of Ghana</p>
         </div>
-      </div>
+      </header>
 
-      {/* Main content */}
-      <div className="flex-1 flex items-center justify-center px-6 py-16">
-        <div className="max-w-lg w-full text-center space-y-8">
-          {/* 404 graphic */}
-          <div className="relative">
-            <div
-              className="text-[10rem] font-black leading-none select-none"
-              style={{
-                background: "linear-gradient(135deg, #C9433B, #E8877A, #F4A99E)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              404
-            </div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-24 h-24 rounded-full bg-white shadow-lg ring-4 ring-[#FCC6BB] flex items-center justify-center" style={{ marginTop: "1rem" }}>
-                <Image src="/logo.png" alt="NMC" width={64} height={64} className="object-contain w-16 h-16" />
-              </div>
-            </div>
-          </div>
-
-          {/* Message */}
-          <div className="space-y-3 pt-4">
-            <h2 className="text-2xl font-bold text-gray-900">Page Not Found</h2>
-            <p className="text-gray-500 leading-relaxed">
-              The page you&apos;re looking for does not exist or has been moved.
-              Please verify the URL or navigate to one of the pages below.
+      <main className="flex flex-1 items-center justify-center px-6 py-12">
+        <div className="w-full max-w-lg space-y-6 rounded-xl border border-border bg-card p-8 text-center">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+            <Compass className="h-7 w-7 text-muted-foreground" aria-hidden="true" />
+          </span>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold tracking-widest text-primary uppercase">Error 404</p>
+            <h1 className="text-2xl font-bold text-foreground">We couldn&apos;t find that page</h1>
+            <p className="text-sm text-muted-foreground">
+              The link may be old or mistyped. Go to the dashboard, or pick one of the pages below.
             </p>
           </div>
 
-          {/* Official notice */}
-          <div className="rounded-xl border border-[#FCC6BB] p-4 text-left" style={{ background: "#FFF5F3" }}>
-            <div className="flex items-start gap-3">
-              <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: "#D96455" }} />
-              <div>
-                <p className="text-sm font-semibold text-gray-800">Official Notice</p>
-                <p className="text-xs text-gray-600 mt-1">
-                  This is an official system of the Nursing and Midwifery Council of Ghana.
-                  Unauthorized access is prohibited under the Electronic Transactions Act, 2008.
-                </p>
-              </div>
-            </div>
+          <div className="flex flex-col justify-center gap-2 sm:flex-row">
+            <Button asChild size="lg">
+              <Link href="/dashboard">Go to dashboard</Link>
+            </Button>
+            <Button asChild size="lg" variant="secondary">
+              <Link href="/auth/login">Back to sign in</Link>
+            </Button>
           </div>
 
-          {/* Navigation links */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Link
-              href="/dashboard"
-              className="flex items-center justify-center gap-2 h-12 px-6 rounded-lg text-white font-semibold text-sm shadow-sm transition-all hover:shadow-md hover:opacity-90 no-underline"
-              style={{ background: "linear-gradient(135deg, #D96455, #E8877A)" }}
-            >
-              Go to Dashboard
-            </Link>
-            <Link
-              href="/auth/login"
-              className="flex items-center justify-center gap-2 h-12 px-6 rounded-lg font-semibold text-sm border border-[#F4A99E] text-[#C9433B] bg-white hover:bg-[#FFF5F3] transition-all no-underline"
-            >
-              Back to Login
-            </Link>
-          </div>
-
-          {/* Quick links */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Quick Links</p>
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              {[
-                { href: "/data-entry", label: "Data Entry" },
-                { href: "/indicators", label: "Indicators" },
-                { href: "/reports", label: "Reports" },
-                { href: "/settings", label: "Settings" },
-              ].map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="text-xs text-[#D96455] hover:text-[#C9433B] underline underline-offset-2 transition-colors"
-                >
+          <div className="border-t border-dashed border-border pt-5">
+            <p className="stat-card-label">Quick links</p>
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+              {QUICK_LINKS.map((link) => (
+                <Link key={link.href} href={link.href} className="text-sm text-link hover:underline">
                   {link.label}
                 </Link>
               ))}
             </div>
           </div>
 
-          {/* Footer */}
-          <p className="text-xs text-gray-400">
-            &copy; {new Date().getFullYear()} Nursing and Midwifery Council of Ghana &bull; Ministry of Health
-          </p>
+          <div className="flex items-start gap-2.5 rounded-lg bg-surface-subtle p-3 text-left text-xs text-muted-foreground">
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <p>
+              This is an official system of the Nursing and Midwifery Council of Ghana. Unauthorised access is
+              prohibited under the Electronic Transactions Act, 2008.
+            </p>
+          </div>
         </div>
-      </div>
+      </main>
+
+      <footer className="pb-6 text-center text-xs text-muted-foreground">
+        &copy; {new Date().getFullYear()} Nursing and Midwifery Council of Ghana &bull; Ministry of Health
+      </footer>
     </div>
   )
 }

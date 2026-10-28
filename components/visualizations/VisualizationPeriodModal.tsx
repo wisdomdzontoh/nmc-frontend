@@ -229,7 +229,7 @@ const VisualizationPeriodModal: React.FC<VisualizationPeriodModalProps> = ({
           <button
             type="button"
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-              tab === "relative" ? "border-primary text-primary" : "border-transparent text-slate-600"
+              tab === "relative" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
             }`}
             onClick={() => setTab("relative")}
           >
@@ -238,7 +238,7 @@ const VisualizationPeriodModal: React.FC<VisualizationPeriodModalProps> = ({
           <button
             type="button"
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-              tab === "fixed" ? "border-primary text-primary" : "border-transparent text-slate-600"
+              tab === "fixed" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
             }`}
             onClick={() => setTab("fixed")}
           >
@@ -249,7 +249,7 @@ const VisualizationPeriodModal: React.FC<VisualizationPeriodModalProps> = ({
         <div className="flex flex-1 min-h-0 px-6 py-4 gap-4">
           {tab === "relative" && (
             <div className="flex-1 space-y-4">
-              <p className="text-sm text-slate-600">Choose a relative period range.</p>
+              <p className="text-sm text-muted-foreground">Choose a relative period range.</p>
               <div className="space-y-2">
                 {relativeOptions.map((opt) => (
                   <button
@@ -257,7 +257,7 @@ const VisualizationPeriodModal: React.FC<VisualizationPeriodModalProps> = ({
                     type="button"
                     onClick={() => setRelativeChoice(relativeChoice === opt.id ? null : opt.id)}
                     className={`w-full flex items-center justify-between p-3 rounded-lg border text-left ${
-                      relativeChoice === opt.id ? "bg-primary/10 border-primary" : "hover:bg-slate-50"
+                      relativeChoice === opt.id ? "bg-primary/10 border-primary" : "hover:bg-surface-subtle"
                     }`}
                   >
                     <span className="text-sm font-medium">{opt.label}</span>
@@ -270,10 +270,10 @@ const VisualizationPeriodModal: React.FC<VisualizationPeriodModalProps> = ({
 
           {tab === "fixed" && (
             <>
-              <div className="flex flex-col w-[45%] min-w-0 border rounded-lg bg-slate-50/50">
+              <div className="flex flex-col w-[45%] min-w-0 border rounded-lg bg-surface-subtle/50">
                 <div className="p-3 border-b flex gap-2 flex-wrap">
                   <Select value={periodType} onValueChange={(v) => setPeriodType(v as PeriodType)}>
-                    <SelectTrigger className="w-[140px] bg-white">
+                    <SelectTrigger className="w-[140px] bg-card">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -290,7 +290,7 @@ const VisualizationPeriodModal: React.FC<VisualizationPeriodModalProps> = ({
                     max={2100}
                     value={year}
                     onChange={(e) => setYear(Number(e.target.value) || currentYear)}
-                    className="w-20 bg-white"
+                    className="w-20 bg-card"
                   />
                 </div>
                 <ScrollArea className="h-[260px]">
@@ -300,7 +300,7 @@ const VisualizationPeriodModal: React.FC<VisualizationPeriodModalProps> = ({
                         <button
                           type="button"
                           onClick={() => addPeriod(p)}
-                          className="w-full text-left py-2 px-3 rounded-md text-sm hover:bg-slate-100"
+                          className="w-full text-left py-2 px-3 rounded-md text-sm hover:bg-muted"
                         >
                           {p.label}
                         </button>
@@ -325,9 +325,9 @@ const VisualizationPeriodModal: React.FC<VisualizationPeriodModalProps> = ({
                 </Button>
               </div>
 
-              <div className="flex flex-col w-[45%] min-w-0 border rounded-lg bg-slate-50/50">
+              <div className="flex flex-col w-[45%] min-w-0 border rounded-lg bg-surface-subtle/50">
                 <div className="p-3 border-b flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-700">Selected periods</span>
+                  <span className="text-sm font-medium text-foreground">Selected periods</span>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" className="h-8 w-8" disabled><ArrowUp className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8" disabled><ArrowDown className="h-4 w-4" /></Button>
@@ -336,11 +336,11 @@ const VisualizationPeriodModal: React.FC<VisualizationPeriodModalProps> = ({
                 <ScrollArea className="h-[260px]">
                   <ul className="p-2 space-y-1">
                     {selectedPeriods.length === 0 ? (
-                      <li className="text-sm text-slate-500 py-6 text-center">No periods selected.</li>
+                      <li className="text-sm text-muted-foreground py-6 text-center">No periods selected.</li>
                     ) : (
                       selectedPeriods.map((p, index) => (
                         <li key={p.id} className="flex items-center gap-1">
-                          <span className="flex-1 py-2 px-3 rounded-md text-sm bg-white border">{p.label}</span>
+                          <span className="flex-1 py-2 px-3 rounded-md text-sm bg-card border">{p.label}</span>
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveUp(index)} disabled={index === 0}><ArrowUp className="h-3.5 w-3.5" /></Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveDown(index)} disabled={index === selectedPeriods.length - 1}><ArrowDown className="h-3.5 w-3.5" /></Button>
                         </li>

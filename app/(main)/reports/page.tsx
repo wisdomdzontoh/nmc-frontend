@@ -13,6 +13,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { PageCard } from "@/components/layout/PageCard"
+import { StatCard } from "@/components/common/stat-card"
+import { StatusPill } from "@/components/common/status-pill"
+import { EmptyState } from "@/components/common/empty-state"
+import { TableSkeleton } from "@/components/common/skeletons"
 import {
   Table,
   TableBody,
@@ -50,6 +55,8 @@ import {
   ChevronsUpDown,
   AlertTriangle,
   CheckCircle2,
+  ClipboardList,
+  FileOutput,
   XCircle,
   Minus,
   ListChecks,
@@ -201,19 +208,19 @@ function getSubtree(flat: FlatOrgUnit[], rootId: number): FlatOrgUnit[] {
 }
 
 function completenessColor(pct: number | null): string {
-  if (pct === null) return "text-gray-400"
-  if (pct >= 100) return "text-green-600"
-  if (pct >= 75) return "text-blue-600"
-  if (pct >= 50) return "text-amber-600"
-  return "text-red-600"
+  if (pct === null) return "text-muted-foreground"
+  if (pct >= 100) return "text-success"
+  if (pct >= 75) return "text-info"
+  if (pct >= 50) return "text-pending"
+  return "text-error"
 }
 
 function completenessBarColor(pct: number | null): string {
-  if (pct === null) return "bg-gray-200"
-  if (pct >= 100) return "[&>div]:bg-green-500"
-  if (pct >= 75) return "[&>div]:bg-blue-500"
-  if (pct >= 50) return "[&>div]:bg-amber-500"
-  return "[&>div]:bg-red-500"
+  if (pct === null) return "bg-muted"
+  if (pct >= 100) return "[&>div]:bg-success"
+  if (pct >= 75) return "[&>div]:bg-info"
+  if (pct >= 50) return "[&>div]:bg-pending"
+  return "[&>div]:bg-error"
 }
 
 interface StatusConfig {
@@ -223,12 +230,12 @@ interface StatusConfig {
 }
 
 function getStatus(pct: number | null, expected: number): StatusConfig {
-  if (expected === 0) return { label: "Not assigned", icon: Minus, badgeClass: "border-gray-200 text-gray-500 bg-gray-50" }
-  if (pct === null || pct === 0) return { label: "Not submitted", icon: XCircle, badgeClass: "border-red-200 text-red-700 bg-red-50" }
-  if (pct >= 100) return { label: "Complete", icon: CheckCircle2, badgeClass: "border-green-200 text-green-700 bg-green-50" }
-  if (pct >= 75) return { label: "Good", icon: CheckCircle, badgeClass: "border-blue-200 text-blue-700 bg-blue-50" }
-  if (pct >= 50) return { label: "Partial", icon: AlertTriangle, badgeClass: "border-amber-200 text-amber-700 bg-amber-50" }
-  return { label: "Incomplete", icon: XCircle, badgeClass: "border-red-200 text-red-700 bg-red-50" }
+  if (expected === 0) return { label: "Not assigned", icon: Minus, badgeClass: "border-border text-muted-foreground bg-surface-subtle" }
+  if (pct === null || pct === 0) return { label: "Not submitted", icon: XCircle, badgeClass: "border-error-border text-error bg-error-bg" }
+  if (pct >= 100) return { label: "Complete", icon: CheckCircle2, badgeClass: "border-success-border text-success bg-success-bg" }
+  if (pct >= 75) return { label: "Good", icon: CheckCircle, badgeClass: "border-info-border text-info bg-info-bg" }
+  if (pct >= 50) return { label: "Partial", icon: AlertTriangle, badgeClass: "border-pending-border text-pending bg-pending-bg" }
+  return { label: "Incomplete", icon: XCircle, badgeClass: "border-error-border text-error bg-error-bg" }
 }
 
 function formatPeriodLabel(type: string, year: string, period: string): string {
@@ -258,12 +265,12 @@ function ReportNameBadges({
   variant: "expected" | "submitted" | "unsubmitted"
 }) {
   if (names.length === 0) {
-    return <span className="text-xs text-gray-400">—</span>
+    return <span className="text-xs text-muted-foreground">—</span>
   }
   const classes = {
-    expected: "bg-gray-50 text-gray-700 border-gray-200",
-    submitted: "bg-emerald-50 text-emerald-800 border-emerald-200",
-    unsubmitted: "bg-amber-50 text-amber-800 border-amber-200",
+    expected: "bg-surface-subtle text-foreground border-border",
+    submitted: "bg-success-bg text-success border-success-border",
+    unsubmitted: "bg-pending-bg text-pending border-pending-border",
   }
   return (
     <div className="flex flex-wrap gap-1">
@@ -293,14 +300,14 @@ function SortHeader({
     <button
       type="button"
       onClick={() => onSort(field)}
-      className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:text-gray-900 transition-colors"
+      className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
     >
       <Icon className="h-3.5 w-3.5" />
       {label}
       {active ? (
         dir === "asc" ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
       ) : (
-        <ChevronsUpDown className="h-3.5 w-3.5 text-gray-300" />
+        <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
       )}
     </button>
   )
@@ -667,6 +674,12 @@ const ReportsPage: React.FC = () => {
   }
 
   // ── Export individual report ──────────────────────────────────────────────
+  /** "Report type_Organisation unit_YYYY-MM-DD.xlsx" — same name whichever way the file is built. */
+  const exportFileName = (report: Report) => {
+    const safe = (s: string) => (s || "").replace(/[^a-zA-Z0-9]/g, "_").slice(0, 50)
+    return `${safe(report.report_type_name)}_${safe(report.org_unit_name)}_${(report.reporting_period || "").slice(0, 10)}.xlsx`
+  }
+
   const downloadXlsx = (report: Report, values: ReportValue[], submittedAt?: string | null) => {
     const rows: (string | number)[][] = [
       ["Report Type", report.report_type_name], ["Organisation Unit", report.org_unit_name],
@@ -677,21 +690,20 @@ const ReportsPage: React.FC = () => {
     const ws = XLSX.utils.aoa_to_sheet(rows)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "Report")
-    const safe = (s: string) => s.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 50)
     const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" })
     const a = document.createElement("a")
     a.href = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }))
-    a.download = `${safe(report.report_type_name)}_${safe(report.org_unit_name)}_${report.reporting_period.slice(0, 10)}.xlsx`
+    a.download = exportFileName(report)
     a.click()
   }
 
   const handleExport = async (report: Report) => {
     setExporting(true)
     try {
-      const res = await ApiClient.exportReport(report.id, "xlsx")
+      const res = await ApiClient.exportReport(report.id)
       const a = document.createElement("a")
       a.href = URL.createObjectURL(new Blob([res.data], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }))
-      a.download = `report_${report.id}.xlsx`; a.click()
+      a.download = exportFileName(report); a.click()
     } catch {
       try {
         const full = (await ApiClient.getReport(report.id)).data as Report & { values?: ReportValue[]; submitted_at?: string }
@@ -912,72 +924,69 @@ const ReportsPage: React.FC = () => {
 
   return (
     <div className="space-y-5 pb-10">
-      {/* Page header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Reports</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Browse report instances for your organisation and units below you, and monitor reporting completeness
-          </p>
-        </div>
-        {djangoUser?.org_unit_name && (
-          <div className="flex items-center gap-1.5 text-xs text-gray-500 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm flex-shrink-0">
-            <Building2 className="h-3.5 w-3.5 text-gray-400" />
-            {djangoUser.org_unit_name}
-          </div>
-        )}
-      </div>
+      <PageCard
+        title="Reports"
+        description="Find submitted reports for your unit and the units below it, check who has reported, and generate summary reports."
+        icon={<ClipboardList className="h-5 w-5" aria-hidden="true" />}
+        actions={
+          djangoUser?.org_unit_name ? (
+            <StatusPill tone="brand" icon={Building2}>
+              {djangoUser.org_unit_name}
+            </StatusPill>
+          ) : undefined
+        }
+      />
 
       <Tabs defaultValue="submissions" className="space-y-5">
-        <TabsList className="bg-white border border-gray-200 shadow-sm p-1 h-10">
+        <TabsList className="tabs-line">
           <TabsTrigger
             value="submissions"
-            className="gap-2 text-xs data-[state=active]:bg-[#C9433B] data-[state=active]:text-white data-[state=active]:shadow-sm"
+           
           >
-            <FileText className="h-3.5 w-3.5" />
-            All Reports
+            <FileText className="h-4 w-4" aria-hidden="true" />
+            All reports
           </TabsTrigger>
           <TabsTrigger
             value="rate"
-            className="gap-2 text-xs data-[state=active]:bg-[#C9433B] data-[state=active]:text-white data-[state=active]:shadow-sm"
+           
             onClick={initRateData}
           >
-            <BarChart3 className="h-3.5 w-3.5" />
-            Reporting Rate Summary
+            <BarChart3 className="h-4 w-4" aria-hidden="true" />
+            Reporting rate
           </TabsTrigger>
           <TabsTrigger
             value="compliance"
-            className="gap-2 text-xs data-[state=active]:bg-[#C9433B] data-[state=active]:text-white data-[state=active]:shadow-sm"
+           
             onClick={initRateData}
           >
-            <ListChecks className="h-3.5 w-3.5" />
-            Report Compliance
+            <ListChecks className="h-4 w-4" aria-hidden="true" />
+            Who has reported
           </TabsTrigger>
           <TabsTrigger
             value="generation"
-            className="gap-2 text-xs data-[state=active]:bg-[#C9433B] data-[state=active]:text-white data-[state=active]:shadow-sm"
+           
           >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Report Generation
+            <FileOutput className="h-4 w-4" aria-hidden="true" />
+            Generate a report
           </TabsTrigger>
         </TabsList>
 
         {/* ── Tab 1: Submitted Reports ──────────────────────────────────── */}
         <TabsContent value="submissions" className="space-y-4 mt-0">
           {/* Filter bar */}
-          <Card className="border-gray-200 shadow-sm">
+          <Card className="border-border shadow-sm">
             <CardContent className="p-4 flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   placeholder="Search by report type or organisation…"
                   value={searchText}
                   onChange={(e) => { setSearchText(e.target.value); setPage(1) }}
-                  className="pl-8 h-8 text-sm bg-white"
+                  className="pl-8 h-8 text-sm bg-card"
                 />
               </div>
               <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as typeof statusFilter); setPage(1) }}>
-                <SelectTrigger className="w-36 h-8 text-sm bg-white border-gray-200">
+                <SelectTrigger className="w-36 h-8 text-sm bg-card">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -995,7 +1004,7 @@ const ReportsPage: React.FC = () => {
                   if (t !== "all") setSubmissionsSubPeriod(defaultSubPeriodForType(t))
                 }}
               >
-                <SelectTrigger className="w-40 h-8 text-sm bg-white border-gray-200">
+                <SelectTrigger className="w-40 h-8 text-sm bg-card">
                   <SelectValue placeholder="Period type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1009,7 +1018,7 @@ const ReportsPage: React.FC = () => {
               {submissionsPeriodType !== "all" && (
                 <>
                   <Select value={submissionsYear} onValueChange={(v) => { setSubmissionsYear(v); setPage(1) }}>
-                    <SelectTrigger className="w-28 h-8 text-sm bg-white border-gray-200">
+                    <SelectTrigger className="w-28 h-8 text-sm bg-card">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1023,7 +1032,7 @@ const ReportsPage: React.FC = () => {
                       value={submissionsSubPeriod}
                       onValueChange={(v) => { setSubmissionsSubPeriod(v); setPage(1) }}
                     >
-                      <SelectTrigger className="w-44 h-8 text-sm bg-white border-gray-200">
+                      <SelectTrigger className="w-44 h-8 text-sm bg-card">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1045,7 +1054,7 @@ const ReportsPage: React.FC = () => {
               )}
               {submissionsPeriodType === "all" && (
                 <Select value={periodFilter} onValueChange={(v) => { setPeriodFilter(v); setPage(1) }}>
-                  <SelectTrigger className="w-48 h-8 text-sm bg-white border-gray-200">
+                  <SelectTrigger className="w-48 h-8 text-sm bg-card">
                     <SelectValue placeholder="Filter by month" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1057,7 +1066,7 @@ const ReportsPage: React.FC = () => {
                 </Select>
               )}
               <Select value={String(pageSize)} onValueChange={(v) => { setPage(1); setPageSize(Number(v)) }}>
-                <SelectTrigger className="w-24 h-8 text-sm bg-white border-gray-200">
+                <SelectTrigger className="w-24 h-8 text-sm bg-card">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1074,18 +1083,15 @@ const ReportsPage: React.FC = () => {
           )}
 
           {/* Table */}
-          <Card className="border-gray-200 shadow-sm overflow-hidden">
+          <Card className="border-border shadow-sm overflow-hidden">
             <CardContent className="p-0">
               {loadingReports ? (
-                <div className="flex items-center justify-center py-16">
-                  <Loader2 className="h-5 w-5 animate-spin mr-2" style={{ color: "#C9433B" }} />
-                  <span className="text-sm text-gray-500">Loading reports…</span>
-                </div>
+                <TableSkeleton rows={6} columns={5} />
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-gray-50 hover:bg-gray-50 border-b border-gray-200">
+                      <TableRow className="bg-surface-subtle hover:bg-surface-subtle border-b border-border">
                         <TableHead className="pl-5">
                           <SortHeader field="report_type_name" label="Report type" icon={FileText} current={sortField} dir={sortDir} onSort={toggleSort} />
                         </TableHead>
@@ -1098,57 +1104,61 @@ const ReportsPage: React.FC = () => {
                         <TableHead>
                           <SortHeader field="submitted_at" label="Submitted" icon={Clock} current={sortField} dir={sortDir} onSort={toggleSort} />
                         </TableHead>
-                        <TableHead className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</TableHead>
-                        <TableHead className="text-right pr-5 text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</TableHead>
+                        <TableHead className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</TableHead>
+                        <TableHead className="text-right pr-5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {reports.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="h-32 text-center text-sm text-gray-400">
-                            No reports found. Try adjusting your search or filter.
+                          <TableCell colSpan={6} className="p-0">
+                            <EmptyState
+                              illustration="no-results"
+                              title="No reports match these filters"
+                              description="Try a different search, status or period."
+                            />
                           </TableCell>
                         </TableRow>
                       ) : (
                         reports.map((r) => (
-                          <TableRow key={r.id} className="hover:bg-gray-50/70 border-b border-gray-100">
+                          <TableRow key={r.id} className="hover:bg-surface-subtle/70 border-b border-border">
                             <TableCell className="pl-5 py-3">
-                              <span className="font-medium text-gray-900 text-sm">{r.report_type_name}</span>
+                              <span className="font-medium text-foreground text-sm">{r.report_type_name}</span>
                             </TableCell>
-                            <TableCell className="text-sm text-gray-700 py-3">{r.org_unit_name}</TableCell>
-                            <TableCell className="text-sm text-gray-700 py-3">
+                            <TableCell className="text-sm text-foreground py-3">{r.org_unit_name}</TableCell>
+                            <TableCell className="text-sm text-foreground py-3">
                               {new Date(r.reporting_period).toLocaleDateString("en-US", { year: "numeric", month: "short" })}
                             </TableCell>
-                            <TableCell className="text-sm text-gray-700 py-3">
+                            <TableCell className="text-sm text-foreground py-3">
                               {r.submitted_at ? (
                                 <>
                                   <div>{new Date(r.submitted_at).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })}</div>
                                   {r.submitted_by_name && (
-                                    <div className="text-[11px] text-gray-400 mt-0.5">by {r.submitted_by_name}</div>
+                                    <div className="text-[11px] text-muted-foreground mt-0.5">by {r.submitted_by_name}</div>
                                   )}
                                 </>
                               ) : (
-                                <span className="text-gray-400">—</span>
+                                <span className="text-muted-foreground">—</span>
                               )}
                             </TableCell>
                             <TableCell className="py-3">
                               {r.status === "draft" ? (
-                                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 gap-1 text-[11px]">
+                                <Badge variant="outline" className="bg-pending-bg text-pending border-pending-border gap-1 text-[11px]">
                                   <Clock className="h-3 w-3" />
                                   Draft
                                 </Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 text-[11px]">
+                                <Badge variant="outline" className="bg-success-bg text-success border-success-border gap-1 text-[11px]">
                                   <CheckCircle className="h-3 w-3" />
                                   Submitted
                                 </Badge>
                               )}
                             </TableCell>
                             <TableCell className="text-right pr-5 py-3 space-x-1.5">
-                              <Button variant="outline" size="sm" onClick={() => handleView(r)} className="h-7 text-xs border-gray-200">
+                              <Button variant="outline" size="sm" onClick={() => handleView(r)} className="h-7 text-xs border-border">
                                 <Eye className="h-3.5 w-3.5 mr-1" />View
                               </Button>
-                              <Button variant="outline" size="sm" onClick={() => handleExport(r)} disabled={exporting} className="h-7 text-xs border-gray-200">
+                              <Button variant="outline" size="sm" onClick={() => handleExport(r)} disabled={exporting} className="h-7 text-xs border-border">
                                 <Download className="h-3.5 w-3.5 mr-1" />Export
                               </Button>
                             </TableCell>
@@ -1161,8 +1171,8 @@ const ReportsPage: React.FC = () => {
               )}
 
               {/* Pagination */}
-              <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 bg-gray-50/50">
-                <p className="text-xs text-gray-500">
+              <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-surface-subtle/50">
+                <p className="text-xs text-muted-foreground">
                   {totalCount === 0 ? "No reports" : `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, totalCount)} of ${totalCount}`}
                 </p>
                 <div className="flex items-center gap-1">
@@ -1172,11 +1182,11 @@ const ReportsPage: React.FC = () => {
                     { label: "›", action: () => setPage((p) => Math.min(pageCount, p + 1)), disabled: page >= pageCount },
                     { label: "»", action: () => setPage(pageCount), disabled: page >= pageCount },
                   ].map(({ label, action, disabled }) => (
-                    <Button key={label} variant="outline" size="sm" onClick={action} disabled={disabled} className="h-7 w-7 p-0 text-xs border-gray-200">
+                    <Button key={label} variant="outline" size="sm" onClick={action} disabled={disabled} className="h-7 w-7 p-0 text-xs border-border">
                       {label}
                     </Button>
                   ))}
-                  <span className="text-xs text-gray-500 ml-2">Page {page} of {pageCount}</span>
+                  <span className="text-xs text-muted-foreground ml-2">Page {page} of {pageCount}</span>
                 </div>
               </div>
             </CardContent>
@@ -1186,10 +1196,10 @@ const ReportsPage: React.FC = () => {
         {/* ── Tab 2: Reporting Rate Summary ─────────────────────────────── */}
         <TabsContent value="rate" className="space-y-5 mt-0">
           {/* Controls */}
-          <Card className="border-gray-200 shadow-sm">
+          <Card className="border-border shadow-sm">
             <CardHeader className="pb-3 pt-4 px-5">
-              <CardTitle className="text-sm font-semibold text-gray-900">Generate Reporting Rate Summary</CardTitle>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <CardTitle className="text-sm font-semibold text-foreground">Generate Reporting Rate Summary</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Expected = assigned report types × months in the period (e.g. quarterly = ×3).
                 Submitted counts only assigned types. Completeness is capped at 100%.
               </p>
@@ -1198,7 +1208,7 @@ const ReportsPage: React.FC = () => {
               <div className="flex flex-wrap items-end gap-3">
                 {/* Period type */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-600">Period type</label>
+                  <label className="text-xs font-medium text-muted-foreground">Period type</label>
                   <Select
                     value={periodType}
                     onValueChange={(v) => {
@@ -1207,7 +1217,7 @@ const ReportsPage: React.FC = () => {
                       setRatePeriod(t === "yearly" ? "" : defaultSubPeriodForType(t))
                     }}
                   >
-                    <SelectTrigger className="w-36 h-8 text-sm border-gray-200">
+                    <SelectTrigger className="w-36 h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1221,9 +1231,9 @@ const ReportsPage: React.FC = () => {
 
                 {/* Year */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-600">Year</label>
+                  <label className="text-xs font-medium text-muted-foreground">Year</label>
                   <Select value={rateYear} onValueChange={setRateYear}>
-                    <SelectTrigger className="w-28 h-8 text-sm border-gray-200">
+                    <SelectTrigger className="w-28 h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1237,11 +1247,11 @@ const ReportsPage: React.FC = () => {
                 {/* Period (month/quarter — hidden for yearly) */}
                 {periodType !== "yearly" && (
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-600">
+                    <label className="text-xs font-medium text-muted-foreground">
                       {subPeriodLabelForType(periodType)}
                     </label>
                     <Select value={ratePeriod} onValueChange={setRatePeriod}>
-                      <SelectTrigger className="w-44 h-8 text-sm border-gray-200">
+                      <SelectTrigger className="w-44 h-8 text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1263,9 +1273,9 @@ const ReportsPage: React.FC = () => {
 
                 {/* Org unit filter */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-600">Org unit (root)</label>
+                  <label className="text-xs font-medium text-muted-foreground">Org unit (root)</label>
                   <Select value={rateOrgFilter} onValueChange={setRateOrgFilter}>
-                    <SelectTrigger className="w-52 h-8 text-sm border-gray-200">
+                    <SelectTrigger className="w-52 h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1285,15 +1295,14 @@ const ReportsPage: React.FC = () => {
                 <Button
                   onClick={handleGenerate}
                   disabled={rateLoading}
-                  className="h-8 gap-2 text-white text-sm"
-                  style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}
+                  className="h-9"
                 >
                   {rateLoading ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
                     <RefreshCw className="h-3.5 w-3.5" />
                   )}
-                  {rateLoading ? "Generating…" : "Generate Report"}
+                  {rateLoading ? "Generating…" : "Show reporting rate"}
                 </Button>
               </div>
             </CardContent>
@@ -1307,80 +1316,61 @@ const ReportsPage: React.FC = () => {
           {summaryRows && summaryTotals && (
             <>
               {/* Stat cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  {
-                    label: "Org Units",
-                    value: summaryTotals.total,
-                    sub: "in selection",
-                    color: "#C9433B",
-                    bg: "#FEF0EC",
-                  },
-                  {
-                    label: "Expected Reports",
-                    value: summaryTotals.totalExpected,
-                    sub: formatPeriodLabel(periodType, rateYear, ratePeriod),
-                    color: "#8B3020",
-                    bg: "#FEF0EC",
-                  },
-                  {
-                    label: "Submitted Reports",
-                    value: summaryTotals.totalSubmitted,
-                    sub: `${summaryTotals.complete} units at 100%`,
-                    color: "#16a34a",
-                    bg: "#f0fdf4",
-                  },
-                  {
-                    label: "Overall Completeness",
-                    value: summaryTotals.overallPct !== null ? `${summaryTotals.overallPct}%` : "—",
-                    sub:
-                      summaryTotals.overallPct !== null
-                        ? summaryTotals.overallPct >= 100
-                          ? "Excellent"
-                          : summaryTotals.overallPct >= 75
-                          ? "Good"
-                          : summaryTotals.overallPct >= 50
-                          ? "Needs improvement"
-                          : "Critical"
-                        : "No data",
-                    color:
-                      summaryTotals.overallPct === null ? "#9ca3af" :
-                      summaryTotals.overallPct >= 100 ? "#16a34a" :
-                      summaryTotals.overallPct >= 75 ? "#2563eb" :
-                      summaryTotals.overallPct >= 50 ? "#d97706" : "#dc2626",
-                    bg:
-                      summaryTotals.overallPct === null ? "#f9fafb" :
-                      summaryTotals.overallPct >= 100 ? "#f0fdf4" :
-                      summaryTotals.overallPct >= 75 ? "#eff6ff" :
-                      summaryTotals.overallPct >= 50 ? "#fffbeb" : "#fef2f2",
-                  },
-                ].map((c) => (
-                  <Card key={c.label} className="border-gray-200 shadow-sm bg-white">
-                    <CardContent className="p-5">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">{c.label}</p>
-                          <p className="text-3xl font-bold leading-none" style={{ color: c.color }}>{c.value}</p>
-                          <p className="text-[11px] text-gray-400 mt-1.5">{c.sub}</p>
-                        </div>
-                        <div className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: c.bg }}>
-                          <BarChart3 className="h-5 w-5" style={{ color: c.color }} />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <StatCard
+                  label="Organisation units"
+                  value={summaryTotals.total}
+                  hint="In this selection"
+                  tint="blue"
+                  icon={<Building2 className="h-5 w-5" aria-hidden="true" />}
+                />
+                <StatCard
+                  label="Reports expected"
+                  value={summaryTotals.totalExpected}
+                  hint={formatPeriodLabel(periodType, rateYear, ratePeriod)}
+                  tint="violet"
+                  icon={<FileText className="h-5 w-5" aria-hidden="true" />}
+                />
+                <StatCard
+                  label="Reports submitted"
+                  value={summaryTotals.totalSubmitted}
+                  hint={`${summaryTotals.complete} unit${summaryTotals.complete === 1 ? "" : "s"} at 100%`}
+                  tint="teal"
+                  icon={<CheckCircle2 className="h-5 w-5" aria-hidden="true" />}
+                />
+                {(() => {
+                  const pct = summaryTotals.overallPct
+                  const status = pct === null ? null : getStatus(pct, summaryTotals.totalExpected)
+                  return (
+                    <StatCard
+                      label="Overall completeness"
+                      value={<span className={completenessColor(pct)}>{pct !== null ? `${pct}%` : "—"}</span>}
+                      hint={
+                        status ? (
+                          <span className={`status-pill ${status.badgeClass}`}>
+                            <status.icon className="h-3 w-3" aria-hidden="true" />
+                            {status.label}
+                          </span>
+                        ) : (
+                          "No data yet"
+                        )
+                      }
+                      tint="red"
+                      icon={<BarChart3 className="h-5 w-5" aria-hidden="true" />}
+                    />
+                  )
+                })()}
               </div>
 
               {/* Summary table */}
-              <Card className="border-gray-200 shadow-sm overflow-hidden">
+              <Card className="border-border shadow-sm overflow-hidden">
                 <CardHeader className="pt-4 pb-3 px-5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="text-sm font-semibold text-gray-900">
+                      <CardTitle className="text-sm font-semibold text-foreground">
                         Org Unit Completeness — {ratePeriodLabel ?? formatPeriodLabel(periodType, rateYear, ratePeriod)}
                       </CardTitle>
-                      <p className="text-[11px] text-gray-400 mt-0.5">
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
                         {sortedSummaryRows.length} org unit{sortedSummaryRows.length !== 1 ? "s" : ""} ·
                         {rateSlotCount > 1 ? ` ${rateSlotCount} months per assignment ·` : ""}
                         Click column headers to sort
@@ -1390,7 +1380,7 @@ const ReportsPage: React.FC = () => {
                       variant="outline"
                       size="sm"
                       onClick={exportRateSummary}
-                      className="h-8 text-xs border-gray-200 gap-1.5"
+                      className="h-8 text-xs border-border gap-1.5"
                     >
                       <Download className="h-3.5 w-3.5" />
                       Export XLSX
@@ -1401,11 +1391,11 @@ const ReportsPage: React.FC = () => {
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow className="bg-gray-50 border-b border-gray-200 hover:bg-gray-50">
+                        <TableRow className="bg-surface-subtle border-b border-border hover:bg-surface-subtle">
                           <TableHead className="pl-5 w-[35%]">
                             <button
                               type="button"
-                              className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:text-gray-900"
+                              className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground"
                               onClick={() => {
                                 if (rateSort === "name") setRateSortDir((d) => (d === "asc" ? "desc" : "asc"))
                                 else { setRateSort("name"); setRateSortDir("asc") }
@@ -1413,39 +1403,39 @@ const ReportsPage: React.FC = () => {
                             >
                               <Building2 className="h-3.5 w-3.5" />
                               Org Unit
-                              {rateSort === "name" ? (rateSortDir === "asc" ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />) : <ChevronsUpDown className="h-3.5 w-3.5 text-gray-300" />}
+                              {rateSort === "name" ? (rateSortDir === "asc" ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />) : <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />}
                             </button>
                           </TableHead>
-                          <TableHead className="text-xs font-semibold text-gray-600 uppercase tracking-wider text-center w-24">
+                          <TableHead className="text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center w-24">
                             Expected
                           </TableHead>
                           <TableHead className="text-center w-24">
                             <button
                               type="button"
-                              className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:text-gray-900 mx-auto"
+                              className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground mx-auto"
                               onClick={() => {
                                 if (rateSort === "submitted") setRateSortDir((d) => (d === "asc" ? "desc" : "asc"))
                                 else { setRateSort("submitted"); setRateSortDir("desc") }
                               }}
                             >
                               Submitted
-                              {rateSort === "submitted" ? (rateSortDir === "asc" ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />) : <ChevronsUpDown className="h-3.5 w-3.5 text-gray-300" />}
+                              {rateSort === "submitted" ? (rateSortDir === "asc" ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />) : <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />}
                             </button>
                           </TableHead>
                           <TableHead className="w-[28%]">
                             <button
                               type="button"
-                              className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:text-gray-900"
+                              className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground"
                               onClick={() => {
                                 if (rateSort === "completeness") setRateSortDir((d) => (d === "asc" ? "desc" : "asc"))
                                 else { setRateSort("completeness"); setRateSortDir("desc") }
                               }}
                             >
                               Completeness
-                              {rateSort === "completeness" ? (rateSortDir === "asc" ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />) : <ChevronsUpDown className="h-3.5 w-3.5 text-gray-300" />}
+                              {rateSort === "completeness" ? (rateSortDir === "asc" ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />) : <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />}
                             </button>
                           </TableHead>
-                          <TableHead className="pr-5 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          <TableHead className="pr-5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                             Status
                           </TableHead>
                         </TableRow>
@@ -1453,8 +1443,12 @@ const ReportsPage: React.FC = () => {
                       <TableBody>
                         {sortedSummaryRows.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={5} className="h-24 text-center text-sm text-gray-400">
-                              No data available for this selection.
+                            <TableCell colSpan={5} className="p-0">
+                              <EmptyState
+                                illustration="no-results"
+                                title="Nothing to show for this selection"
+                                description="Try another period or organisation unit."
+                              />
                             </TableCell>
                           </TableRow>
                         ) : (
@@ -1463,7 +1457,7 @@ const ReportsPage: React.FC = () => {
                             const StatusIcon = status.icon
                             const pct = row.completeness ?? 0
                             return (
-                              <TableRow key={row.orgUnitId} className="hover:bg-gray-50/60 border-b border-gray-100">
+                              <TableRow key={row.orgUnitId} className="hover:bg-surface-subtle/60 border-b border-border">
                                 <TableCell className="pl-5 py-3">
                                   <div className="flex items-center gap-2">
                                     {/* Level indent indicator */}
@@ -1473,28 +1467,28 @@ const ReportsPage: React.FC = () => {
                                         style={{
                                           width: `${row.level * 12}px`,
                                           height: "2px",
-                                          background: "#e5e7eb",
+                                          background: "hsl(var(--border))",
                                           marginLeft: "4px",
                                         }}
                                       />
                                     )}
                                     <div>
-                                      <p className="text-sm font-medium text-gray-900">{row.orgUnitName}</p>
-                                      <p className="text-[10px] text-gray-400">Level {row.level + 1}</p>
+                                      <p className="text-sm font-medium text-foreground">{row.orgUnitName}</p>
+                                      <p className="text-[10px] text-muted-foreground">Level {row.level + 1}</p>
                                     </div>
                                   </div>
                                 </TableCell>
                                 <TableCell className="text-center py-3">
-                                  <span className="text-sm font-semibold text-gray-700">{row.expected}</span>
+                                  <span className="text-sm font-semibold text-foreground">{row.expected}</span>
                                 </TableCell>
                                 <TableCell className="text-center py-3">
-                                  <span className={`text-sm font-semibold ${row.submitted > 0 ? "text-green-700" : "text-gray-400"}`}>
+                                  <span className={`text-sm font-semibold ${row.submitted > 0 ? "text-success" : "text-muted-foreground"}`}>
                                     {row.submitted}
                                   </span>
                                 </TableCell>
                                 <TableCell className="py-3 pr-4">
                                   {row.expected === 0 ? (
-                                    <span className="text-xs text-gray-400">No assignments</span>
+                                    <span className="text-xs text-muted-foreground">No assignments</span>
                                   ) : (
                                     <div className="flex items-center gap-2.5">
                                       <Progress
@@ -1523,18 +1517,18 @@ const ReportsPage: React.FC = () => {
 
                   {/* Table footer totals */}
                   {sortedSummaryRows.length > 0 && (
-                    <div className="flex items-center justify-between px-5 py-3 border-t border-gray-200 bg-gray-50">
-                      <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-surface-subtle">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Totals
                       </span>
                       <div className="flex items-center gap-8 text-sm">
-                        <span className="text-gray-500">
-                          Expected: <strong className="text-gray-900">{summaryTotals.totalExpected}</strong>
+                        <span className="text-muted-foreground">
+                          Expected: <strong className="text-foreground">{summaryTotals.totalExpected}</strong>
                         </span>
-                        <span className="text-gray-500">
-                          Submitted: <strong className="text-green-700">{summaryTotals.totalSubmitted}</strong>
+                        <span className="text-muted-foreground">
+                          Submitted: <strong className="text-success">{summaryTotals.totalSubmitted}</strong>
                         </span>
-                        <span className="text-gray-500">
+                        <span className="text-muted-foreground">
                           Overall:{" "}
                           <strong className={completenessColor(summaryTotals.overallPct)}>
                             {summaryTotals.overallPct !== null ? `${summaryTotals.overallPct}%` : "—"}
@@ -1550,13 +1544,13 @@ const ReportsPage: React.FC = () => {
 
           {/* Empty state before generating */}
           {!summaryRows && !rateLoading && (
-            <Card className="border-dashed border-2 border-gray-200 shadow-none bg-white">
+            <Card className="border-dashed border-2 border-border shadow-none bg-card">
               <CardContent className="text-center py-16">
-                <div className="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center bg-gray-100">
-                  <BarChart3 className="h-7 w-7 text-gray-400" />
+                <div className="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center bg-muted">
+                  <BarChart3 className="h-7 w-7 text-muted-foreground" />
                 </div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-1">No summary generated yet</h3>
-                <p className="text-xs text-gray-400 max-w-xs mx-auto">
+                <h3 className="text-sm font-semibold text-foreground mb-1">No summary generated yet</h3>
+                <p className="text-xs text-muted-foreground max-w-xs mx-auto">
                   Select a period type, year, and optionally an org unit above, then click{" "}
                   <strong>Generate Report</strong> to see the completeness summary.
                 </p>
@@ -1567,17 +1561,17 @@ const ReportsPage: React.FC = () => {
 
         {/* ── Tab 3: Report Compliance ─────────────────────────────────────── */}
         <TabsContent value="compliance" className="space-y-5 mt-0">
-          <Card className="border-gray-200 shadow-sm">
+          <Card className="border-border shadow-sm">
             <CardHeader className="pb-3 pt-4 px-5">
-              <CardTitle className="text-sm font-semibold text-gray-900">Generate Report Compliance</CardTitle>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <CardTitle className="text-sm font-semibold text-foreground">Generate Report Compliance</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 For each org unit, see assigned report types and which are fully submitted vs missing for the selected period.
               </p>
             </CardHeader>
             <CardContent className="px-5 pb-5">
               <div className="flex flex-wrap items-end gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-600">Period type</label>
+                  <label className="text-xs font-medium text-muted-foreground">Period type</label>
                   <Select
                     value={periodType}
                     onValueChange={(v) => {
@@ -1586,7 +1580,7 @@ const ReportsPage: React.FC = () => {
                       setRatePeriod(t === "yearly" ? "" : defaultSubPeriodForType(t))
                     }}
                   >
-                    <SelectTrigger className="w-36 h-8 text-sm border-gray-200">
+                    <SelectTrigger className="w-36 h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1598,9 +1592,9 @@ const ReportsPage: React.FC = () => {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-600">Year</label>
+                  <label className="text-xs font-medium text-muted-foreground">Year</label>
                   <Select value={rateYear} onValueChange={setRateYear}>
-                    <SelectTrigger className="w-28 h-8 text-sm border-gray-200">
+                    <SelectTrigger className="w-28 h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1612,11 +1606,11 @@ const ReportsPage: React.FC = () => {
                 </div>
                 {periodType !== "yearly" && (
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-600">
+                    <label className="text-xs font-medium text-muted-foreground">
                       {subPeriodLabelForType(periodType)}
                     </label>
                     <Select value={ratePeriod} onValueChange={setRatePeriod}>
-                      <SelectTrigger className="w-44 h-8 text-sm border-gray-200">
+                      <SelectTrigger className="w-44 h-8 text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1636,9 +1630,9 @@ const ReportsPage: React.FC = () => {
                   </div>
                 )}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-600">Org unit (root)</label>
+                  <label className="text-xs font-medium text-muted-foreground">Org unit (root)</label>
                   <Select value={rateOrgFilter} onValueChange={setRateOrgFilter}>
-                    <SelectTrigger className="w-52 h-8 text-sm border-gray-200">
+                    <SelectTrigger className="w-52 h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1656,15 +1650,14 @@ const ReportsPage: React.FC = () => {
                 <Button
                   onClick={handleGenerateCompliance}
                   disabled={complianceLoading}
-                  className="h-8 gap-2 text-white text-sm"
-                  style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}
+                  className="h-9"
                 >
                   {complianceLoading ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
                     <RefreshCw className="h-3.5 w-3.5" />
                   )}
-                  {complianceLoading ? "Generating…" : "Generate Report"}
+                  {complianceLoading ? "Generating…" : "Show who has reported"}
                 </Button>
               </div>
             </CardContent>
@@ -1675,14 +1668,14 @@ const ReportsPage: React.FC = () => {
           )}
 
           {complianceRows && (
-            <Card className="border-gray-200 shadow-sm overflow-hidden">
+            <Card className="border-border shadow-sm overflow-hidden">
               <CardHeader className="pt-4 pb-3 px-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-sm font-semibold text-gray-900">
+                    <CardTitle className="text-sm font-semibold text-foreground">
                       Report Compliance — {compliancePeriodLabel ?? formatPeriodLabel(periodType, rateYear, ratePeriod)}
                     </CardTitle>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
                       {sortedComplianceRows.length} org unit{sortedComplianceRows.length !== 1 ? "s" : ""}
                     </p>
                   </div>
@@ -1691,7 +1684,7 @@ const ReportsPage: React.FC = () => {
                     size="sm"
                     onClick={exportComplianceSummary}
                     disabled={!sortedComplianceRows.length}
-                    className="h-8 text-xs border-gray-200 gap-1.5"
+                    className="h-8 text-xs border-border gap-1.5"
                   >
                     <Download className="h-3.5 w-3.5" />
                     Export XLSX
@@ -1702,11 +1695,11 @@ const ReportsPage: React.FC = () => {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-gray-50 border-b border-gray-200 hover:bg-gray-50">
+                      <TableRow className="bg-surface-subtle border-b border-border hover:bg-surface-subtle">
                         <TableHead className="pl-5 w-[22%]">
                           <button
                             type="button"
-                            className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:text-gray-900"
+                            className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground"
                             onClick={() => setComplianceSortDir((d) => (d === "asc" ? "desc" : "asc"))}
                           >
                             <Building2 className="h-3.5 w-3.5" />
@@ -1718,13 +1711,13 @@ const ReportsPage: React.FC = () => {
                             )}
                           </button>
                         </TableHead>
-                        <TableHead className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-[26%]">
+                        <TableHead className="text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[26%]">
                           Expected
                         </TableHead>
-                        <TableHead className="text-xs font-semibold text-gray-600 uppercase tracking-wider w-[26%]">
+                        <TableHead className="text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[26%]">
                           Submitted
                         </TableHead>
-                        <TableHead className="pr-5 text-xs font-semibold text-gray-600 uppercase tracking-wider w-[26%]">
+                        <TableHead className="pr-5 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-[26%]">
                           Unsubmitted
                         </TableHead>
                       </TableRow>
@@ -1732,13 +1725,17 @@ const ReportsPage: React.FC = () => {
                     <TableBody>
                       {sortedComplianceRows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="h-24 text-center text-sm text-gray-400">
-                            No data available for this selection.
+                          <TableCell colSpan={4} className="p-0">
+                            <EmptyState
+                              illustration="no-results"
+                              title="Nothing to show for this selection"
+                              description="Try another period or organisation unit."
+                            />
                           </TableCell>
                         </TableRow>
                       ) : (
                         sortedComplianceRows.map((row) => (
-                          <TableRow key={row.orgUnitId} className="hover:bg-gray-50/60 border-b border-gray-100 align-top">
+                          <TableRow key={row.orgUnitId} className="hover:bg-surface-subtle/60 border-b border-border align-top">
                             <TableCell className="pl-5 py-3">
                               <div className="flex items-center gap-2">
                                 {row.level > 0 && (
@@ -1747,20 +1744,20 @@ const ReportsPage: React.FC = () => {
                                     style={{
                                       width: `${row.level * 12}px`,
                                       height: "2px",
-                                      background: "#e5e7eb",
+                                      background: "hsl(var(--border))",
                                       marginLeft: "4px",
                                     }}
                                   />
                                 )}
                                 <div>
-                                  <p className="text-sm font-medium text-gray-900">{row.orgUnitName}</p>
-                                  <p className="text-[10px] text-gray-400">Level {row.level + 1}</p>
+                                  <p className="text-sm font-medium text-foreground">{row.orgUnitName}</p>
+                                  <p className="text-[10px] text-muted-foreground">Level {row.level + 1}</p>
                                 </div>
                               </div>
                             </TableCell>
                             <TableCell className="py-3">
                               {row.expectedReports.length === 0 ? (
-                                <span className="text-xs text-gray-400">Not assigned</span>
+                                <span className="text-xs text-muted-foreground">Not assigned</span>
                               ) : (
                                 <ReportNameBadges names={row.expectedReports} variant="expected" />
                               )}
@@ -1782,13 +1779,13 @@ const ReportsPage: React.FC = () => {
           )}
 
           {!complianceRows && !complianceLoading && (
-            <Card className="border-dashed border-2 border-gray-200 shadow-none bg-white">
+            <Card className="border-dashed border-2 border-border shadow-none bg-card">
               <CardContent className="text-center py-16">
-                <div className="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center bg-gray-100">
-                  <ListChecks className="h-7 w-7 text-gray-400" />
+                <div className="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center bg-muted">
+                  <ListChecks className="h-7 w-7 text-muted-foreground" />
                 </div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-1">No compliance report generated yet</h3>
-                <p className="text-xs text-gray-400 max-w-xs mx-auto">
+                <h3 className="text-sm font-semibold text-foreground mb-1">No compliance report generated yet</h3>
+                <p className="text-xs text-muted-foreground max-w-xs mx-auto">
                   Select a period and org unit, then click <strong>Generate Report</strong> to see expected, submitted, and unsubmitted report names.
                 </p>
               </CardContent>
@@ -1798,10 +1795,10 @@ const ReportsPage: React.FC = () => {
 
         {/* ── Tab 4: Report Generation ──────────────────────────────────────── */}
         <TabsContent value="generation" className="space-y-5 mt-0">
-          <Card className="border-gray-200 shadow-sm">
+          <Card className="border-border shadow-sm">
             <CardHeader className="pb-3 pt-4 px-5">
-              <CardTitle className="text-sm font-semibold text-gray-900">Generate Aggregated Report</CardTitle>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <CardTitle className="text-sm font-semibold text-foreground">Generate Aggregated Report</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Select one or more report types and generate aggregated reports in one run (e.g. quarterly = sum of 3 months).
               </p>
             </CardHeader>
@@ -1813,7 +1810,7 @@ const ReportsPage: React.FC = () => {
               ) : (
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-600">Period type</label>
+                    <label className="text-xs font-medium text-muted-foreground">Period type</label>
                     <Select
                       value={genPeriodType}
                       onValueChange={(v) => {
@@ -1823,7 +1820,7 @@ const ReportsPage: React.FC = () => {
                         else if (v === "half-yearly") setGenSubPeriod("H1")
                       }}
                     >
-                      <SelectTrigger className="w-36 h-8 text-sm border-gray-200">
+                      <SelectTrigger className="w-36 h-8 text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1836,9 +1833,9 @@ const ReportsPage: React.FC = () => {
                   </div>
                   {((isStaff || isSuperuser) || accessibleFlatUnits.length > 1) && (
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-gray-600">Organisation unit</label>
+                      <label className="text-xs font-medium text-muted-foreground">Organisation unit</label>
                       <Select value={genOrgId} onValueChange={setGenOrgId}>
-                        <SelectTrigger className="w-56 h-8 text-sm border-gray-200">
+                        <SelectTrigger className="w-56 h-8 text-sm">
                           <SelectValue placeholder="Select org unit" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1852,9 +1849,9 @@ const ReportsPage: React.FC = () => {
                     </div>
                   )}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-600">Year</label>
+                    <label className="text-xs font-medium text-muted-foreground">Year</label>
                     <Select value={genYear} onValueChange={setGenYear}>
-                      <SelectTrigger className="w-28 h-8 text-sm border-gray-200">
+                      <SelectTrigger className="w-28 h-8 text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1866,14 +1863,14 @@ const ReportsPage: React.FC = () => {
                   </div>
                   {genPeriodType !== "annual" && (
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-gray-600">
+                      <label className="text-xs font-medium text-muted-foreground">
                         {genPeriodType === "monthly" ? "Month" : genPeriodType === "quarterly" ? "Quarter" : "Half"}
                       </label>
                       <Select
                         value={genSubPeriod}
                         onValueChange={setGenSubPeriod}
                       >
-                        <SelectTrigger className="w-44 h-8 text-sm border-gray-200">
+                        <SelectTrigger className="w-44 h-8 text-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1885,12 +1882,12 @@ const ReportsPage: React.FC = () => {
                     </div>
                   )}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-600">Report types</label>
+                    <label className="text-xs font-medium text-muted-foreground">Report types</label>
                     <Popover open={genTypesOpen} onOpenChange={setGenTypesOpen}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className="w-64 h-8 text-sm border-gray-200 justify-between font-normal"
+                          className="w-64 h-8 text-sm border-border justify-between font-normal"
                         >
                           <span className="truncate text-left">
                             {genSelectedTypeIds.length === 0
@@ -1901,7 +1898,7 @@ const ReportsPage: React.FC = () => {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-72 p-0" align="start">
-                        <div className="p-2 border-b border-gray-100 space-y-2">
+                        <div className="p-2 border-b border-border space-y-2">
                           <Input
                             placeholder="Search report types…"
                             value={genReportSearch}
@@ -1931,12 +1928,12 @@ const ReportsPage: React.FC = () => {
                         </div>
                         <div className="max-h-56 overflow-y-auto p-2 space-y-1">
                           {filteredGenReportTypes.length === 0 ? (
-                            <p className="text-xs text-gray-400 px-2 py-3 text-center">No report types</p>
+                            <p className="text-xs text-muted-foreground px-2 py-3 text-center">No report types</p>
                           ) : (
                             filteredGenReportTypes.map((rt) => (
                               <label
                                 key={rt.id}
-                                className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-50 cursor-pointer text-sm"
+                                className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-surface-subtle cursor-pointer text-sm"
                               >
                                 <Checkbox
                                   checked={genSelectedTypeIds.includes(rt.id)}
@@ -1953,15 +1950,14 @@ const ReportsPage: React.FC = () => {
                   <Button
                     onClick={handleGenerateReport}
                     disabled={genLoading || assignedReportTypes.length === 0 || genSelectedTypeIds.length === 0}
-                    className="h-8 gap-2 text-white text-sm"
-                    style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}
+                    className="h-9"
                   >
                     {genLoading ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
                       <RefreshCw className="h-3.5 w-3.5" />
                     )}
-                    {genLoading ? "Generating…" : "Generate"}
+                    {genLoading ? "Generating…" : "Generate report"}
                   </Button>
                 </div>
               )}
@@ -1975,13 +1971,13 @@ const ReportsPage: React.FC = () => {
           {genResults.length > 0 && (
             <div className="space-y-4">
               {genResults.map((result) => (
-                <Card key={result.reportTypeId} className="border-gray-200 shadow-sm">
+                <Card key={result.reportTypeId} className="border-border shadow-sm">
                   <CardHeader className="pb-3 pt-4 px-5 flex flex-row items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <CardTitle className="text-sm font-semibold text-gray-900 truncate">
+                      <CardTitle className="text-sm font-semibold text-foreground truncate">
                         {result.reportTypeName} — {result.periodLabel}
                       </CardTitle>
-                      <p className="text-xs text-gray-400 mt-0.5 truncate">
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
                         {result.orgUnitName || "—"}
                       </p>
                     </div>
@@ -1991,7 +1987,7 @@ const ReportsPage: React.FC = () => {
                         size="sm"
                         onClick={() => handleExportGeneratedReport(result)}
                         disabled={genExportingId === result.reportTypeId}
-                        className="h-8 text-xs border-gray-200 gap-1.5 shrink-0"
+                        className="h-8 text-xs border-border gap-1.5 shrink-0"
                       >
                         <Download className="h-3.5 w-3.5" />
                         Export Excel
@@ -2015,15 +2011,15 @@ const ReportsPage: React.FC = () => {
                         autoSaving={false}
                       />
                     ) : Object.keys(result.values).filter((k) => !k.startsWith("remark.")).length === 0 ? (
-                      <p className="text-sm text-gray-400 text-center py-4">No data for this period.</p>
+                      <p className="text-sm text-muted-foreground text-center py-4">No data for this period.</p>
                     ) : (
-                      <div className="border border-gray-200 rounded-lg overflow-auto">
+                      <div className="border border-border rounded-lg overflow-auto">
                         <Table>
                           <TableHeader>
-                            <TableRow className="bg-gray-50 border-b border-gray-200">
-                              <TableHead className="text-xs font-semibold text-gray-600">Data element / Code</TableHead>
-                              <TableHead className="text-xs font-semibold text-gray-600 text-right">Value</TableHead>
-                              <TableHead className="text-xs font-semibold text-gray-600">Remark</TableHead>
+                            <TableRow className="bg-surface-subtle border-b border-border">
+                              <TableHead className="text-xs font-semibold text-muted-foreground">Data element / Code</TableHead>
+                              <TableHead className="text-xs font-semibold text-muted-foreground text-right">Value</TableHead>
+                              <TableHead className="text-xs font-semibold text-muted-foreground">Remark</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -2032,12 +2028,12 @@ const ReportsPage: React.FC = () => {
                               .map(([code, val]) => {
                                 const remark = result.values[`remark.${code}`] ?? ""
                                 return (
-                                  <TableRow key={code} className="border-b border-gray-100">
-                                    <TableCell className="text-sm text-gray-800 py-2">{code}</TableCell>
-                                    <TableCell className="text-sm font-semibold text-gray-900 text-right py-2">
+                                  <TableRow key={code} className="border-b border-border">
+                                    <TableCell className="text-sm text-foreground py-2">{code}</TableCell>
+                                    <TableCell className="text-sm font-semibold text-foreground text-right py-2">
                                       {val ?? "—"}
                                     </TableCell>
-                                    <TableCell className="text-sm text-gray-500 py-2">
+                                    <TableCell className="text-sm text-muted-foreground py-2">
                                       {typeof remark === "string" ? remark : ""}
                                     </TableCell>
                                   </TableRow>
@@ -2069,13 +2065,13 @@ const ReportsPage: React.FC = () => {
 
           {viewLoading ? (
             <div className="flex items-center justify-center py-10">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" style={{ color: "#C9433B" }} />
-              <span className="text-sm text-gray-500">Loading values…</span>
+              <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
+              <span className="text-sm text-muted-foreground">Loading values…</span>
             </div>
           ) : selectedReport ? (
             <div className="flex flex-col gap-4 min-h-0 overflow-hidden">
               {/* Meta grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-lg bg-gray-50 border border-gray-200">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-lg bg-surface-subtle border border-border">
                 {[
                   { label: "Report type", value: selectedReport.report_type_name },
                   { label: "Organisation unit", value: selectedReport.org_unit_name },
@@ -2092,31 +2088,31 @@ const ReportsPage: React.FC = () => {
                   },
                 ].map((m) => (
                   <div key={m.label}>
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{m.label}</p>
-                    <p className="text-sm font-medium text-gray-900">{m.value}</p>
+                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{m.label}</p>
+                    <p className="text-sm font-medium text-foreground">{m.value}</p>
                   </div>
                 ))}
               </div>
 
               {/* Values table */}
               {selectedValues.length === 0 ? (
-                <p className="text-sm text-gray-400 py-4 text-center">No recorded values for this report.</p>
+                <p className="text-sm text-muted-foreground py-4 text-center">No recorded values for this report.</p>
               ) : (
-                <div className="border border-gray-200 rounded-lg overflow-auto max-h-[min(420px,50vh)]">
+                <div className="border border-border rounded-lg overflow-auto max-h-[min(420px,50vh)]">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-gray-50 border-b border-gray-200 hover:bg-gray-50">
-                        <TableHead className="text-xs font-semibold text-gray-600 w-[45%]">Data element</TableHead>
-                        <TableHead className="text-xs font-semibold text-gray-600 w-[15%] text-right">Value</TableHead>
-                        <TableHead className="text-xs font-semibold text-gray-600">Remark</TableHead>
+                      <TableRow className="bg-surface-subtle border-b border-border hover:bg-surface-subtle">
+                        <TableHead className="text-xs font-semibold text-muted-foreground w-[45%]">Data element</TableHead>
+                        <TableHead className="text-xs font-semibold text-muted-foreground w-[15%] text-right">Value</TableHead>
+                        <TableHead className="text-xs font-semibold text-muted-foreground">Remark</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {selectedValues.map((v) => (
-                        <TableRow key={v.id} className="border-b border-gray-100 hover:bg-gray-50/50">
-                          <TableCell className="text-sm text-gray-800 py-2.5">{v.data_element_name}</TableCell>
-                          <TableCell className="text-sm font-semibold text-gray-900 text-right py-2.5">{v.value ?? "—"}</TableCell>
-                          <TableCell className="text-sm text-gray-500 py-2.5">{v.remark || ""}</TableCell>
+                        <TableRow key={v.id} className="border-b border-border hover:bg-surface-subtle/50">
+                          <TableCell className="text-sm text-foreground py-2.5">{v.data_element_name}</TableCell>
+                          <TableCell className="text-sm font-semibold text-foreground text-right py-2.5">{v.value ?? "—"}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground py-2.5">{v.remark || ""}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -2125,13 +2121,13 @@ const ReportsPage: React.FC = () => {
               )}
 
               {/* Dialog footer actions */}
-              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleExport(selectedReport)}
                   disabled={exporting}
-                  className="gap-1.5 border-gray-200"
+                  className="gap-1.5 border-border"
                 >
                   <Download className="h-3.5 w-3.5" />
                   Export XLSX

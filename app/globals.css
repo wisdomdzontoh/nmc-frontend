@@ -1,230 +1,539 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Light and dark variants */
 @custom-variant dark (&:is(.dark *));
 
-/* ===================================================
-   BRAND COLOR SYSTEM — Light Coral-Red / White / Ash
-   =================================================== */
-:root {
-  /* Base Palette */
-  --color-primary-base: #D96455;   /* Light Coral-Red (primary buttons / active states) */
-  --color-primary-dark: #C9433B;   /* Medium Coral-Red (sidebar / header) */
-  --color-primary-mid:  #E8877A;   /* Soft Coral (gradient ends / hover) */
-  --color-primary-light: #F4A99E;  /* Light Blush Coral (accent / charts) */
-  --color-dark-base: #0a0a0a;      /* Near Black */
-  --color-soft-base: #FFF5F3;      /* Very light warm-white background */
-
-  /* Core theme variables */
-  --background: #ffffff;
-  --foreground: #0a0a0a;
-
-  --card: #ffffff;
-  --card-foreground: #0a0a0a;
-
-  --popover: #ffffff;
-  --popover-foreground: #0a0a0a;
-
-  --primary: var(--color-primary-base);
-  --primary-foreground: #ffffff;
-
-  --secondary: #FCC6BB;
-  --secondary-foreground: #C9433B;
-
-  --muted: #F3F4F6;
-  --muted-foreground: #6B7280;
-
-  --accent: #FCC6BB;
-  --accent-foreground: #C9433B;
-
-  --destructive: #dc2626;
-  --destructive-foreground: #ffffff;
-
-  --border: #E5E7EB;
-  --input: #F9FAFB;
-  --ring: var(--color-primary-base);
-
-  /* Chart tones — light coral scale */
-  --chart-1: #D96455;
-  --chart-2: #E8877A;
-  --chart-3: #F4A99E;
-  --chart-4: #FCC6BB;
-  --chart-5: #FFE4DE;
-
-  --radius: 0.5rem;
-
-  /* Sidebar */
-  --sidebar: #C9433B;
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #F4A99E;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #D96455;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #B84039;
-  --sidebar-ring: #F4A99E;
-}
+/* Radix sets data-state="checked", not a data-checked attribute.
+   Map the shorthand so radios, checkboxes and switches actually paint. */
+@custom-variant data-checked (&[data-state="checked"]);
+@custom-variant data-unchecked (&[data-state="unchecked"]);
 
 /* ===================================================
-   DARK THEME VARIANTS
-   =================================================== */
-.dark {
-  --background: #120a09;
-  --foreground: #FEF0EC;
-
-  --card: #1e0f0d;
-  --card-foreground: #FEF0EC;
-
-  --popover: #1e0f0d;
-  --popover-foreground: #FEF0EC;
-
-  --primary: #E8877A;
-  --primary-foreground: #120a09;
-
-  --secondary: #8B3020;
-  --secondary-foreground: #ffffff;
-
-  --muted: #2e1510;
-  --muted-foreground: #F4A99E;
-
-  --accent: #8B3020;
-  --accent-foreground: #ffffff;
-
-  --destructive: #ef4444;
-  --destructive-foreground: #fff;
-
-  --border: #3d1a14;
-  --input: #3d1a14;
-  --ring: #E8877A;
-
-  --chart-1: #E8877A;
-  --chart-2: #F4A99E;
-  --chart-3: #D96455;
-  --chart-4: #C9433B;
-  --chart-5: #8B3020;
-
-  --sidebar: #1a0e0c;
-  --sidebar-foreground: #FCC6BB;
-  --sidebar-primary: #F4A99E;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #C9433B;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #3d1a14;
-  --sidebar-ring: #F4A99E;
-}
-
-/* ===================================================
-   THEME MAPPING TO TAILWIND
+   NMC DESIGN SYSTEM — clinical red, dotted canvas
+   Tokens are HSL triplets in :root, exposed to Tailwind
+   via @theme inline (--success-bg → bg-success-bg).
+   Never hardcode hex / Tailwind palette colours in
+   components — add a token here first.
    =================================================== */
 @theme inline {
-  /* Font stack — Inter loaded via next/font/google */
   --font-sans: var(--font-inter, ui-sans-serif, system-ui, -apple-system, sans-serif);
   --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
 
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+  --color-brand: hsl(var(--brand));
+  --color-brand-foreground: hsl(var(--brand-foreground));
+
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-hover: hsl(var(--primary-hover));
+  --color-primary-soft: hsl(var(--primary-soft));
+  --color-primary-border: hsl(var(--primary-border));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-link: hsl(var(--link));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-success: hsl(var(--success));
+  --color-success-bg: hsl(var(--success-bg));
+  --color-success-border: hsl(var(--success-border));
+  --color-warning: hsl(var(--warning));
+  --color-warning-bg: hsl(var(--warning-bg));
+  --color-warning-border: hsl(var(--warning-border));
+  --color-pending: hsl(var(--pending));
+  --color-pending-bg: hsl(var(--pending-bg));
+  --color-pending-border: hsl(var(--pending-border));
+  --color-error: hsl(var(--error));
+  --color-error-bg: hsl(var(--error-bg));
+  --color-error-border: hsl(var(--error-border));
+  --color-info: hsl(var(--info));
+  --color-info-bg: hsl(var(--info-bg));
+  --color-info-border: hsl(var(--info-border));
+  --color-purple: hsl(var(--purple));
+  --color-purple-bg: hsl(var(--purple-bg));
+  --color-purple-border: hsl(var(--purple-border));
+  --color-neutral: hsl(var(--neutral));
+  --color-neutral-bg: hsl(var(--neutral-bg));
+  --color-neutral-border: hsl(var(--neutral-border));
+
+  /* Identity palette — decorative only (icon chips, avatars). Never for status. */
+  --color-tint-red: hsl(var(--tint-red));
+  --color-tint-red-bg: hsl(var(--tint-red-bg));
+  --color-tint-blue: hsl(var(--tint-blue));
+  --color-tint-blue-bg: hsl(var(--tint-blue-bg));
+  --color-tint-teal: hsl(var(--tint-teal));
+  --color-tint-teal-bg: hsl(var(--tint-teal-bg));
+  --color-tint-violet: hsl(var(--tint-violet));
+  --color-tint-violet-bg: hsl(var(--tint-violet-bg));
+  --color-tint-amber: hsl(var(--tint-amber));
+  --color-tint-amber-bg: hsl(var(--tint-amber-bg));
+
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+
+  --color-canvas-dot: hsl(var(--canvas-dot));
+  --color-surface-subtle: hsl(var(--surface-subtle));
+  --color-surface-muted: hsl(var(--surface-muted));
+  --color-text-disabled: hsl(var(--text-disabled));
+
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  --shadow-card: 0 1px 3px hsl(222 30% 12% / 0.06);
 }
 
-/* ===================================================
-   BASE STYLES
-   =================================================== */
 @layer base {
+  :root {
+    /* ── Brand chrome — deep NMC wine-red (sidebar only) ───────────── */
+    --brand: 354 58% 22%;
+    --brand-foreground: 0 0% 100%;
+
+    /* ── Canvas & surfaces — cool neutral greys ───────────────────── */
+    --canvas-dot: 220 14% 84%;
+    --background: 220 20% 97%;
+    --foreground: 222 30% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 30% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 30% 12%;
+
+    --surface-subtle: 220 20% 97%;
+    --surface-muted: 220 16% 94%;
+
+    --muted: 220 16% 94%;
+    --muted-foreground: 220 9% 40%;
+    --text-disabled: 220 8% 58%;
+
+    /* Primary action + selected controls — NMC red (white text passes AA). */
+    --primary: 4 66% 45%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 4 68% 38%;
+    --primary-soft: 4 80% 97%;
+    --primary-border: 4 70% 85%;
+
+    /* Tertiary surfaces (badge "secondary", quiet fills). */
+    --secondary: 220 16% 94%;
+    --secondary-foreground: 222 30% 12%;
+
+    /* Menu / list hover tint (shadcn "accent"). Not a button colour. */
+    --accent: 4 80% 97%;
+    --accent-foreground: 4 68% 34%;
+
+    /* Inline text links. */
+    --link: 4 68% 38%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 14% 88%;
+    /* Control edges need >= 3:1 against white — darker than --border. */
+    --input: 220 10% 62%;
+    --ring: 4 66% 45%;
+
+    /* ── Feedback sets — strong / soft bg / border ───────────────── */
+    --success: 142 72% 29%;
+    --success-bg: 138 76% 97%;
+    --success-border: 141 79% 85%;
+
+    --warning: 17 88% 40%;
+    --warning-bg: 33 100% 96%;
+    --warning-border: 32 98% 83%;
+
+    --pending: 26 90% 37%;
+    --pending-bg: 48 100% 96%;
+    --pending-border: 48 97% 77%;
+
+    --error: 0 72% 45%;
+    --error-bg: 0 86% 97%;
+    --error-border: 0 96% 89%;
+
+    --info: 199 89% 34%;
+    --info-bg: 199 100% 96%;
+    --info-border: 199 90% 83%;
+
+    --purple: 272 72% 47%;
+    --purple-bg: 270 100% 98%;
+    --purple-border: 269 100% 92%;
+
+    --neutral: 217 19% 27%;
+    --neutral-bg: 0 0% 100%;
+    --neutral-border: 218 11% 65%;
+
+    /* ── Identity palette — decorative, never status ─────────────── */
+    --tint-red: 4 66% 45%;
+    --tint-red-bg: 4 80% 96%;
+    --tint-blue: 213 67% 38%;
+    --tint-blue-bg: 213 67% 96%;
+    --tint-teal: 174 72% 27%;
+    --tint-teal-bg: 170 60% 94%;
+    --tint-violet: 262 60% 50%;
+    --tint-violet-bg: 262 90% 97%;
+    --tint-amber: 32 90% 33%;
+    --tint-amber-bg: 40 100% 95%;
+
+    /* ── Charts — brand red first, then distinguishable hues ─────── */
+    --chart-1: 4 66% 50%;
+    --chart-2: 213 60% 45%;
+    --chart-3: 174 60% 36%;
+    --chart-4: 36 90% 48%;
+    --chart-5: 262 50% 55%;
+
+    /* ── Sidebar — wine-red chrome driven by --brand ─────────────── */
+    --sidebar: 354 58% 22%;
+    --sidebar-foreground: 354 30% 88%;
+    --sidebar-primary: 354 48% 30%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 354 46% 30%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 354 40% 32%;
+    --sidebar-ring: 4 70% 70%;
+    --sidebar-chip-label: 354 22% 74%;
+    --sidebar-icon-muted: 354 24% 80%;
+    --sidebar-icon-strong: 0 0% 100%;
+
+    --login-card-shadow: 222 30% 12% / 0.08;
+  }
+
   * {
-    @apply border-border outline-ring/50 transition-colors duration-200;
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-size: 0.9375rem; /* 15px base — slightly more refined than 16px */
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    font-size: 0.9375rem;
+    line-height: 1.5;
   }
 
-  a {
-    @apply text-primary hover:underline hover:text-primary/80;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-sans font-semibold text-foreground;
+    line-height: 1.3;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    @apply text-foreground font-semibold tracking-tight;
-    line-height: 1.25;
+  /* Bare text links only — styled links (nav items, cards, buttons) keep their own look. */
+  a:not([class]) {
+    color: hsl(var(--link));
+    text-underline-offset: 3px;
+  }
+  a:not([class]):hover {
+    text-decoration: underline;
   }
 
-  h1 { font-size: clamp(1.75rem, 3vw, 2.25rem); font-weight: 700; }
-  h2 { font-size: clamp(1.375rem, 2.5vw, 1.75rem); font-weight: 700; }
-  h3 { font-size: clamp(1.125rem, 2vw, 1.375rem); font-weight: 600; }
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: hsl(var(--primary));
+  }
 
-  button {
-    @apply rounded-md transition-all;
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.18);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
-/* ===================================================
-   CUSTOM SCROLLBAR — Warm Coral / Ash Theme
-   =================================================== */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+@layer utilities {
+  /* Tabular numbers for IDs, codes, values and periods. */
+  .font-clinical {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.005em;
+  }
+
+  .text-2xs {
+    font-size: 0.6875rem;
+    line-height: 1rem;
+  }
+
+  /* White canvas with a faint dotted grid — page background behind cards. */
+  .canvas-dots {
+    background-color: hsl(var(--background));
+    background-image: radial-gradient(hsl(var(--canvas-dot)) 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+
+  .login-hero {
+    background-color: hsl(var(--background));
+    background-image: radial-gradient(hsl(var(--canvas-dot)) 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+
+  .login-card {
+    box-shadow: 0 16px 36px hsl(var(--login-card-shadow));
+  }
+
+  /* ── Sidebar ─────────────────────────────────────────────────── */
+  .sidebar-shell {
+    background: hsl(var(--sidebar));
+    border-right-color: hsl(var(--sidebar-border));
+  }
+
+  .sidebar-divider {
+    border-color: hsl(var(--sidebar-border));
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-3 rounded-full border border-transparent px-3 py-2 text-sm font-medium no-underline transition-colors;
+    color: hsl(var(--sidebar-foreground));
+  }
+
+  .sidebar-item:hover {
+    background: hsl(var(--sidebar-accent) / 0.6);
+    color: hsl(var(--sidebar-icon-strong));
+    text-decoration: none;
+  }
+
+  .sidebar-item.active {
+    background: hsl(var(--sidebar-accent));
+    border-color: hsl(var(--sidebar-border));
+    color: hsl(var(--sidebar-icon-strong));
+  }
+
+  .sidebar-group-label {
+    color: hsl(var(--sidebar-chip-label));
+  }
+
+  .sidebar-toggle {
+    color: hsl(var(--sidebar-chip-label));
+  }
+
+  .sidebar-icon-muted {
+    color: hsl(var(--sidebar-icon-muted));
+  }
+
+  .sidebar-icon-active {
+    color: hsl(var(--sidebar-icon-strong));
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .sidebar-shell .scrollbar-thin {
+    scrollbar-color: hsl(var(--sidebar-border)) transparent;
+  }
+
+  /* ── Module sub-navigation (tabs under the page card) ────────── */
+  .module-subnav {
+    @apply flex items-end gap-0 overflow-x-auto border-b border-border;
+  }
+
+  .module-subnav-tab {
+    @apply relative inline-flex cursor-pointer items-center gap-1.5 border-0 bg-transparent px-4 py-2.5 text-sm font-medium whitespace-nowrap text-muted-foreground no-underline transition-colors select-none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+
+  .module-subnav-tab:hover {
+    color: hsl(var(--foreground));
+    text-decoration: none;
+  }
+
+  .module-subnav-tab.active {
+    color: hsl(var(--primary));
+    border-bottom-color: hsl(var(--primary));
+  }
+
+  /* Radix <TabsList className="tabs-line"> — same underlined look as ModuleSubNav. */
+  .tabs-line {
+    @apply flex h-auto w-full items-end justify-start gap-0 overflow-x-auto rounded-none border-0 border-b border-border bg-transparent p-0;
+  }
+  .tabs-line [role="tab"] {
+    @apply h-auto flex-none gap-1.5 rounded-none border-0 bg-transparent px-4 py-2.5 text-sm font-medium whitespace-nowrap text-muted-foreground shadow-none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .tabs-line [role="tab"]:hover {
+    color: hsl(var(--foreground));
+  }
+  .tabs-line [role="tab"][data-state="active"] {
+    background: transparent;
+    box-shadow: none;
+    color: hsl(var(--primary));
+    border-bottom-color: hsl(var(--primary));
+  }
+
+  /* ── Stat / metric cards ─────────────────────────────────────── */
+  .stat-card-value {
+    @apply text-3xl font-semibold text-foreground;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  .stat-card-label {
+    @apply text-xs font-medium tracking-wider text-muted-foreground uppercase;
+  }
+
+  /* ── Tables ──────────────────────────────────────────────────── */
+  .table-row-interactive {
+    @apply cursor-pointer transition-colors hover:bg-surface-muted/60;
+  }
+
+  .table-toolbar {
+    @apply flex flex-wrap items-center gap-2 border-b border-border bg-surface-subtle px-4 py-3;
+  }
+
+  /* ── Status pill — soft bg + thin darker border + icon + words ─ */
+  .status-pill {
+    @apply inline-flex w-fit shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap;
+  }
+
+  .status-pill-success {
+    background: hsl(var(--success-bg));
+    border-color: hsl(var(--success-border));
+    color: hsl(var(--success));
+  }
+
+  .status-pill-error {
+    background: hsl(var(--error-bg));
+    border-color: hsl(var(--error-border));
+    color: hsl(var(--error));
+  }
+
+  .status-pill-pending {
+    background: hsl(var(--pending-bg));
+    border-color: hsl(var(--pending-border));
+    color: hsl(var(--pending));
+  }
+
+  .status-pill-warning {
+    background: hsl(var(--warning-bg));
+    border-color: hsl(var(--warning-border));
+    color: hsl(var(--warning));
+  }
+
+  .status-pill-info {
+    background: hsl(var(--info-bg));
+    border-color: hsl(var(--info-border));
+    color: hsl(var(--info));
+  }
+
+  .status-pill-purple {
+    background: hsl(var(--purple-bg));
+    border-color: hsl(var(--purple-border));
+    color: hsl(var(--purple));
+  }
+
+  .status-pill-neutral {
+    background: hsl(var(--neutral-bg));
+    border-color: hsl(var(--neutral-border));
+    color: hsl(var(--neutral));
+  }
+
+  .status-pill-brand {
+    background: hsl(var(--primary-soft));
+    border-color: hsl(var(--primary-border));
+    color: hsl(var(--primary-hover));
+  }
+
+  /* ── Labelled radio / checkbox tiles — selected must be obvious ─ */
+  .choice-option {
+    @apply flex min-h-10 flex-1 cursor-pointer items-center gap-2.5 rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground transition-colors;
+  }
+  .choice-option:hover {
+    border-color: hsl(var(--primary) / 0.45);
+    background: hsl(var(--primary) / 0.04);
+  }
+  .choice-option:has([data-state="checked"]),
+  .choice-option:has(input:checked),
+  .choice-option[data-selected="true"] {
+    border-color: hsl(var(--primary-border));
+    background: hsl(var(--primary-soft));
+    box-shadow: inset 0 0 0 1px hsl(var(--primary));
+    color: hsl(var(--primary-hover));
+    font-weight: 600;
+  }
+
+  /* Selectable list row / card (org units, data items, layouts). */
+  .select-card {
+    @apply block rounded-lg border border-border bg-card px-4 py-3 transition-colors;
+  }
+  .select-card:hover {
+    border-color: hsl(var(--primary) / 0.4);
+    background: hsl(var(--primary) / 0.03);
+  }
+  .select-card[data-selected="true"] {
+    border-color: hsl(var(--primary-border));
+    background: hsl(var(--primary-soft));
+  }
+
+  /* Icon chip used in stat cards and section headers. */
+  .icon-chip {
+    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg;
+    background: hsl(var(--primary-soft));
+    color: hsl(var(--primary));
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: #F3F4F6;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #E8877A;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #D96455;
-}
-
-/* ===================================================
-   BODY BACKGROUND
-   =================================================== */
-body {
-  background: #ffffff;
-}
-
-/* ===================================================
-   LOADING ANIMATIONS
-   =================================================== */
+/* ── Loading animations ─────────────────────────────────────────── */
 @keyframes nmc-shimmer {
-  0%   { transform: translateX(-250%); }
-  100% { transform: translateX(400%); }
+  0% {
+    transform: translateX(-250%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+.loader-shimmer {
+  background: linear-gradient(90deg, transparent, hsl(var(--primary)), transparent);
+  animation: nmc-shimmer 1.5s ease-in-out infinite;
+}
+
+/* ── Print: hide app chrome ─────────────────────────────────────── */
+@media print {
+  [data-app-chrome] {
+    display: none !important;
+  }
+  .canvas-dots {
+    background: none;
+  }
 }

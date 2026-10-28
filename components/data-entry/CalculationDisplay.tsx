@@ -33,10 +33,10 @@ export function CalculationDisplay({
   }
 
   const variantClasses = {
-    default: "text-gray-700",
-    success: "text-gray-700",
-    warning: "text-yellow-700", 
-    error: "text-red-700"
+    default: "text-foreground",
+    success: "text-foreground",
+    warning: "text-pending", 
+    error: "text-error"
   }
 
   const getVariant = (): "default" | "success" | "warning" | "error" => {
@@ -67,7 +67,7 @@ export function CalculationDisplay({
             {isError ? (
               <Tooltip>
                 <TooltipTrigger>
-                  <AlertCircle className="h-4 w-4 text-red-500" />
+                  <AlertCircle className="h-4 w-4 text-error" />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="text-sm">{result.error || "Calculation error"}</p>
@@ -76,7 +76,7 @@ export function CalculationDisplay({
             ) : hasValue ? (
               <Tooltip>
                 <TooltipTrigger>
-                  <CheckCircle className="h-4 w-4 text-gray-500" />
+                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="text-sm">Calculation successful</p>
@@ -85,7 +85,7 @@ export function CalculationDisplay({
             ) : (
               <Tooltip>
                 <TooltipTrigger>
-                  <Info className="h-4 w-4 text-gray-400" />
+                  <Info className="h-4 w-4 text-muted-foreground" />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="text-sm">No data available</p>
@@ -152,14 +152,14 @@ export function CalculationSummary({ results, title = "Calculations" }: Calculat
         ))}
 
         {errorResults.length > 0 && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-center gap-2 text-red-700 font-medium text-sm mb-2">
+          <div className="mt-4 p-3 bg-error-bg border border-error-border rounded-lg">
+            <div className="flex items-center gap-2 text-error font-medium text-sm mb-2">
               <AlertCircle className="h-4 w-4" />
               Calculation Errors ({errorResults.length})
             </div>
             <div className="space-y-1">
               {errorResults.map((item, index) => (
-                <div key={index} className="text-xs text-red-600">
+                <div key={index} className="text-xs text-error">
                   • {item.label}: {item.result.error || "Unknown error"}
                 </div>
               ))}
@@ -189,12 +189,12 @@ export function RealTimeCalculation({
       <div className="flex items-center gap-2">
         <CalculationDisplay result={result} size="lg" showDetails={true} />
         {isCalculating && (
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-info"></div>
         )}
       </div>
       
-      <div className="text-xs text-gray-500 space-y-1">
-        <div className="font-mono bg-gray-100 px-2 py-1 rounded">
+      <div className="text-xs text-muted-foreground space-y-1">
+        <div className="font-mono bg-muted px-2 py-1 rounded">
           {formula}
         </div>
         {dependencies.length > 0 && (

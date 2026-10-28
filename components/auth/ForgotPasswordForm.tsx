@@ -31,7 +31,7 @@ export default function ForgotPasswordForm() {
         {/* Header - Hidden on mobile, shown on desktop */}
         <div className="hidden lg:block text-center mb-8">
           <div className="flex justify-center mb-4">
-            <div className="relative w-16 h-16 bg-white rounded-full p-3 shadow-lg border border-gray-100">
+            <div className="relative w-16 h-16 bg-card rounded-full p-3 shadow-lg border border-border">
               <Image 
                 src="/logo.png" 
                 alt="NMC Logo" 
@@ -41,7 +41,7 @@ export default function ForgotPasswordForm() {
             </div>
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-gray-900">
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
               Nursing and Midwifery Council
             </h1>
             <p className="text-sm text-muted-foreground">
@@ -60,17 +60,17 @@ export default function ForgotPasswordForm() {
 
         {/* Form */}
         <form onSubmit={handleForgotPassword} className="space-y-4">
-          {error && <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md border border-red-200">{error}</div>}
+          {error && <div className="p-3 text-sm text-error bg-error-bg rounded-md border border-error-border">{error}</div>}
 
           {message && (
-            <div className="p-3 text-sm text-emerald-600 bg-emerald-50 rounded-md border border-emerald-200">
+            <div className="p-3 text-sm text-success bg-success-bg rounded-md border border-success-border">
               {message}
             </div>
           )}
 
           <div className="space-y-2">
             <Label htmlFor="email" className="text-sm font-medium text-foreground">
-              Email <span className="text-red-500">*</span>
+              Email <span className="text-error">*</span>
             </Label>
             <Input
               id="email"
@@ -79,7 +79,7 @@ export default function ForgotPasswordForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="h-11 border-gray-300"
+              className="h-11 border-border"
             />
           </div>
 

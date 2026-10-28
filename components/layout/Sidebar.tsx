@@ -1,155 +1,160 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
-import { NAV_ITEMS, type NavItem } from "./navConfig";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  NAV_GROUP_LABELS,
+  NAV_GROUP_ORDER,
+  isNavItemActive,
+  visibleNavItems,
+} from "./navConfig";
 
-export default function Sidebar({ open }: { open: boolean }) {
+interface SidebarProps {
+  /** Rail only: expanded (labels) or collapsed (icons). */
+  open: boolean;
+  onToggle?: () => void;
+  /** "rail" = fixed desktop sidebar; "drawer" = slide-out menu on small screens. */
+  variant?: "rail" | "drawer";
+  /** Drawer only: close the menu after the user picks a page. */
+  onNavigate?: () => void;
+}
+
+export default function Sidebar({ open, onToggle, variant = "rail", onNavigate }: SidebarProps) {
   const pathname = usePathname();
-  const { djangoUser } = useAuth();
+  const { djangoUser, logout } = useAuth();
+  const isDrawer = variant === "drawer";
+  const collapsed = !isDrawer && !open;
 
-  const isStaff = Boolean(djangoUser?.is_staff);
-  const isSuperuser = Boolean(djangoUser?.is_superuser);
+  const items = visibleNavItems(djangoUser);
+  const groups = NAV_GROUP_ORDER.map((group) => ({
+    group,
+    items: items.filter((item) => item.group === group),
+  })).filter((g) => g.items.length > 0);
 
-  const visibleNav: NavItem[] = NAV_ITEMS.filter(
-    (item) => !item.staffOnly || isStaff || isSuperuser
-  );
+  function withTooltip(label: string, node: React.ReactElement) {
+    if (!collapsed) return node;
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{node}</TooltipTrigger>
+        <TooltipContent side="right">{label}</TooltipContent>
+      </Tooltip>
+    );
+  }
 
   return (
     <aside
       className={cn(
-        "flex flex-col border-r border-[#B84039] transition-all duration-200 ease-in-out h-full",
-        open ? "w-60" : "w-16"
+        "sidebar-shell flex h-full shrink-0 flex-col border-r transition-[width] duration-200",
+        isDrawer ? "w-full" : collapsed ? "w-16" : "w-60"
       )}
-      style={{ background: "linear-gradient(180deg, #C9433B 0%, #B84039 100%)" }}
+      aria-label="Main menu"
     >
-      <nav className="flex-1 flex flex-col pt-3 px-2 pb-4 space-y-3 overflow-y-auto">
-        {/* Top apps */}
-        <div>
-          {open && (
-            <p className="px-2 mb-1 text-[10px] uppercase tracking-[0.16em] text-white/50 font-semibold">
-              Top apps
-            </p>
-          )}
-          <div className="space-y-0.5">
-            {visibleNav
-              .filter((item) => item.group === "Top apps" || !item.group)
-              .map((item) => {
-                const isActive =
-                  pathname === item.href || pathname.startsWith(item.href + "/");
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    title={!open ? item.label : item.description || item.label}
-                    className={cn(
-                      "group flex items-center rounded-lg px-2 py-2.5 text-sm font-medium transition-all duration-150",
-                      isActive
-                        ? "bg-[#D96455] text-white shadow-sm border border-[#E8877A]/40"
-                        : "text-white/70 hover:bg-white/10 hover:text-white"
-                    )}
-                  >
-                    <Icon
-                      className={cn(
-                        "flex-shrink-0 h-5 w-5 transition-colors",
-                        open ? "mr-3" : "mx-auto",
-                        isActive ? "text-white" : "text-white/60 group-hover:text-white"
-                      )}
-                      aria-hidden="true"
-                    />
-                    {open && (
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1">
-                          <span className="truncate leading-none">{item.label}</span>
-                          {item.badge && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white/15 text-white/90">
-                              {item.badge}
-                            </span>
-                          )}
-                        </div>
-                        {item.description && (
-                          <p className="mt-1 text-[11px] text-white/60 truncate">
-                            {item.description}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    {open && isActive && (
-                      <div className="ml-2 w-1.5 h-1.5 rounded-full bg-white/70 flex-shrink-0" />
-                    )}
-                  </Link>
-                );
-              })}
-          </div>
-        </div>
+      {/* White brand block — lines up with the 64px top bar */}
+      <Link
+        href="/dashboard"
+        onClick={onNavigate}
+        className="flex h-16 shrink-0 items-center gap-2.5 border-b border-border bg-card px-3"
+        aria-label="IMEMS — go to dashboard"
+      >
+        {collapsed ? (
+          <span className="relative mx-auto h-9 w-9">
+            <Image src="/logo.png" alt="" fill sizes="36px" className="object-contain" priority />
+          </span>
+        ) : (
+          <>
+            <span className="relative h-9 w-[72px] shrink-0">
+              <Image src="/logo.png" alt="" fill sizes="72px" className="object-contain" priority />
+            </span>
+            <span className="min-w-0 leading-tight">
+              <span className="block truncate text-sm font-extrabold tracking-wide text-foreground">IMEMS</span>
+              <span className="block truncate text-2xs font-medium tracking-wide text-muted-foreground uppercase">
+                NMC Ghana
+              </span>
+            </span>
+          </>
+        )}
+      </Link>
 
-        {/* All apps */}
-        {visibleNav.some((item) => item.group === "All apps") && (
-          <div className="mt-2">
-            {open && (
-              <p className="px-2 mb-1 text-[10px] uppercase tracking-[0.16em] text-white/50 font-semibold">
-                All apps
+      <nav className="scrollbar-thin flex-1 space-y-4 overflow-y-auto px-2 py-3">
+        {groups.map(({ group, items: groupItems }) => (
+          <div key={group}>
+            {!collapsed && (
+              <p className="sidebar-group-label px-3 pb-1.5 text-[10px] font-semibold tracking-wider uppercase">
+                {NAV_GROUP_LABELS[group]}
               </p>
             )}
-            <div className="space-y-0.5">
-              {visibleNav
-                .filter((item) => item.group === "All apps")
-                .map((item) => {
-                  const isActive =
-                    pathname === item.href || pathname.startsWith(item.href + "/");
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.label}
-                      href={item.href}
-                      title={!open ? item.label : item.description || item.label}
-                      className={cn(
-                        "group flex items-center rounded-lg px-2 py-2 text-sm font-medium transition-all duration-150",
-                        isActive
-                          ? "bg-[#D96455] text-white shadow-sm border border-[#E8877A]/40"
-                          : "text-white/70 hover:bg-white/10 hover:text-white"
-                      )}
-                    >
-                      <Icon
-                        className={cn(
-                          "flex-shrink-0 h-4.5 w-4.5 transition-colors",
-                          open ? "mr-3" : "mx-auto",
-                          isActive ? "text-white" : "text-white/60 group-hover:text-white"
-                        )}
-                        aria-hidden="true"
-                      />
-                      {open && (
-                        <div className="flex-1 min-w-0">
-                          <span className="truncate leading-none">{item.label}</span>
-                          {item.description && (
-                            <p className="mt-1 text-[11px] text-white/60 truncate">
-                              {item.description}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      {open && isActive && (
-                        <div className="ml-2 w-1.5 h-1.5 rounded-full bg-white/70 flex-shrink-0" />
-                      )}
-                    </Link>
-                  );
-                })}
-            </div>
+            {collapsed && group !== NAV_GROUP_ORDER[0] && <div className="sidebar-divider mx-3 mb-2 border-t" />}
+            <ul className="space-y-0.5">
+              {groupItems.map((item) => {
+                const active = isNavItemActive(item, pathname);
+                const Icon = item.icon;
+                return (
+                  <li key={item.href}>
+                    {withTooltip(
+                      item.label,
+                      <Link
+                        href={item.href}
+                        onClick={onNavigate}
+                        className={cn("sidebar-item", active && "active", collapsed && "justify-center px-0")}
+                        aria-current={active ? "page" : undefined}
+                        aria-label={collapsed ? item.label : undefined}
+                      >
+                        <Icon
+                          className={cn("h-[18px] w-[18px] shrink-0", active ? "sidebar-icon-active" : "sidebar-icon-muted")}
+                          aria-hidden="true"
+                        />
+                        {!collapsed && <span className="truncate">{item.label}</span>}
+                      </Link>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
-        )}
+        ))}
       </nav>
 
-      {/* Footer branding */}
-      {open && (
-        <div className="px-3 py-3 border-t border-[#B84039]">
-          <p className="text-[10px] text-white/35 text-center leading-relaxed">
-            NMC Ghana &copy; {new Date().getFullYear()}
-          </p>
-        </div>
-      )}
+      <div className="sidebar-divider shrink-0 space-y-0.5 border-t p-2">
+        {!isDrawer &&
+          onToggle &&
+          withTooltip(
+            "Expand menu",
+            <button
+              type="button"
+              onClick={onToggle}
+              className={cn("sidebar-item w-full", collapsed && "justify-center px-0")}
+              aria-label={collapsed ? "Expand menu" : "Collapse menu"}
+              aria-expanded={!collapsed}
+            >
+              {collapsed ? (
+                <PanelLeftOpen className="sidebar-icon-muted h-[18px] w-[18px]" aria-hidden="true" />
+              ) : (
+                <>
+                  <PanelLeftClose className="sidebar-icon-muted h-[18px] w-[18px]" aria-hidden="true" />
+                  <span>Collapse menu</span>
+                </>
+              )}
+            </button>
+          )}
+        {withTooltip(
+          "Sign out",
+          <button
+            type="button"
+            onClick={() => void logout()}
+            className={cn("sidebar-item w-full", collapsed && "justify-center px-0")}
+            aria-label={collapsed ? "Sign out" : undefined}
+          >
+            <LogOut className="sidebar-icon-muted h-[18px] w-[18px]" aria-hidden="true" />
+            {!collapsed && <span>Sign out</span>}
+          </button>
+        )}
+      </div>
     </aside>
   );
 }

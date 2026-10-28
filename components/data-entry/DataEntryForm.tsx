@@ -38,7 +38,7 @@ export default function DataEntryForm({ reportType, values, onChange, readOnly =
                     inputMode="decimal"
                     placeholder="0"
                     readOnly={readOnly}
-                    className={readOnly ? "text-right bg-gray-50 cursor-not-allowed opacity-60" : "text-right"}
+                    className={readOnly ? "text-right bg-surface-subtle cursor-not-allowed opacity-60" : "text-right"}
                     value={values[String(de.id)] ?? ""}
                     onChange={(e) => {
                       if (readOnly) {
@@ -54,7 +54,7 @@ export default function DataEntryForm({ reportType, values, onChange, readOnly =
                 </div>
               </div>
               {de.category?.name && (
-                <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded inline-block">
+                <div className="text-xs text-info bg-info-bg px-2 py-1 rounded inline-block">
                   Category: {de.category.name}
                 </div>
               )}

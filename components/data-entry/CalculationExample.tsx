@@ -165,10 +165,10 @@ export function CalculationExample() {
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <h1 className="text-3xl font-bold text-foreground mb-2">
           Enhanced Calculation System Demo
         </h1>
-        <p className="text-gray-600">
+        <p className="text-muted-foreground">
           Real-time calculations with DHIS2-like indicators and formulas
         </p>
       </div>
@@ -185,7 +185,7 @@ export function CalculationExample() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {exampleDataElements.map(de => (
               <div key={de.id} className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-foreground">
                   {de.name}
                 </label>
                 <div className="flex items-center gap-2">
@@ -193,7 +193,7 @@ export function CalculationExample() {
                     type="number"
                     value={values[de.code] || ""}
                     onChange={(e) => updateValue(de.code, e.target.value ? Number(e.target.value) : null)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-info"
                     placeholder="0"
                   />
                   <Badge variant="outline" className="text-xs">
@@ -276,7 +276,7 @@ export function CalculationExample() {
 
             <div>
               <h4 className="font-semibold mb-2">Example Formulas</h4>
-              <div className="space-y-2 text-sm font-mono bg-gray-100 p-3 rounded">
+              <div className="space-y-2 text-sm font-mono bg-muted p-3 rounded">
                 <div>Malaria Rate: <code>PERCENTAGE(DE002, DE001)</code></div>
                 <div>Total Events: <code>DE002 + DE003</code></div>
                 <div>Under 5 Rate: <code>PERCENTAGE(DE005, DE004)</code></div>
@@ -294,8 +294,8 @@ export function CalculationExample() {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {Object.entries(values).map(([code, value]) => (
-              <div key={code} className="text-center p-3 bg-gray-50 rounded">
-                <div className="text-xs text-gray-500">{code}</div>
+              <div key={code} className="text-center p-3 bg-surface-subtle rounded">
+                <div className="text-xs text-muted-foreground">{code}</div>
                 <div className="text-lg font-semibold">{value || "—"}</div>
               </div>
             ))}

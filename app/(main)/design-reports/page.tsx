@@ -7,7 +7,6 @@ import { useAuth } from "@/context/AuthContext"
 import type { DjangoUser } from "@/context/AuthContext"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -25,8 +24,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { ImportFromExcelModal } from "@/components/report-designer/ImportFromExcelModal"
-import { Loader2, FileSpreadsheet, Download } from "lucide-react"
-import { SectionLoader } from "@/components/ui/PageLoader"
+import { Loader2, FileSpreadsheet, Download, FilePenLine, Plus, Search, Pencil, ChevronLeft, ChevronRight } from "lucide-react"
+import { PageCard } from "@/components/layout/PageCard"
+import { StatusPill } from "@/components/common/status-pill"
+import { EmptyState } from "@/components/common/empty-state"
+import { ErrorState } from "@/components/common/error-state"
+import { TableSkeleton } from "@/components/common/skeletons"
+import { reportStatus } from "@/lib/status-labels"
 
 type LayoutStatus = "draft" | "published" | "archived"
 
@@ -114,82 +118,92 @@ export default function DesignReportsList() {
     }
   }
 
+  const pageHeader = (
+    <PageCard
+      title="Design reports"
+      description="Create and edit the report forms people fill in on the Data entry page."
+      icon={<FilePenLine className="h-5 w-5" aria-hidden="true" />}
+      actions={
+        isSuperuser || isStaff ? (
+          <>
+            <Button variant="secondary" onClick={handleDownloadTemplate} disabled={templateDownloading}>
+              {templateDownloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Download className="h-4 w-4" aria-hidden="true" />
+              )}
+              {templateDownloading ? "Downloading…" : "Download template"}
+            </Button>
+            <Button variant="outline" onClick={() => setImportModalOpen(true)}>
+              <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
+              Import from Excel
+            </Button>
+            <Button asChild>
+              <Link href="/design-reports/new">
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Create layout
+              </Link>
+            </Button>
+          </>
+        ) : undefined
+      }
+    />
+  )
+
   if (isLoading) {
-    return <SectionLoader message="Loading report layouts…" />
-  }
-
-  // Show error if user doesn't have permission
-  if (error?.response?.status === 403) {
     return (
-      <div className="p-6 max-w-2xl mx-auto text-center">
-        <h1 className="text-2xl font-bold mb-2">Report Designer</h1>
-        <Alert>
-          <AlertDescription>
-            You do not have permission to view or manage report layouts. Contact your administrator if you need access.
-          </AlertDescription>
-        </Alert>
+      <div className="space-y-6">
+        {pageHeader}
+        <section className="rounded-xl border border-border bg-card">
+          <TableSkeleton rows={6} columns={5} />
+        </section>
       </div>
     )
   }
 
-  // Show error if user is not staff or superuser
-  if (!isSuperuser && !isStaff) {
+  // No permission (from the server, or not staff)
+  if (error?.response?.status === 403 || (!isSuperuser && !isStaff)) {
     return (
-      <div className="p-6 max-w-2xl mx-auto text-center">
-        <h1 className="text-2xl font-bold mb-2">Report Designer</h1>
-        <Alert>
-          <AlertDescription>
-            Report design is only available to staff and administrators. Contact your administrator if you need access.
-          </AlertDescription>
-        </Alert>
+      <div className="space-y-6">
+        {pageHeader}
+        <section className="rounded-xl border border-border bg-card">
+          <EmptyState
+            illustration="no-access"
+            title="You don't have access to report design"
+            description="Designing report forms is for administrators. If you need it, ask your administrator."
+          />
+        </section>
       </div>
     )
   }
+
+  const hasFilters = search.trim() !== "" || statusFilter !== "all"
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Report layouts</h2>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleDownloadTemplate}
-            disabled={templateDownloading}
-          >
-            {templateDownloading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4 mr-2" />
-            )}
-            Download template
-          </Button>
-          <Button variant="outline" onClick={() => setImportModalOpen(true)}>
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Import from Excel
-          </Button>
-          <Link href="/design-reports/new">
-            <Button>Create layout</Button>
-          </Link>
-        </div>
-      </div>
+    <div className="space-y-6">
+      {pageHeader}
+
       <ImportFromExcelModal
         open={importModalOpen}
         onOpenChange={setImportModalOpen}
         onSuccess={() => mutate()}
       />
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="flex-1 min-w-[200px]">
-          <Input
-            placeholder="Search by name, code, or dataset…"
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-          />
-        </div>
-        <div className="w-[180px]">
+      <section className="overflow-hidden rounded-xl border border-border bg-card">
+        {/* Toolbar */}
+        <div className="table-toolbar">
+          <div className="relative min-w-[220px] flex-1 sm:max-w-sm">
+            <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input
+              placeholder="Search by name, code or report"
+              value={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-9"
+              aria-label="Search layouts"
+            />
+          </div>
           <Select value={statusFilter} onValueChange={handleStatusChange}>
-            <SelectTrigger>
+            <SelectTrigger className="w-[180px]" aria-label="Filter by status">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -200,101 +214,123 @@ export default function DesignReportsList() {
             </SelectContent>
           </Select>
         </div>
-      </div>
 
-      {/* Table */}
-      <div className="border rounded-lg overflow-hidden bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/40">
-              <TableHead className="w-[28%]">Name</TableHead>
-              <TableHead className="w-[18%]">Code</TableHead>
-              <TableHead className="w-[20%]">Dataset</TableHead>
-              <TableHead className="w-[12%]">Status</TableHead>
-              <TableHead className="w-[10%] text-center">Version</TableHead>
-              <TableHead className="w-[12%]">Updated</TableHead>
-              <TableHead className="w-[10%]" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pageItems.length === 0 ? (
+        {error && error?.response?.status !== 403 ? (
+          <ErrorState error={error} title="We couldn't load the layouts" onRetry={() => mutate()} />
+        ) : pageItems.length === 0 ? (
+          hasFilters ? (
+            <EmptyState
+              illustration="no-results"
+              title="No layouts match these filters"
+              description="Try a different search or status."
+              action={{
+                label: "Clear filters",
+                onClick: () => {
+                  handleSearchChange("")
+                  handleStatusChange("all")
+                },
+              }}
+            />
+          ) : (
+            <EmptyState
+              illustration="report"
+              title="No report layouts yet"
+              description="Create a layout, or import one from an Excel template, so people can start entering data."
+              action={{ label: "Create layout", href: "/design-reports/new" }}
+            />
+          )
+        ) : (
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                  No layouts found.
-                </TableCell>
+                <TableHead className="w-[28%] pl-5">Name</TableHead>
+                <TableHead className="w-[16%]">Code</TableHead>
+                <TableHead className="w-[20%]">Report</TableHead>
+                <TableHead className="w-[12%]">Status</TableHead>
+                <TableHead className="w-[8%] text-center">Version</TableHead>
+                <TableHead className="w-[10%]">Updated</TableHead>
+                <TableHead className="w-[6%] pr-5"><span className="sr-only">Actions</span></TableHead>
               </TableRow>
-            ) : (
-              pageItems.map((l) => (
-                <TableRow key={l.id} className="hover:bg-muted/30">
-                  <TableCell className="font-medium">
-                    <div className="truncate">{l.name}</div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                      {l.code}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-muted-foreground truncate block">
-                      {l.report_type_name || "—"}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize bg-muted text-muted-foreground">
-                      {l.status || "draft"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-center text-sm">
-                    {l.version != null ? `v${l.version}` : "—"}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {l.updated_at ? new Date(l.updated_at).toLocaleDateString() : "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Link href={`/design-reports/${l.id}`}>
-                      <Button variant="outline" size="sm">
-                        Edit
+            </TableHeader>
+            <TableBody>
+              {pageItems.map((l) => {
+                const status = reportStatus(l.status || "draft")
+                return (
+                  <TableRow key={l.id}>
+                    <TableCell className="pl-5 font-medium text-foreground">
+                      <Link href={`/design-reports/${l.id}`} className="block truncate hover:text-primary hover:underline">
+                        {l.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-clinical rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{l.code}</span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="block truncate text-sm text-muted-foreground">{l.report_type_name || "—"}</span>
+                    </TableCell>
+                    <TableCell>
+                      <StatusPill tone={status.tone} icon={status.icon}>
+                        {status.label}
+                      </StatusPill>
+                    </TableCell>
+                    <TableCell className="font-clinical text-center text-sm">
+                      {l.version != null ? `v${l.version}` : "—"}
+                    </TableCell>
+                    <TableCell className="font-clinical text-sm text-muted-foreground">
+                      {l.updated_at ? new Date(l.updated_at).toLocaleDateString("en-GB") : "—"}
+                    </TableCell>
+                    <TableCell className="pr-5 text-right">
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href={`/design-reports/${l.id}`} aria-label={`Edit ${l.name}`}>
+                          <Pencil className="h-4 w-4" aria-hidden="true" />
+                          Edit
+                        </Link>
                       </Button>
-                    </Link>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        )}
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <div>
-          Showing{" "}
-          {filteredLayouts.length === 0
-            ? 0
-            : `${pageStart + 1}-${Math.min(pageStart + pageSize, filteredLayouts.length)}`}{" "}
-          of {filteredLayouts.length} layout(s)
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={currentPage === 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            Previous
-          </Button>
-          <span>
-            Page {currentPage} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={currentPage === totalPages}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-          >
-            Next
-          </Button>
-        </div>
-      </div>
+        {/* Pagination */}
+        {filteredLayouts.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface-subtle px-5 py-3 text-sm text-muted-foreground">
+            <p>
+              Showing{" "}
+              <span className="font-semibold text-foreground">
+                {pageStart + 1}–{Math.min(pageStart + pageSize, filteredLayouts.length)}
+              </span>{" "}
+              of <span className="font-semibold text-foreground">{filteredLayouts.length}</span> layout
+              {filteredLayouts.length === 1 ? "" : "s"}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={currentPage === 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                Previous
+              </Button>
+              <span className="font-clinical">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={currentPage === totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   )
 }

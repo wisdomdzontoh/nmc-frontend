@@ -92,7 +92,7 @@ export function DataElementModal({ open, onOpenChange, onSave, dataElement }: Pr
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5" style={{ color: "#C9433B" }} />
+            <Database className="h-5 w-5 text-primary" />
             {dataElement ? "Edit Data Element" : "Create Data Element"}
           </DialogTitle>
           <DialogDescription>
@@ -106,48 +106,48 @@ export function DataElementModal({ open, onOpenChange, onSave, dataElement }: Pr
           {/* Code */}
           <div className="space-y-1.5">
             <Label htmlFor="de-code" className="text-sm font-medium">
-              Code <span className="text-red-500">*</span>
+              Code <span className="text-error">*</span>
             </Label>
             <Input
               id="de-code"
               placeholder="e.g., DE001"
               readOnly={!!dataElement}
-              className={`font-mono ${dataElement ? "bg-muted cursor-not-allowed opacity-70" : errors.code ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-red-600"}`}
+              className={`font-mono ${dataElement ? "bg-muted cursor-not-allowed opacity-70" : errors.code ? "border-destructive" : ""}`}
               {...register("code")}
             />
             {errors.code ? (
-              <p className="text-xs text-red-500">{errors.code.message}</p>
+              <p className="text-xs text-error">{errors.code.message}</p>
             ) : dataElement ? (
-              <p className="text-xs text-gray-400">Code cannot be changed after creation</p>
+              <p className="text-xs text-muted-foreground">Code cannot be changed after creation</p>
             ) : (
-              <p className="text-xs text-gray-400">Unique identifier (letters, digits, _ - .)</p>
+              <p className="text-xs text-muted-foreground">Unique identifier (letters, digits, _ - .)</p>
             )}
           </div>
 
           {/* Name */}
           <div className="space-y-1.5">
             <Label htmlFor="de-name" className="text-sm font-medium">
-              Name <span className="text-red-500">*</span>
+              Name <span className="text-error">*</span>
             </Label>
             <Input
               id="de-name"
               placeholder="e.g., Number of OPD visits"
-              className={errors.name ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-red-600"}
+              className={errors.name ? "border-destructive" : ""}
               {...register("name")}
             />
-            {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+            {errors.name && <p className="text-xs text-error">{errors.name.message}</p>}
           </div>
 
           {/* Description */}
           <div className="space-y-1.5">
-            <Label htmlFor="de-desc" className="text-sm font-medium text-gray-700">
-              Description <span className="text-gray-400 font-normal">(optional)</span>
+            <Label htmlFor="de-desc" className="text-sm font-medium text-foreground">
+              Description <span className="text-muted-foreground font-normal">(optional)</span>
             </Label>
             <Textarea
               id="de-desc"
               placeholder="Describe what this data element represents..."
               rows={3}
-              className="focus-visible:ring-red-600"
+              
               {...register("description")}
             />
           </div>
@@ -160,7 +160,6 @@ export function DataElementModal({ open, onOpenChange, onSave, dataElement }: Pr
               type="submit"
               disabled={isSubmitting}
               className="text-white"
-              style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}
             >
               <Save className="h-4 w-4 mr-2" />
               {dataElement ? "Update" : "Create"} Data Element

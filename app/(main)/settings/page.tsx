@@ -10,10 +10,11 @@ import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { User, Save, Loader2, CheckCircle, Lock } from "lucide-react"
-import { SectionLoader } from "@/components/ui/PageLoader"
+import { User, Save, Loader2, Lock, Settings as SettingsIcon } from "lucide-react"
+import { PageCard } from "@/components/layout/PageCard"
+import { InlineNotice } from "@/components/common/inline-notice"
+import { FormSkeleton } from "@/components/common/skeletons"
 
 interface UserSettings {
   first_name: string
@@ -135,40 +136,42 @@ const SettingsPage: React.FC = () => {
     }
   }
 
+  const settingsHeader = (
+    <PageCard
+      title="Settings"
+      description="Update your name and email, and change your password."
+      icon={<SettingsIcon className="h-5 w-5" aria-hidden="true" />}
+    />
+  )
+
   if (loading) {
-    return <SectionLoader message="Loading settings…" />
+    return (
+      <div className="space-y-6">
+        {settingsHeader}
+        <section className="max-w-2xl rounded-xl border border-border bg-card p-5">
+          <FormSkeleton fields={4} />
+        </section>
+      </div>
+    )
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-          <p className="text-muted-foreground">
-            Manage your account and system preferences
-          </p>
-        </div>
-      </div>
+    <div className="space-y-6">
+      {settingsHeader}
 
-      {/* Alerts */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-      {success && (
-        <Alert>
-          <CheckCircle className="h-4 w-4" />
-          <AlertDescription>{success}</AlertDescription>
-        </Alert>
-      )}
+      {error && <InlineNotice tone="error" title="Your changes weren't saved">{error}</InlineNotice>}
+      {success && <InlineNotice tone="success" title={success} />}
 
-      {/* Settings Tabs */}
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 max-w-xs">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
+        <TabsList className="tabs-line">
+          <TabsTrigger value="profile">
+            <User className="h-4 w-4" aria-hidden="true" />
+            My profile
+          </TabsTrigger>
+          <TabsTrigger value="security">
+            <Lock className="h-4 w-4" aria-hidden="true" />
+            Password
+          </TabsTrigger>
         </TabsList>
 
         {/* Profile Settings */}
@@ -245,17 +248,8 @@ const SettingsPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
-                {passwordError && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{passwordError}</AlertDescription>
-                  </Alert>
-                )}
-                {passwordSuccess && (
-                  <Alert>
-                    <CheckCircle className="h-4 w-4" />
-                    <AlertDescription>{passwordSuccess}</AlertDescription>
-                  </Alert>
-                )}
+                {passwordError && <InlineNotice tone="error" title="Your password wasn't changed">{passwordError}</InlineNotice>}
+                {passwordSuccess && <InlineNotice tone="success" title={passwordSuccess} />}
 
                 <div>
                   <label className="text-sm font-medium">Current Password</label>

@@ -202,19 +202,19 @@ export function BulkImportModal({
               className={cn(
                 "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
                 isDragging
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-gray-300 bg-gray-50 hover:border-gray-400"
+                  ? "border-info bg-info-bg"
+                  : "border-border bg-surface-subtle hover:border-input"
               )}
             >
               <div className="flex flex-col items-center gap-4">
-                <div className="p-4 bg-white rounded-full">
-                  <FileSpreadsheet className="h-8 w-8 text-blue-600" />
+                <div className="p-4 bg-card rounded-full">
+                  <FileSpreadsheet className="h-8 w-8 text-info" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900 mb-1">
+                  <p className="text-sm font-medium text-foreground mb-1">
                     Drop your Excel file here, or click to browse
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     Supports .xlsx and .xls files
                   </p>
                 </div>
@@ -238,11 +238,11 @@ export function BulkImportModal({
           ) : (
             <div className="space-y-4">
               {/* Selected File */}
-              <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <FileSpreadsheet className="h-5 w-5 text-blue-600 flex-shrink-0" />
+              <div className="flex items-center gap-3 p-4 bg-info-bg border border-info-border rounded-lg">
+                <FileSpreadsheet className="h-5 w-5 text-info flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
+                  <p className="text-xs text-muted-foreground">
                     {(file.size / 1024).toFixed(2)} KB
                   </p>
                 </div>
@@ -262,8 +262,8 @@ export function BulkImportModal({
                 <AlertDescription>
                   <div className="space-y-1 text-sm">
                     <p className="font-medium">Expected Excel format:</p>
-                    <ul className="list-disc list-inside space-y-1 text-gray-600">
-                      <li>First row should be headers: <code className="bg-gray-100 px-1 rounded">Code</code>, <code className="bg-gray-100 px-1 rounded">Name</code>, <code className="bg-gray-100 px-1 rounded">Description</code> (optional)</li>
+                    <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                      <li>First row should be headers: <code className="bg-muted px-1 rounded">Code</code>, <code className="bg-muted px-1 rounded">Name</code>, <code className="bg-muted px-1 rounded">Description</code> (optional)</li>
                       <li>Each subsequent row represents one data element</li>
                       <li>Code and Name are required, Description is optional</li>
                     </ul>
@@ -274,13 +274,13 @@ export function BulkImportModal({
               {/* Upload Results */}
               {result && (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-2 text-red-600">
+                  <div className="flex items-center gap-4 p-4 bg-surface-subtle rounded-lg">
+                    <div className="flex items-center gap-2 text-error">
                       <Check className="h-5 w-5" />
                       <span className="font-semibold">{result.success} successful</span>
                     </div>
                     {result.failed > 0 && (
-                      <div className="flex items-center gap-2 text-red-600">
+                      <div className="flex items-center gap-2 text-error">
                         <X className="h-5 w-5" />
                         <span className="font-semibold">{result.failed} failed</span>
                       </div>
@@ -290,7 +290,7 @@ export function BulkImportModal({
                   {result.errors.length > 0 && (
                     <div className="max-h-40 overflow-y-auto space-y-1">
                       {result.errors.map((error, index) => (
-                        <div key={index} className="text-xs text-red-600 p-2 bg-red-50 rounded">
+                        <div key={index} className="text-xs text-error p-2 bg-error-bg rounded">
                           Row {error.row}: {error.error}
                         </div>
                       ))}

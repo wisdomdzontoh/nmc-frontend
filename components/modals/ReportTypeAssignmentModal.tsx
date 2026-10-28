@@ -293,7 +293,7 @@ export default function ReportTypeAssignmentModal({
             <CardTitle className="text-xl font-semibold">
               Report Type Assignments
             </CardTitle>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Assign report types to <strong>{orgUnit.name}</strong> {orgUnit.type && `(${orgUnit.type})`}
             </p>
           </div>
@@ -305,24 +305,24 @@ export default function ReportTypeAssignmentModal({
         <CardContent className="flex-1 overflow-hidden p-6 min-h-0 flex flex-col">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info"></div>
             </div>
           ) : (
             <div className="flex gap-4 flex-1 min-h-0">
               {/* Left Pane - Available Report Types */}
               <div className="flex-1 flex flex-col border rounded-lg overflow-hidden min-h-0 max-h-full">
-                <div className="bg-gray-50 px-4 py-3 border-b flex-shrink-0">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                <div className="bg-surface-subtle px-4 py-3 border-b flex-shrink-0">
+                  <h3 className="text-sm font-semibold text-foreground mb-1">
                     Available report types
                   </h3>
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-muted-foreground">
                     Choose report types by selecting them and then select the &quot;Choose&quot; arrow button.
                   </p>
                 </div>
                 
                 <div className="px-4 py-2 border-b flex-shrink-0">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Filter"
                       value={availableSearchTerm}
@@ -336,7 +336,7 @@ export default function ReportTypeAssignmentModal({
                   <ScrollArea className="h-full">
                     <div className="p-2">
                       {filteredAvailable.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500 text-sm">
+                        <div className="text-center py-8 text-muted-foreground text-sm">
                           {availableSearchTerm ? "No report types match your search." : "No report types available."}
                         </div>
                       ) : (
@@ -350,12 +350,12 @@ export default function ReportTypeAssignmentModal({
                                 className={cn(
                                   "px-3 py-2 rounded cursor-pointer text-sm transition-colors",
                                   isSelected
-                                    ? "bg-blue-100 text-blue-900"
-                                    : "hover:bg-gray-100 text-gray-900"
+                                    ? "bg-primary-soft text-primary font-medium"
+                                    : "hover:bg-muted text-foreground"
                                 )}
                               >
                                 <div className="font-medium">{reportType.name}</div>
-                                <div className="text-xs text-gray-500 mt-0.5">{reportType.code}</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">{reportType.code}</div>
                               </div>
                             )
                           })}
@@ -365,7 +365,7 @@ export default function ReportTypeAssignmentModal({
                   </ScrollArea>
                 </div>
 
-                <div className="px-4 py-3 border-t bg-gray-50 flex-shrink-0">
+                <div className="px-4 py-3 border-t bg-surface-subtle flex-shrink-0">
                   <Button
                     variant="outline"
                     size="sm"
@@ -377,7 +377,7 @@ export default function ReportTypeAssignmentModal({
                       ? "Deselect all"
                       : "Choose all report types →"}
                   </Button>
-                  <p className="text-xs text-gray-500 mt-2 text-center">
+                  <p className="text-xs text-muted-foreground mt-2 text-center">
                     Hold down &quot;Control&quot;, or &quot;Command&quot; on a Mac, to select more than one.
                   </p>
                 </div>
@@ -408,19 +408,19 @@ export default function ReportTypeAssignmentModal({
               </div>
 
               {/* Right Pane - Chosen Report Types */}
-              <div className="flex-1 flex flex-col border rounded-lg overflow-hidden border-red-200 min-h-0 max-h-full">
-                <div className="bg-red-50 px-4 py-3 border-b border-red-200 flex-shrink-0">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-1">
+              <div className="flex-1 flex flex-col border rounded-lg overflow-hidden border-primary-border min-h-0 max-h-full">
+                <div className="bg-primary-soft px-4 py-3 border-b border-primary-border flex-shrink-0">
+                  <h3 className="text-sm font-semibold text-foreground mb-1">
                     Chosen report types
                   </h3>
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-muted-foreground">
                     Remove report types by selecting them and then select the &quot;Remove&quot; arrow button.
                   </p>
                 </div>
                 
-                <div className="px-4 py-2 border-b border-red-200 flex-shrink-0">
+                <div className="px-4 py-2 border-b border-primary-border flex-shrink-0">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Filter"
                       value={chosenSearchTerm}
@@ -434,7 +434,7 @@ export default function ReportTypeAssignmentModal({
                   <ScrollArea className="h-full">
                     <div className="p-2">
                       {filteredChosen.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500 text-sm">
+                        <div className="text-center py-8 text-muted-foreground text-sm">
                           {chosenSearchTerm ? "No report types match your search." : "No report types assigned."}
                         </div>
                       ) : (
@@ -448,12 +448,12 @@ export default function ReportTypeAssignmentModal({
                                 className={cn(
                                   "px-3 py-2 rounded cursor-pointer text-sm transition-colors",
                                   isSelected
-                                    ? "bg-blue-100 text-blue-900"
-                                    : "hover:bg-red-50 text-gray-900"
+                                    ? "bg-primary-soft text-primary font-medium"
+                                    : "hover:bg-surface-muted text-foreground"
                                 )}
                               >
                                 <div className="font-medium">{reportType.name}</div>
-                                <div className="text-xs text-gray-500 mt-0.5">{reportType.code}</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">{reportType.code}</div>
                               </div>
                             )
                           })}
@@ -463,7 +463,7 @@ export default function ReportTypeAssignmentModal({
                   </ScrollArea>
                 </div>
 
-                <div className="px-4 py-3 border-t border-red-200 bg-red-50 flex-shrink-0">
+                <div className="px-4 py-3 border-t border-primary-border bg-primary-soft flex-shrink-0">
                   <Button
                     variant="outline"
                     size="sm"

@@ -391,8 +391,8 @@ export default function ExcelLikeTable({
   }
 
   const getCellIcon = (cell: CellDef) => {
-    if (cell.bind) return <Database className="h-3 w-3 text-blue-600" />
-    if (cell.compute) return <Calculator className="h-3 w-3 text-purple-600" />
+    if (cell.bind) return <Database className="h-3 w-3 text-info" />
+    if (cell.compute) return <Calculator className="h-3 w-3 text-purple" />
     return null
   }
 
@@ -515,7 +515,7 @@ export default function ExcelLikeTable({
   }
 
   return (
-    <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm" onKeyDown={handleKeyDown} tabIndex={0}>
+    <div className="border border-border rounded-lg overflow-hidden shadow-sm" onKeyDown={handleKeyDown} tabIndex={0}>
       <div className="overflow-x-auto" ref={scrollRef}>
         <table className="w-full border-collapse">
           <colgroup>
@@ -535,22 +535,22 @@ export default function ExcelLikeTable({
           </colgroup>
 
           <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-gray-300 w-10 h-8 bg-gray-200" />
+            <tr className="bg-muted">
+              <th className="border border-border w-10 h-8 bg-muted" />
               {Array.from({ length: colCount }).map((_, i) => (
                 <ContextMenu key={i}>
                   <ContextMenuTrigger asChild>
                     <th
                       data-col-index={i}
                       className={cn(
-                        "border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 bg-gray-100 relative group cursor-pointer",
-                        highlightCol === i && "bg-yellow-200 transition-colors",
+                        "border border-border px-2 py-1 text-xs font-semibold text-foreground bg-muted relative group cursor-pointer",
+                        highlightCol === i && "bg-pending-border transition-colors",
                       )}
                     >
                       {getColumnLabel(i)}
                       {i < colCount - 1 && (
                         <div
-                          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-info opacity-0 group-hover:opacity-100 transition-opacity"
                           onMouseDown={(e) => handleResizeStart(e, i)}
                         />
                       )}
@@ -576,8 +576,8 @@ export default function ExcelLikeTable({
             </tr>
 
             {table.header?.rows?.map((row, ri) => (
-              <tr key={`h-${ri}`} className="bg-amber-50">
-                <td className="border border-gray-300 px-2 py-1 text-xs text-gray-500 text-center font-medium bg-gray-100">
+              <tr key={`h-${ri}`} className="bg-pending-bg">
+                <td className="border border-border px-2 py-1 text-xs text-muted-foreground text-center font-medium bg-muted">
                   H{ri + 1}
                 </td>
                 {row.map((cell, ci) => (
@@ -587,7 +587,7 @@ export default function ExcelLikeTable({
                     rowSpan={cell.rowSpan || 1}
                     onDoubleClick={() => handleCellDoubleClick(ri, ci, true)}
                     className={cn(
-                      "border border-gray-300 px-2 py-2 text-xs font-semibold cursor-pointer hover:bg-amber-100 transition-colors",
+                      "border border-border px-2 py-2 text-xs font-semibold cursor-pointer hover:bg-pending-bg transition-colors",
                       cell.align === "center" && "text-center",
                       cell.align === "right" && "text-right",
                     )}
@@ -627,15 +627,15 @@ export default function ExcelLikeTable({
                 onDrop={(e) => handleRowDrop(e, ri)}
                 onDragEnd={handleRowDragEnd}
                 className={cn(
-                  dragOverRow === ri && "outline outline-2 outline-blue-400",
+                  dragOverRow === ri && "outline outline-2 outline-info",
                   draggedRow === ri && "opacity-60",
                 )}
               >
                 <ContextMenu>
                   <ContextMenuTrigger asChild>
-                    <td className="bg-gray-100 border border-gray-300 px-2 py-1 text-xs text-gray-700 text-center font-medium w-10 cursor-move hover:bg-gray-200 transition-colors select-none">
+                    <td className="bg-muted border border-border px-2 py-1 text-xs text-foreground text-center font-medium w-10 cursor-move hover:bg-muted transition-colors select-none">
                       <div className="flex items-center justify-center gap-1">
-                        <GripVertical className="h-3 w-3 text-gray-500" />
+                        <GripVertical className="h-3 w-3 text-muted-foreground" />
                         <span>{ri + 1}</span>
                       </div>
                     </td>
@@ -665,11 +665,11 @@ export default function ExcelLikeTable({
                         onDrop={(e) => handleDrop(e, ri, ci)}
                         onDragOver={handleDragOver}
                         className={cn(
-                          "border border-gray-300 px-2 py-2 text-sm cursor-pointer relative group transition-colors",
-                          isSelected(ri, ci) && "ring-2 ring-blue-500 ring-inset bg-blue-50",
-                          !isSelected(ri, ci) && "hover:bg-gray-50",
-                          cell.bind && "bg-blue-50/50",
-                          cell.compute && "bg-purple-50/50",
+                          "border border-border px-2 py-2 text-sm cursor-pointer relative group transition-colors",
+                          isSelected(ri, ci) && "ring-2 ring-info ring-inset bg-info-bg",
+                          !isSelected(ri, ci) && "hover:bg-surface-subtle",
+                          cell.bind && "bg-info-bg/50",
+                          cell.compute && "bg-purple-bg/50",
                         )}
                         style={getCellStyle(cell)}
                       >
@@ -705,7 +705,7 @@ export default function ExcelLikeTable({
                                     bindCode: cell.bind,
                                   })
                                 }}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity text-blue-600 hover:text-blue-800 text-xs font-semibold px-1.5 py-0.5 border border-blue-200 rounded"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-info hover:text-info text-xs font-semibold px-1.5 py-0.5 border border-info-border rounded"
                                 title={cell.bind ? "Edit data element" : "Create & bind data element"}
                               >
                                 +

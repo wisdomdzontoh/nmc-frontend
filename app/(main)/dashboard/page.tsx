@@ -4,10 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { useAuth } from "@/context/AuthContext"
 import Link from "next/link"
 import { ApiClient } from "@/lib/api"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
   Select,
   SelectContent,
@@ -23,11 +20,19 @@ import {
   TrendingUp,
   RefreshCw,
   Calendar,
-  MapPin,
-  Loader2,
   ChevronRight,
 } from "lucide-react"
 import { SectionLoader } from "@/components/ui/PageLoader"
+import { PageCard } from "@/components/layout/PageCard"
+import { SectionCard } from "@/components/common/section-card"
+import { StatCard } from "@/components/common/stat-card"
+import { StatusPill } from "@/components/common/status-pill"
+import { EmptyState } from "@/components/common/empty-state"
+import { InlineNotice } from "@/components/common/inline-notice"
+import { TableSkeleton } from "@/components/common/skeletons"
+import { Skeleton } from "@/components/ui/skeleton"
+import { reportStatus } from "@/lib/status-labels"
+import { CHART_AXIS, CHART_GRID, CHART_TICK, CHART_TOOLTIP_STYLE, chartColor } from "@/lib/chart-theme"
 import {
   AreaChart,
   Area,
@@ -70,47 +75,9 @@ const PERIOD_OPTIONS = [
 
 function getGreeting(): string {
   const h = new Date().getHours()
-  if (h < 12) return "Morning"
-  if (h < 17) return "Afternoon"
-  return "Evening"
-}
-
-// ── Stat card ────────────────────────────────────────────────────────────────
-
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  accent,
-  sub,
-}: {
-  label: string
-  value: string | number
-  icon: React.ElementType
-  accent: string
-  sub?: string
-}) {
-  return (
-    <Card className="border border-gray-200 shadow-sm bg-white">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-              {label}
-            </p>
-            <p className="text-3xl font-bold text-gray-900 leading-none">{value}</p>
-            {sub && <p className="text-[11px] text-gray-400 mt-1.5">{sub}</p>}
-          </div>
-          <div
-            className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: `${accent}1a` }}
-          >
-            <Icon className="h-5 w-5" style={{ color: accent }} />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
+  if (h < 12) return "Good morning"
+  if (h < 17) return "Good afternoon"
+  return "Good evening"
 }
 
 // ── Chart card ───────────────────────────────────────────────────────────────
@@ -122,8 +89,6 @@ function ChartCard({
   empty,
   height = 220,
   children,
-  className,
-  headerRight,
 }: {
   title: string
   description: string
@@ -131,38 +96,24 @@ function ChartCard({
   empty: boolean
   height?: number
   children: React.ReactNode
-  className?: string
-  headerRight?: React.ReactNode
 }) {
   return (
-    <Card className={`border-gray-200 shadow-sm bg-white overflow-hidden ${className ?? ""}`}>
-      <CardHeader className="pb-2 pt-5 px-5">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <CardTitle className="text-sm font-semibold text-gray-900">{title}</CardTitle>
-            <p className="text-[11px] text-gray-400 mt-0.5">{description}</p>
-          </div>
-          {headerRight}
+    <SectionCard title={title} description={description}>
+      {loading ? (
+        <Skeleton className="w-full rounded-lg" style={{ height }} />
+      ) : empty ? (
+        <div className="flex items-center justify-center" style={{ height }}>
+          <EmptyState
+            illustration="empty-list"
+            title="No reports in this period"
+            description="Try a longer period, or check back after reports are submitted."
+            className="py-0"
+          />
         </div>
-      </CardHeader>
-      <CardContent className="px-3 pb-4">
-        {loading ? (
-          <div className="flex items-center justify-center" style={{ height }}>
-            <Loader2 className="h-5 w-5 animate-spin" style={{ color: "#C9433B" }} />
-          </div>
-        ) : empty ? (
-          <div
-            className="flex flex-col items-center justify-center gap-2 text-slate-400"
-            style={{ height }}
-          >
-            <FileText className="h-8 w-8 text-gray-200" />
-            <p className="text-xs">No data for this period</p>
-          </div>
-        ) : (
-          children
-        )}
-      </CardContent>
-    </Card>
+      ) : (
+        children
+      )}
+    </SectionCard>
   )
 }
 
@@ -247,403 +198,293 @@ const DashboardPage: React.FC = () => {
 
   if (authLoading) return <SectionLoader />
   if (authError)
-    return (
-      <div className="p-6">
-        <Alert variant="destructive">
-          <AlertDescription>{authError}</AlertDescription>
-        </Alert>
-      </div>
-    )
+    return <InlineNotice tone="error" title="We couldn't load your account">{authError}</InlineNotice>
   if (!user)
-    return (
-      <div className="p-6">
-        <Alert>
-          <AlertDescription>You must be logged in to view the dashboard.</AlertDescription>
-        </Alert>
-      </div>
-    )
+    return <InlineNotice tone="info">Sign in to see the dashboard.</InlineNotice>
 
   const firstName = user.first_name || user.username || "there"
+  const today = new Date().toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
+  const scopeLabel = orgFilter === "all" ? "all organisation units" : user.org_unit_name || "your unit"
 
   return (
-    <div className="space-y-5 pb-10">
-      {/* ── Welcome header ───────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pt-1">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#C9433B] mb-1">
-            {getGreeting()}
-          </p>
-          <h1 className="text-2xl font-bold text-gray-900 leading-tight">
-            {firstName}
-          </h1>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1.5 text-xs text-gray-500">
-            {user.org_unit_name && (
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3 w-3" />
-                {user.org_unit_name}
-              </span>
-            )}
-            {user.org_unit_name && <span className="text-gray-300">·</span>}
-            <span className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              {new Date().toLocaleDateString("en-GB", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
+    <div className="space-y-6 pb-10">
+      {/* ── Page card: greeting, date, main actions ─────────────────── */}
+      <PageCard
+        title={`${getGreeting()}, ${firstName}`}
+        description={
+          <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span className="inline-flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
+              {today}
             </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadDashboard}
-            disabled={loading}
-            className="gap-1.5 text-gray-600 border-gray-200 h-8 text-xs"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-          <Button
-            asChild
-            size="sm"
-            className="gap-1.5 text-white shadow-sm h-8 text-xs"
-            style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}
-          >
-            <Link href="/data-entry">
-              <FileText className="h-3.5 w-3.5" />
-              Data Entry
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </Button>
-        </div>
-      </div>
-
-      {/* ── Filter bar ───────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 bg-white rounded-xl border border-gray-200 shadow-sm">
-        {/* Period */}
-        <div className="flex items-center gap-2">
-          <Calendar className="h-3.5 w-3.5 text-gray-400" />
-          <span className="text-xs font-medium text-gray-600">Period</span>
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="h-8 w-40 text-xs border-gray-200 focus:ring-[#C9433B]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PERIOD_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value} className="text-xs">
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="h-5 w-px bg-gray-200 hidden sm:block" />
-
-        {/* Org unit */}
-        <div className="flex items-center gap-2">
-          <Building2 className="h-3.5 w-3.5 text-gray-400" />
-          <span className="text-xs font-medium text-gray-600">Org unit</span>
-          {canFilterOrg ? (
-            <Select value={orgFilter} onValueChange={setOrgFilter}>
-              <SelectTrigger className="h-8 w-36 text-xs border-gray-200 focus:ring-[#C9433B]">
+            {user.org_unit_name && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="inline-flex items-center gap-1">
+                  <Building2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  {user.org_unit_name}
+                </span>
+              </>
+            )}
+          </span>
+        }
+        actions={
+          <>
+            <Button variant="secondary" onClick={loadDashboard} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} aria-hidden="true" />
+              {loading ? "Refreshing…" : "Refresh"}
+            </Button>
+            <Button asChild>
+              <Link href="/data-entry">
+                <FileText className="h-4 w-4" aria-hidden="true" />
+                Enter data
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          </>
+        }
+      >
+        {/* Filter band */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-lg border border-border bg-surface-subtle px-4 py-3">
+          <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+            Period
+            <Select value={period} onValueChange={setPeriod}>
+              <SelectTrigger className="h-9 w-44 bg-card" aria-label="Period">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" className="text-xs">All units</SelectItem>
-                {user.org_unit && (
-                  <SelectItem value={String(user.org_unit)} className="text-xs">
-                    {user.org_unit_name || "My unit"}
+                {PERIOD_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
                   </SelectItem>
-                )}
+                ))}
               </SelectContent>
             </Select>
-          ) : (
-            <Badge
-              variant="outline"
-              className="h-8 px-3 text-xs font-medium border-gray-200 text-gray-700 bg-gray-50"
-            >
-              {user.org_unit_name || "My unit"}
-            </Badge>
-          )}
-        </div>
+          </label>
 
-        {/* Active filter summary */}
-        <div className="ml-auto text-[11px] text-gray-400 hidden sm:block">
-          Showing{" "}
-          <span className="font-medium text-gray-600">{periodLabel}</span>
-          {orgFilter !== "all" && user.org_unit_name && (
-            <>
-              {" "}for{" "}
-              <span className="font-medium text-gray-600">{user.org_unit_name}</span>
-            </>
-          )}
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            Organisation unit
+            {canFilterOrg ? (
+              <Select value={orgFilter} onValueChange={setOrgFilter}>
+                <SelectTrigger className="h-9 w-48 bg-card" aria-label="Organisation unit">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All units</SelectItem>
+                  {user.org_unit && (
+                    <SelectItem value={String(user.org_unit)}>{user.org_unit_name || "My unit"}</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            ) : (
+              <StatusPill tone="brand" icon={Building2}>
+                {user.org_unit_name || "My unit"}
+              </StatusPill>
+            )}
+          </div>
+
+          <p className="text-xs text-muted-foreground sm:ml-auto">
+            Showing <span className="font-semibold text-foreground">{periodLabel.toLowerCase()}</span> for{" "}
+            <span className="font-semibold text-foreground">{scopeLabel}</span>
+          </p>
         </div>
-      </div>
+      </PageCard>
 
       {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <InlineNotice
+          tone="error"
+          title="Some numbers didn't load"
+          action={
+            <Button size="sm" variant="secondary" onClick={loadDashboard}>
+              Try again
+            </Button>
+          }
+        >
+          Check your internet connection, then try again.
+        </InlineNotice>
       )}
 
       {/* ── Stat cards ───────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Total Reports"
+          label="Reports submitted"
           value={loading ? "—" : totalReports.toLocaleString()}
-          icon={FileText}
-          accent="#C9433B"
-          sub={periodLabel}
+          icon={<FileText className="h-5 w-5" aria-hidden="true" />}
+          tint="red"
+          hint={periodLabel}
+          href="/reports"
         />
         <StatCard
-          label="Active Org Units"
+          label="Units reporting"
           value={loading ? "—" : activeOrgUnits}
-          icon={Building2}
-          accent="#D96455"
-          sub="with submissions"
+          icon={<Building2 className="h-5 w-5" aria-hidden="true" />}
+          tint="blue"
+          hint="Organisation units with at least one report"
         />
         <StatCard
-          label="Report Types"
+          label="Report types used"
           value={loading ? "—" : reportTypeCount}
-          icon={Tags}
-          accent="#8B3020"
-          sub="distinct types used"
+          icon={<Tags className="h-5 w-5" aria-hidden="true" />}
+          tint="teal"
+          hint="Different report types submitted"
         />
         <StatCard
-          label="Daily Average"
+          label="Daily average"
           value={loading ? "—" : dailyAvg}
-          icon={TrendingUp}
-          accent="#E8877A"
-          sub="submissions / day"
+          icon={<TrendingUp className="h-5 w-5" aria-hidden="true" />}
+          tint="violet"
+          hint="Reports submitted per day"
         />
       </div>
 
-      {/* ── Charts row 1 ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Reports over time */}
+      {/* ── Charts ───────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ChartCard
           title="Reports over time"
-          description={`Submissions by period · ${periodLabel}`}
+          description={`Reports submitted in each period · ${periodLabel}`}
           loading={loading}
           empty={!analytics?.reportsOverTime?.length}
-          height={220}
         >
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={analytics?.reportsOverTime ?? []}>
+            <AreaChart data={analytics?.reportsOverTime ?? []} margin={{ left: -12, right: 8, top: 4 }}>
               <defs>
                 <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#C9433B" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#C9433B" stopOpacity={0} />
+                  <stop offset="5%" stopColor={chartColor(0)} stopOpacity={0.22} />
+                  <stop offset="95%" stopColor={chartColor(0)} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-              <XAxis dataKey="period" tick={{ fontSize: 10 }} stroke="#e5e7eb" tickLine={false} />
-              <YAxis tick={{ fontSize: 10 }} stroke="#e5e7eb" tickLine={false} axisLine={false} />
-              <Tooltip
-                contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
-                labelStyle={{ fontWeight: 600 }}
-              />
-              <Area
-                type="monotone"
-                dataKey="count"
-                stroke="#C9433B"
-                strokeWidth={2}
-                fill="url(#areaFill)"
-                name="Reports"
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
+              <XAxis dataKey="period" tick={CHART_TICK} stroke={CHART_AXIS} tickLine={false} />
+              <YAxis tick={CHART_TICK} stroke={CHART_AXIS} tickLine={false} axisLine={false} allowDecimals={false} />
+              <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ fontWeight: 600 }} />
+              <Area type="monotone" dataKey="count" stroke={chartColor(0)} strokeWidth={2} fill="url(#areaFill)" name="Reports" />
             </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        {/* By organization */}
         <ChartCard
-          title="By organization"
-          description="Report distribution across org units"
+          title="By organisation unit"
+          description="Which units submitted the most reports"
           loading={loading}
           empty={!analytics?.reportsByOrgUnit?.length}
-          height={220}
         >
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart
-              data={analytics?.reportsByOrgUnit ?? []}
-              layout="vertical"
-              margin={{ left: 4, right: 16 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
-              <XAxis type="number" tick={{ fontSize: 10 }} stroke="#e5e7eb" tickLine={false} />
-              <YAxis
-                type="category"
-                dataKey="org_unit"
-                width={115}
-                tick={{ fontSize: 10 }}
-                stroke="#e5e7eb"
-                tickLine={false}
-                axisLine={false}
-              />
-              <Tooltip
-                contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
-              />
-              <Bar dataKey="count" fill="#D96455" radius={[0, 4, 4, 0]} name="Reports" />
+            <BarChart data={analytics?.reportsByOrgUnit ?? []} layout="vertical" margin={{ left: 4, right: 16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} horizontal={false} />
+              <XAxis type="number" tick={CHART_TICK} stroke={CHART_AXIS} tickLine={false} allowDecimals={false} />
+              <YAxis type="category" dataKey="org_unit" width={120} tick={CHART_TICK} stroke={CHART_AXIS} tickLine={false} axisLine={false} />
+              <Tooltip contentStyle={CHART_TOOLTIP_STYLE} cursor={{ fill: "hsl(var(--muted))" }} />
+              <Bar dataKey="count" fill={chartColor(1)} radius={[0, 4, 4, 0]} name="Reports" maxBarSize={22} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
-      </div>
 
-      {/* ── Charts row 2 ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* By report type */}
         <ChartCard
           title="By report type"
-          description="Submission count per report type"
+          description="How many of each report type were submitted"
           loading={loading}
           empty={!analytics?.reportsByType?.length}
-          height={220}
         >
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart
-              data={analytics?.reportsByType ?? []}
-              margin={{ left: 4, right: 12, bottom: 48 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-              <XAxis
-                dataKey="report_type"
-                angle={-30}
-                textAnchor="end"
-                height={68}
-                interval={0}
-                tick={{ fontSize: 10 }}
-                stroke="#e5e7eb"
-                tickLine={false}
-              />
-              <YAxis tick={{ fontSize: 10 }} stroke="#e5e7eb" tickLine={false} axisLine={false} />
-              <Tooltip
-                contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
-              />
-              <Bar dataKey="count" fill="#C9433B" radius={[4, 4, 0, 0]} name="Reports" />
+            <BarChart data={analytics?.reportsByType ?? []} margin={{ left: -12, right: 12, bottom: 48 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
+              <XAxis dataKey="report_type" angle={-30} textAnchor="end" height={68} interval={0} tick={CHART_TICK} stroke={CHART_AXIS} tickLine={false} />
+              <YAxis tick={CHART_TICK} stroke={CHART_AXIS} tickLine={false} axisLine={false} allowDecimals={false} />
+              <Tooltip contentStyle={CHART_TOOLTIP_STYLE} cursor={{ fill: "hsl(var(--muted))" }} />
+              <Bar dataKey="count" fill={chartColor(0)} radius={[4, 4, 0, 0]} name="Reports" maxBarSize={36} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        {/* Daily activity */}
         <ChartCard
           title="Daily activity"
-          description="Reports submitted per day"
+          description="Reports submitted each day"
           loading={loading}
           empty={!analytics?.userActivity?.length}
-          height={220}
         >
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={analytics?.userActivity ?? []} margin={{ left: 4, right: 12 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-              <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="#e5e7eb" tickLine={false} />
-              <YAxis tick={{ fontSize: 10 }} stroke="#e5e7eb" tickLine={false} axisLine={false} />
+            <BarChart data={analytics?.userActivity ?? []} margin={{ left: -12, right: 12 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
+              <XAxis dataKey="date" tick={CHART_TICK} stroke={CHART_AXIS} tickLine={false} />
+              <YAxis tick={CHART_TICK} stroke={CHART_AXIS} tickLine={false} axisLine={false} allowDecimals={false} />
               <Tooltip
-                contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
+                contentStyle={CHART_TOOLTIP_STYLE}
+                cursor={{ fill: "hsl(var(--muted))" }}
                 formatter={(v: number) => [v, "Reports"]}
               />
-              <Bar dataKey="new_reports" fill="#E8877A" radius={[4, 4, 0, 0]} name="Reports" />
+              <Bar dataKey="new_reports" fill={chartColor(2)} radius={[4, 4, 0, 0]} name="Reports" maxBarSize={28} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
       </div>
 
       {/* ── Recent submissions ────────────────────────────────────────── */}
-      {(loading || recentReports.length > 0) && (
-        <Card className="border-gray-200 shadow-sm bg-white overflow-hidden">
-          <CardHeader className="pt-5 pb-2 px-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-sm font-semibold text-gray-900">
-                  Recent submissions
-                </CardTitle>
-                <p className="text-[11px] text-gray-400 mt-0.5">
-                  Latest reports from{" "}
-                  {orgFilter === "all"
-                    ? "all units"
-                    : user.org_unit_name || "your unit"}
-                </p>
-              </div>
-              <Button
-                asChild
-                variant="ghost"
-                size="sm"
-                className="text-[#C9433B] hover:text-[#8B3020] hover:bg-[#FEF0EC] gap-1 text-xs h-8"
-              >
-                <Link href="/data-entry">
-                  Go to Data Entry
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Link>
-              </Button>
-            </div>
-          </CardHeader>
-
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="flex items-center justify-center py-10">
-                <Loader2 className="h-5 w-5 animate-spin" style={{ color: "#C9433B" }} />
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {recentReports.map((report) => (
-                  <div
-                    key={report.id}
-                    className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50/70 transition-colors"
-                  >
-                    <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{ background: "#FEF0EC" }}
-                    >
-                      <FileText className="h-4 w-4" style={{ color: "#C9433B" }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {report.report_type_name || `Report #${report.id}`}
-                      </p>
-                      <p className="text-xs text-gray-400 truncate">
-                        {[report.org_unit_name, report.period_name]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      {report.status && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] px-2 h-5 capitalize font-medium"
-                          style={
-                            report.status === "submitted"
-                              ? {
-                                  borderColor: "#FCC6BB",
-                                  color: "#C9433B",
-                                  background: "#FEF0EC",
-                                }
-                              : { borderColor: "#e5e7eb", color: "#9ca3af" }
-                          }
-                        >
-                          {report.status}
-                        </Badge>
-                      )}
-                      {report.created_at && (
-                        <span className="text-[11px] text-gray-400 tabular-nums">
-                          {new Date(report.created_at).toLocaleDateString("en-GB", {
-                            day: "numeric",
-                            month: "short",
-                          })}
-                        </span>
-                      )}
-                    </div>
+      <SectionCard
+        flush
+        title="Recent submissions"
+        description={`The latest reports from ${scopeLabel}`}
+        actions={
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/reports">
+              See all reports
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </Button>
+        }
+      >
+        {loading ? (
+          <TableSkeleton rows={4} columns={3} />
+        ) : recentReports.length === 0 ? (
+          <EmptyState
+            illustration="report"
+            title="No reports submitted yet"
+            description="Reports you and your team submit will appear here."
+            action={{ label: "Enter data", href: "/data-entry" }}
+          />
+        ) : (
+          <ul className="divide-y divide-border">
+            {recentReports.map((report) => {
+              const status = report.status ? reportStatus(report.status) : null
+              return (
+                <li key={report.id} className="flex items-center gap-4 px-5 py-3 transition-colors hover:bg-surface-muted/60">
+                  <span className="icon-chip h-9 w-9">
+                    <FileText className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {report.report_type_name || `Report #${report.id}`}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {[report.org_unit_name, report.period_name].filter(Boolean).join(" · ")}
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+                  <div className="flex shrink-0 items-center gap-3">
+                    {status && (
+                      <StatusPill tone={status.tone} icon={status.icon}>
+                        {status.label}
+                      </StatusPill>
+                    )}
+                    {report.created_at && (
+                      <span className="font-clinical hidden text-xs text-muted-foreground sm:inline">
+                        {new Date(report.created_at).toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        })}
+                      </span>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </SectionCard>
     </div>
   )
 }

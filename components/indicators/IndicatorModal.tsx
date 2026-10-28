@@ -217,7 +217,7 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Calculator className="h-5 w-5" style={{ color: "#C9433B" }} />
+            <Calculator className="h-5 w-5 text-primary" />
             {indicator ? "Edit Indicator" : "Create New Indicator"}
           </DialogTitle>
           <DialogDescription>
@@ -230,47 +230,47 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6 py-4">
           {/* Basic Information */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900">Basic Information</h3>
+            <h3 className="text-sm font-semibold text-foreground">Basic Information</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="ind-code" className="text-sm font-medium">
-                  Code <span className="text-red-500">*</span>
+                  Code <span className="text-error">*</span>
                 </Label>
                 <Input
                   id="ind-code"
                   placeholder="e.g., IND001"
-                  className={`font-mono ${errors.code ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-red-600"}`}
+                  className={`font-mono ${errors.code ? "border-destructive" : ""}`}
                   {...register("code")}
                 />
                 {errors.code ? (
-                  <p className="text-xs text-red-500">{errors.code.message}</p>
+                  <p className="text-xs text-error">{errors.code.message}</p>
                 ) : (
-                  <p className="text-xs text-gray-400">Unique identifier (letters, digits, _ or -)</p>
+                  <p className="text-xs text-muted-foreground">Unique identifier (letters, digits, _ or -)</p>
                 )}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="ind-name" className="text-sm font-medium">
-                  Name <span className="text-red-500">*</span>
+                  Name <span className="text-error">*</span>
                 </Label>
                 <Input
                   id="ind-name"
                   placeholder="e.g., Malaria Incidence Rate"
-                  className={errors.name ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-red-600"}
+                  className={errors.name ? "border-destructive" : ""}
                   {...register("name")}
                 />
-                {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+                {errors.name && <p className="text-xs text-error">{errors.name.message}</p>}
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="ind-desc" className="text-sm font-medium text-gray-700">
-                Description <span className="text-gray-400 font-normal">(optional)</span>
+              <Label htmlFor="ind-desc" className="text-sm font-medium text-foreground">
+                Description <span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
               <Textarea
                 id="ind-desc"
                 placeholder="Describe what this indicator measures..."
                 rows={2}
-                className="focus-visible:ring-red-600"
+                
                 {...register("description")}
               />
             </div>
@@ -282,7 +282,7 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
                   id="ind-factor"
                   type="number"
                   min={1}
-                  className={`focus-visible:ring-red-600 ${errors.factor ? "border-red-400 focus-visible:ring-red-400" : ""}`}
+                  className={`${errors.factor ? "border-destructive" : ""}`}
                   {...factorReg}
                   onChange={(e) => {
                     factorReg.onChange(e)
@@ -291,16 +291,16 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
                     else if (v === 1000) setValue("unit", "per 1000")
                   }}
                 />
-                {errors.factor && <p className="text-xs text-red-500">{errors.factor.message}</p>}
+                {errors.factor && <p className="text-xs text-error">{errors.factor.message}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="ind-unit" className="text-sm font-medium text-gray-700">
-                  Unit <span className="text-gray-400 font-normal">(optional)</span>
+                <Label htmlFor="ind-unit" className="text-sm font-medium text-foreground">
+                  Unit <span className="text-muted-foreground font-normal">(optional)</span>
                 </Label>
                 <Input
                   id="ind-unit"
                   placeholder="e.g., %, per 1000"
-                  className="focus-visible:ring-red-600"
+                  
                   {...register("unit")}
                 />
               </div>
@@ -309,7 +309,7 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
                 <select
                   id="ind-aggregation"
                   {...register("aggregationType")}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                 >
                   <option value="sum">Sum</option>
                   <option value="average">Average</option>
@@ -323,42 +323,42 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
 
           {/* Numerator */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900">
-              Numerator <span className="text-red-500">*</span>
+            <h3 className="text-sm font-semibold text-foreground">
+              Numerator <span className="text-error">*</span>
             </h3>
             <div className="space-y-1.5">
               <Label htmlFor="num-formula" className="text-sm font-medium">
-                Formula <span className="text-red-500">*</span>
+                Formula <span className="text-error">*</span>
               </Label>
               <Input
                 id="num-formula"
                 placeholder="e.g., DE001 + DE002"
-                className={`font-mono ${errors.numeratorFormula ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-red-600"}`}
+                className={`font-mono ${errors.numeratorFormula ? "border-destructive" : ""}`}
                 {...register("numeratorFormula")}
               />
               {errors.numeratorFormula && (
-                <p className="text-xs text-red-500">{errors.numeratorFormula.message}</p>
+                <p className="text-xs text-error">{errors.numeratorFormula.message}</p>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="num-desc" className="text-sm font-medium text-gray-700">
-                Description <span className="text-gray-400 font-normal">(optional)</span>
+              <Label htmlFor="num-desc" className="text-sm font-medium text-foreground">
+                Description <span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
               <Textarea
                 id="num-desc"
                 placeholder="Describe what the numerator represents..."
                 rows={2}
-                className="focus-visible:ring-red-600"
+                
                 {...register("numeratorDescription")}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-gray-700">Available Data Elements</Label>
-              <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg max-h-32 overflow-y-auto">
+              <Label className="text-sm font-medium text-foreground">Available Data Elements</Label>
+              <div className="flex flex-wrap gap-2 p-3 bg-surface-subtle rounded-lg max-h-32 overflow-y-auto">
                 {dataElements.length === 0 ? (
-                  <p className="text-sm text-gray-500">No data elements available</p>
+                  <p className="text-sm text-muted-foreground">No data elements available</p>
                 ) : (
                   dataElements.map((de) => (
                     <button
@@ -367,13 +367,8 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
                       onClick={() => toggleDataElement(de.code, "numerator")}
                       className={
                         selectedNumeratorElements.has(de.code)
-                          ? "px-2 py-1 text-xs font-medium text-white rounded hover:opacity-90"
-                          : "px-2 py-1 text-xs font-medium bg-white border border-gray-300 rounded hover:bg-gray-50"
-                      }
-                      style={
-                        selectedNumeratorElements.has(de.code)
-                          ? { background: "linear-gradient(135deg, #C9433B, #D96455)" }
-                          : {}
+                          ? "px-2 py-1 text-xs font-medium rounded border border-primary bg-primary text-primary-foreground hover:bg-primary-hover"
+                          : "px-2 py-1 text-xs font-medium bg-card border border-border rounded hover:bg-surface-subtle"
                       }
                     >
                       {de.code}
@@ -386,40 +381,40 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
 
           {/* Denominator */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900">
+            <h3 className="text-sm font-semibold text-foreground">
               Denominator{" "}
-              <span className="text-gray-400 font-normal text-xs">(optional)</span>
+              <span className="text-muted-foreground font-normal text-xs">(optional)</span>
             </h3>
             <div className="space-y-1.5">
-              <Label htmlFor="den-formula" className="text-sm font-medium text-gray-700">
+              <Label htmlFor="den-formula" className="text-sm font-medium text-foreground">
                 Formula
               </Label>
               <Input
                 id="den-formula"
                 placeholder="e.g., DE003"
-                className="font-mono focus-visible:ring-red-600"
+                className="font-mono"
                 {...register("denominatorFormula")}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="den-desc" className="text-sm font-medium text-gray-700">
-                Description <span className="text-gray-400 font-normal">(optional)</span>
+              <Label htmlFor="den-desc" className="text-sm font-medium text-foreground">
+                Description <span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
               <Textarea
                 id="den-desc"
                 placeholder="Describe what the denominator represents..."
                 rows={2}
-                className="focus-visible:ring-red-600"
+                
                 {...register("denominatorDescription")}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-gray-700">Available Data Elements</Label>
-              <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg max-h-32 overflow-y-auto">
+              <Label className="text-sm font-medium text-foreground">Available Data Elements</Label>
+              <div className="flex flex-wrap gap-2 p-3 bg-surface-subtle rounded-lg max-h-32 overflow-y-auto">
                 {dataElements.length === 0 ? (
-                  <p className="text-sm text-gray-500">No data elements available</p>
+                  <p className="text-sm text-muted-foreground">No data elements available</p>
                 ) : (
                   dataElements.map((de) => (
                     <button
@@ -428,13 +423,8 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
                       onClick={() => toggleDataElement(de.code, "denominator")}
                       className={
                         selectedDenominatorElements.has(de.code)
-                          ? "px-2 py-1 text-xs font-medium text-white rounded hover:opacity-90"
-                          : "px-2 py-1 text-xs font-medium bg-white border border-gray-300 rounded hover:bg-gray-50"
-                      }
-                      style={
-                        selectedDenominatorElements.has(de.code)
-                          ? { background: "linear-gradient(135deg, #C9433B, #D96455)" }
-                          : {}
+                          ? "px-2 py-1 text-xs font-medium rounded border border-primary bg-primary text-primary-foreground hover:bg-primary-hover"
+                          : "px-2 py-1 text-xs font-medium bg-card border border-border rounded hover:bg-surface-subtle"
                       }
                     >
                       {de.code}
@@ -467,7 +457,6 @@ export function IndicatorModal({ open, onOpenChange, onSave, indicator, dataElem
               type="submit"
               disabled={isSubmitting}
               className="text-white"
-              style={{ background: "linear-gradient(135deg, #C9433B, #D96455)" }}
             >
               <Save className="h-4 w-4 mr-2" />
               {indicator ? "Update" : "Create"} Indicator

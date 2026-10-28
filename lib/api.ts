@@ -167,8 +167,9 @@ export const ApiClient = {
   createReport: (data: unknown) => api.post("/reporting/reports/", data),
   updateReport: (id: number, data: unknown) => api.patch(`/reporting/reports/${id}/`, data),
   deleteReport: (id: number) => api.delete(`/reporting/reports/${id}/`),
-  exportReport: (id: number, format: string = "pdf") => api.get(`/reporting/reports/${id}/export/`, { 
-    params: { format },
+  // Always returns Excel. Don't send ?format= — Django REST Framework reserves it for
+  // choosing a renderer and answers 404 for unknown values such as "xlsx".
+  exportReport: (id: number) => api.get(`/reporting/reports/${id}/export/`, {
     responseType: "blob"
   }),
   

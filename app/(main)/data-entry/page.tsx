@@ -3,20 +3,24 @@
 import * as React from "react"
 import { useAuth } from "@/context/AuthContext"
 import api from "@/lib/api"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
   Loader2,
-  Target,
   Save,
+  Send,
+  Check,
   FileSpreadsheet,
+  FilePlus2,
   CheckCircle2,
-  AlertCircle,
+  CircleDot,
   X,
   Clock,
 } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { PageCard } from "@/components/layout/PageCard"
+import { StatusPill } from "@/components/common/status-pill"
+import { InlineNotice } from "@/components/common/inline-notice"
+import { Illustration } from "@/components/common/illustration"
 import { toast } from "sonner"
 import { SectionLoader } from "@/components/ui/PageLoader"
 import DataEntryTopBar from "@/components/data-entry/DataEntryTopBar"
@@ -706,344 +710,280 @@ export default function DataEntryPage() {
   const showForm = !!dataset && !!org && !!period
   const formReady = showForm && !loadingReport && !loadingLayout
 
+  const statusPill = loadingReport ? (
+    <StatusPill tone="neutral" icon={Loader2}>Loading…</StatusPill>
+  ) : reportStatus === "submitted" ? (
+    <StatusPill tone="success" icon={CheckCircle2}>Submitted</StatusPill>
+  ) : reportStatus === "draft" ? (
+    <StatusPill tone="pending" icon={Clock}>Draft</StatusPill>
+  ) : (
+    <StatusPill tone="neutral" icon={FilePlus2}>New entry</StatusPill>
+  )
+
+  const savePill = autoSaving ? (
+    <StatusPill tone="info" icon={Loader2}>Saving…</StatusPill>
+  ) : unsavedCodes.size > 0 ? (
+    <StatusPill tone="pending" icon={CircleDot}>
+      {`${unsavedCodes.size} change${unsavedCodes.size === 1 ? "" : "s"} not saved yet`}
+    </StatusPill>
+  ) : lastAutoSaved ? (
+    <StatusPill tone="success" icon={CheckCircle2}>{`Saved ${formatRelativeTime(lastAutoSaved)}`}</StatusPill>
+  ) : dataSaved ? (
+    <StatusPill tone="success" icon={CheckCircle2}>Saved</StatusPill>
+  ) : null
+
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      <DataEntryTopBar
-        dataset={dataset}
-        onDatasetChange={setDataset}
-        datasets={datasetsForPicker}
-        org={org}
-        onOrgChange={setOrg}
-        orgTree={orgTree}
-        period={period}
-        onPeriodChange={setPeriod}
-        reportStatus={showForm ? reportStatus : null}
-        loadingReport={showForm && loadingReport}
-        onClear={onClear}
-      />
+    <div className="space-y-6">
+      <PageCard
+        title="Data entry"
+        description="Choose the organisation unit, report and period, then fill in the form. Your work saves automatically as you type."
+        icon={<FileSpreadsheet className="h-5 w-5" aria-hidden="true" />}
+      >
+        <DataEntryTopBar
+          dataset={dataset}
+          onDatasetChange={setDataset}
+          datasets={datasetsForPicker}
+          org={org}
+          onOrgChange={setOrg}
+          orgTree={orgTree}
+          period={period}
+          onPeriodChange={setPeriod}
+          reportStatus={showForm ? reportStatus : null}
+          loadingReport={showForm && loadingReport}
+          onClear={onClear}
+        />
+      </PageCard>
 
-      <div className="flex-1 p-4 lg:p-6 space-y-4 overflow-auto">
-        {/* Layout loading */}
-        {loadingLayout && (
-          <Alert className="border-gray-200 bg-gray-50">
-            <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#C9433B" }} />
-            <AlertDescription className="text-gray-700">Loading report layout…</AlertDescription>
-          </Alert>
-        )}
+      {loadingLayout && <InlineNotice tone="info" title="Loading the report form…" />}
 
-        {/* Draft restore banner */}
-        {draftRestored && (
-          <Alert className="border-blue-200 bg-blue-50">
-            <AlertCircle className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="text-blue-800 flex items-center justify-between w-full">
-              <span>
-                <strong>Draft restored</strong> — unsaved values from your previous session were
-                recovered. Review and submit when ready.
-              </span>
-              <button
-                type="button"
-                onClick={() => setDraftRestored(false)}
-                className="ml-4 flex-shrink-0 text-blue-500 hover:text-blue-700 transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </AlertDescription>
-          </Alert>
-        )}
+      {draftRestored && (
+        <InlineNotice
+          tone="info"
+          title="We restored your unsaved work"
+          action={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setDraftRestored(false)}
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          }
+        >
+          Values you typed last time were recovered on this computer. Check them, then submit when ready.
+        </InlineNotice>
+      )}
 
-        {showForm ? (
-          <div className="space-y-4">
-            {/* Report context card */}
-            <Card className="bg-white border border-gray-200 shadow-sm">
-              <CardContent className="p-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
-                    <div className="flex items-start gap-2">
-                      <div className="w-1 h-full min-h-8 rounded-full flex-shrink-0" style={{ background: "#C9433B" }} />
-                      <div>
-                        <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Report</p>
-                        <p className="text-sm font-semibold text-gray-900 mt-0.5">{dataset!.name}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="w-1 h-full min-h-8 rounded-full flex-shrink-0" style={{ background: "#D96455" }} />
-                      <div>
-                        <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Organisation Unit</p>
-                        <p className="text-sm font-semibold text-gray-900 mt-0.5">{org!.name}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="w-1 h-full min-h-8 rounded-full flex-shrink-0" style={{ background: "#E8877A" }} />
-                      <div>
-                        <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Reporting Period</p>
-                        <p className="text-sm font-semibold text-gray-900 mt-0.5">{period!.name}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="w-1 h-full min-h-8 rounded-full flex-shrink-0 bg-gray-300" />
-                      <div>
-                        <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Status</p>
-                        {loadingReport ? (
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
-                            <span className="text-sm text-gray-500">Loading…</span>
-                          </div>
-                        ) : reportStatus === "submitted" ? (
-                          <Badge variant="outline" className="mt-1 bg-emerald-50 text-emerald-700 border-emerald-200 gap-1">
-                            <CheckCircle2 className="h-3 w-3" />
-                            Submitted
-                          </Badge>
-                        ) : reportStatus === "draft" ? (
-                          <Badge variant="outline" className="mt-1 bg-amber-50 text-amber-700 border-amber-200 gap-1">
-                            <Clock className="h-3 w-3" />
-                            Draft
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="mt-1 bg-gray-50 text-gray-600 border-gray-200">
-                            New entry
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Auto-save status badge */}
-                  <div className="flex-shrink-0 flex flex-col items-end gap-2">
-                    {autoSaving ? (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-200 bg-blue-50">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
-                        <span className="text-xs font-medium text-blue-700">Saving…</span>
-                      </div>
-                    ) : unsavedCodes.size > 0 ? (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-amber-200 bg-amber-50">
-                        <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                        <span className="text-xs font-medium text-amber-700">
-                          {unsavedCodes.size} unsaved
-                        </span>
-                      </div>
-                    ) : lastAutoSaved ? (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-green-200 bg-green-50">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                        <span className="text-xs font-medium text-green-700">
-                          Saved {formatRelativeTime(lastAutoSaved)}
-                        </span>
-                      </div>
-                    ) : dataSaved ? (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-green-200 bg-green-50">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                        <span className="text-xs font-medium text-green-700">Saved</span>
-                      </div>
-                    ) : null}
-                  </div>
+      {showForm ? (
+        <div className="space-y-4">
+          {/* Report context */}
+          <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <dl className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="min-w-0">
+                  <dt className="stat-card-label">Report</dt>
+                  <dd className="mt-1 truncate text-sm font-semibold text-foreground">{dataset!.name}</dd>
                 </div>
-
-                {/* Last submitted info */}
-                {lastSubmittedBy && (
-                  <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
-                    Last submitted by{" "}
-                    <span className="font-semibold text-gray-700">{lastSubmittedBy}</span>
-                    {lastSubmittedAt && (
-                      <>
-                        {" "}on{" "}
-                        <span className="font-medium text-gray-600">
-                          {new Date(lastSubmittedAt).toLocaleDateString("en-GH", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Read-only / lock notice */}
-            {isReadOnly && (
-              <Alert className="bg-amber-50 border-amber-300">
-                <AlertDescription className="text-amber-800">
-                  <strong>View-only mode — </strong>
-                  {isPeriodLocked ? (
-                    <>
-                      This reporting period <strong>({period!.name})</strong> is locked.
-                      Data cannot be modified after {dataset!.lock_period_days} days from the period end date.
-                    </>
-                  ) : !canEnterForSelectedOrg ? (
-                    <>
-                      You are viewing data for <strong>{org!.name}</strong>.
-                      You can only enter data for your assigned organisation unit.
-                    </>
-                  ) : !meetsReportPortfolio ? (
-                    <>
-                      The report type <strong>{dataset!.name}</strong> is not assigned to your organisation unit.
-                    </>
-                  ) : !isReportAssignedAtTargetOrg ? (
-                    <>
-                      The report type <strong>{dataset!.name}</strong> is not assigned to{" "}
-                      <strong>{org!.name}</strong>.
-                    </>
-                  ) : (
-                    "You cannot make entries for this selection."
-                  )}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {loadingReport && (
-              <Alert className="border-gray-200 bg-gray-50">
-                <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#C9433B" }} />
-                <AlertDescription className="text-gray-700">
-                  Loading report data for this period…
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {reportStatus === "submitted" && !loadingReport && !isReadOnly && (
-              <Alert className="border-emerald-200 bg-emerald-50">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                <AlertDescription className="text-emerald-800">
-                  This report has been <strong>submitted</strong>. You can still update values until the period is locked; changes are saved automatically.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Layout indicator */}
-            {formReady && layout && (
-              <div className="flex items-center gap-2 px-1">
-                <div className="w-2 h-2 rounded-full" style={{ background: "#E8877A" }} />
-                <span className="text-xs text-gray-400">
-                  {layout.sections?.length ?? 0} section{(layout.sections?.length ?? 0) !== 1 ? "s" : ""} loaded
-                </span>
-              </div>
-            )}
-
-            {/* Form */}
-            {!formReady ? (
-              loadingLayout ? (
-                <div className="flex items-center justify-center py-16 text-sm text-gray-500">
-                  <Loader2 className="h-5 w-5 animate-spin mr-2" style={{ color: "#C9433B" }} />
-                  Preparing form…
+                <div className="min-w-0">
+                  <dt className="stat-card-label">Organisation unit</dt>
+                  <dd className="mt-1 truncate text-sm font-semibold text-foreground">{org!.name}</dd>
                 </div>
-              ) : null
-            ) : layout ? (
-              <div id="data-entry-form" className={isReadOnly ? "opacity-70" : ""}>
-                <EnhancedLayoutEntryForm
-                  schema={layout}
-                  values={valuesByCode}
-                  onChange={setCodeValue}
-                  dataElements={dataElements}
-                  dataSaved={dataSaved}
-                  readOnly={isReadOnly}
-                  savedCodes={savedCodes}
-                  unsavedCodes={unsavedCodes}
-                  autoSaving={autoSaving}
-                />
-              </div>
-            ) : (
-              <>
-                <div className="text-xs text-gray-400 px-1">Using default form (no custom layout available)</div>
-                <div className={isReadOnly ? "opacity-70" : ""}>
-                  <DataEntryForm
-                    reportType={dataset!}
-                    values={valuesById}
-                    onChange={setIdValue}
-                    readOnly={isReadOnly}
-                  />
+                <div className="min-w-0">
+                  <dt className="stat-card-label">Reporting period</dt>
+                  <dd className="mt-1 truncate text-sm font-semibold text-foreground">{period!.name}</dd>
                 </div>
-              </>
-            )}
+                <div className="min-w-0">
+                  <dt className="stat-card-label">Status</dt>
+                  <dd className="mt-1">{statusPill}</dd>
+                </div>
+              </dl>
+              {savePill && <div className="shrink-0" aria-live="polite">{savePill}</div>}
+            </div>
 
-            {/* Action bar */}
-            {formReady && (
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-2 border-t border-gray-200">
-              {/* Left: export + save-now */}
-              <div className="flex items-center gap-2 flex-wrap">
-                {canExport && (
+            {lastSubmittedBy && (
+              <p className="mt-4 border-t border-dashed border-border pt-3 text-xs text-muted-foreground">
+                Last submitted by <span className="font-semibold text-foreground">{lastSubmittedBy}</span>
+                {lastSubmittedAt && (
                   <>
-                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Export:</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleExportExcel}
-                      disabled={exporting}
-                      className="h-8 border-red-200 text-red-700 hover:bg-red-50"
-                    >
-                      <FileSpreadsheet className="h-4 w-4 mr-1.5" />
-                      Excel
-                    </Button>
+                    {" "}on{" "}
+                    <span className="font-medium text-foreground">
+                      {new Date(lastSubmittedAt).toLocaleDateString("en-GH", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
                   </>
                 )}
+              </p>
+            )}
+          </section>
 
-                {/* Save now button when there are unsaved changes */}
-                {unsavedCodes.size > 0 && !autoSaving && !isReadOnly && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={performAutoSave}
-                    className="h-8 text-amber-700 border-amber-300 hover:bg-amber-50 gap-1.5"
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                    Save now
-                    <span className="text-[10px] bg-amber-100 rounded-full px-1.5 py-0.5 font-bold">
-                      {unsavedCodes.size}
-                    </span>
-                  </Button>
-                )}
-              </div>
+          {/* Read-only / lock notice */}
+          {isReadOnly && (
+            <InlineNotice tone="warning" title="You can view this report but not change it">
+              {isPeriodLocked ? (
+                <>
+                  The period <strong>{period!.name}</strong> is locked. Reports can only be changed for{" "}
+                  {dataset!.lock_period_days} days after the period ends.
+                </>
+              ) : !canEnterForSelectedOrg ? (
+                <>
+                  You are viewing <strong>{org!.name}</strong>. You can only enter data for your own organisation unit.
+                </>
+              ) : !meetsReportPortfolio ? (
+                <>
+                  The report <strong>{dataset!.name}</strong> isn&apos;t assigned to your organisation unit.
+                </>
+              ) : !isReportAssignedAtTargetOrg ? (
+                <>
+                  The report <strong>{dataset!.name}</strong> isn&apos;t assigned to <strong>{org!.name}</strong>.
+                </>
+              ) : (
+                "You can't make entries for this selection."
+              )}
+            </InlineNotice>
+          )}
 
-              {/* Right: cancel + submit */}
-              <div className="flex gap-2 flex-shrink-0">
-                <Button variant="outline" onClick={onClear} className="h-10 border-gray-300">
-                  Cancel
-                </Button>
-                <Button
-                  onClick={submit}
-                  disabled={!canSubmit || saving || !hasValues}
-                  className="h-10 min-w-[140px] text-white font-semibold shadow-sm"
-                  style={{
-                    background:
-                      canSubmit && !saving && hasValues
-                        ? "linear-gradient(135deg, #C9433B, #D96455)"
-                        : "#9CA3AF",
-                  }}
-                >
-                  {saving ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Submitting…
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Submit Report
-                    </>
+          {loadingReport && <InlineNotice tone="info" title="Loading the data for this period…" />}
+
+          {reportStatus === "submitted" && !loadingReport && !isReadOnly && (
+            <InlineNotice tone="success" title="This report has been submitted">
+              You can still update values until the period is locked. Changes save automatically.
+            </InlineNotice>
+          )}
+
+          {/* Form */}
+          {!formReady ? (
+            <div className="space-y-3 rounded-xl border border-border bg-card p-5" aria-busy="true">
+              <Skeleton className="h-5 w-48" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-3/4" />
+            </div>
+          ) : layout ? (
+            <div id="data-entry-form" className={isReadOnly ? "opacity-75" : ""}>
+              {(layout.sections?.length ?? 0) > 0 && (
+                <p className="mb-2 px-1 text-xs text-muted-foreground">
+                  {layout.sections!.length} section{layout.sections!.length !== 1 ? "s" : ""} in this form
+                </p>
+              )}
+              <EnhancedLayoutEntryForm
+                schema={layout}
+                values={valuesByCode}
+                onChange={setCodeValue}
+                dataElements={dataElements}
+                dataSaved={dataSaved}
+                readOnly={isReadOnly}
+                savedCodes={savedCodes}
+                unsavedCodes={unsavedCodes}
+                autoSaving={autoSaving}
+              />
+            </div>
+          ) : (
+            <div className={isReadOnly ? "opacity-75" : ""}>
+              <p className="mb-2 px-1 text-xs text-muted-foreground">
+                This report doesn&apos;t have a custom layout yet, so it shows as a simple list.
+              </p>
+              <DataEntryForm reportType={dataset!} values={valuesById} onChange={setIdValue} readOnly={isReadOnly} />
+            </div>
+          )}
+
+          {/* Action bar — stays in view at the bottom while you scroll the form */}
+          {formReady && (
+            <div className="sticky bottom-0 z-20 -mx-1 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-[0_-4px_16px_hsl(222_30%_12%/0.06)] backdrop-blur supports-[backdrop-filter]:bg-card/85">
+              <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+                <div className="flex flex-wrap items-center gap-2">
+                  {canExport && (
+                    <Button variant="secondary" onClick={handleExportExcel} disabled={exporting}>
+                      {exporting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
+                      )}
+                      {exporting ? "Exporting…" : "Export to Excel"}
+                    </Button>
                   )}
-                </Button>
+
+                  {unsavedCodes.size > 0 && !autoSaving && !isReadOnly && (
+                    <Button variant="outline" onClick={performAutoSave}>
+                      <Save className="h-4 w-4" aria-hidden="true" />
+                      Save now
+                      <span className="rounded-full bg-primary-soft px-1.5 text-xs font-bold">{unsavedCodes.size}</span>
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex w-full shrink-0 gap-2 sm:w-auto">
+                  <Button variant="secondary" size="lg" onClick={onClear} className="flex-1 sm:flex-none">
+                    Close report
+                  </Button>
+                  <Button
+                    size="lg"
+                    onClick={submit}
+                    disabled={!canSubmit || saving || !hasValues}
+                    className="min-w-40 flex-1 sm:flex-none"
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        Submitting…
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4" aria-hidden="true" />
+                        Submit report
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
-            )}
+          )}
+        </div>
+      ) : !loadingLayout ? (
+        <section className="rounded-xl border border-border bg-card px-6 py-12">
+          <div className="mx-auto max-w-2xl text-center">
+            <Illustration name="choose" />
+            <h2 className="mt-4 text-lg font-semibold text-foreground">Choose what you are reporting on</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Use the three boxes above. The form opens as soon as all three are chosen.
+            </p>
           </div>
-        ) : !loadingLayout ? (
-          <Card className="border-dashed border-2 border-gray-200 shadow-none bg-white">
-            <CardContent className="text-center py-20">
-              <div
-                className="w-16 h-16 rounded-full mx-auto mb-5 flex items-center justify-center"
-                style={{ background: "#F3F4F6" }}
+          <ol className="mx-auto mt-8 grid max-w-3xl gap-3 sm:grid-cols-3">
+            {[
+              { step: 1, title: "Organisation unit", text: "The region, district or office you are reporting for.", done: !!org },
+              { step: 2, title: "Report", text: "The report form you need to fill in.", done: !!dataset },
+              { step: 3, title: "Period", text: "The month, quarter or year the data covers.", done: !!period },
+            ].map((s) => (
+              <li
+                key={s.step}
+                className="select-card"
+                data-selected={s.done ? "true" : undefined}
               >
-                <Target className="h-8 w-8" style={{ color: "#D96455" }} />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Start Data Entry</h3>
-              <p className="text-gray-500 max-w-sm mx-auto text-sm leading-relaxed">
-                Select a <strong>Report</strong>, <strong>Organisation Unit</strong>, and{" "}
-                <strong>Reporting Period</strong> from the toolbar above to begin entering data.
-              </p>
-            </CardContent>
-          </Card>
-        ) : null}
-      </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={
+                      s.done
+                        ? "flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                        : "flex h-6 w-6 items-center justify-center rounded-full border-2 border-muted-foreground/40 text-xs font-bold text-muted-foreground"
+                    }
+                  >
+                    {s.done ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : s.step}
+                  </span>
+                  <span className="text-sm font-semibold text-foreground">{s.title}</span>
+                  {s.done && <span className="sr-only">(chosen)</span>}
+                </div>
+                <p className="mt-1.5 text-xs text-muted-foreground">{s.text}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
     </div>
   )
 }

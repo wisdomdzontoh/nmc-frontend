@@ -248,9 +248,9 @@ export function ImportFromExcelModal({
               value={name}
               onChange={(e) => { setName(e.target.value); setFieldErrors((p) => ({ ...p, name: undefined })) }}
               placeholder="e.g. Monthly Nursing Report"
-              className={fieldErrors.name ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-red-600"}
+              className={fieldErrors.name ? "border-destructive" : ""}
             />
-            {fieldErrors.name && <p className="text-xs text-red-500">{fieldErrors.name}</p>}
+            {fieldErrors.name && <p className="text-xs text-error">{fieldErrors.name}</p>}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="import-code">Layout code (unique)</Label>
@@ -259,9 +259,9 @@ export function ImportFromExcelModal({
               value={code}
               onChange={(e) => { setCode(e.target.value); setFieldErrors((p) => ({ ...p, code: undefined })) }}
               placeholder="e.g. monthly-nursing-report"
-              className={fieldErrors.code ? "border-red-400 focus-visible:ring-red-400" : "focus-visible:ring-red-600"}
+              className={fieldErrors.code ? "border-destructive" : ""}
             />
-            {fieldErrors.code && <p className="text-xs text-red-500">{fieldErrors.code}</p>}
+            {fieldErrors.code && <p className="text-xs text-error">{fieldErrors.code}</p>}
           </div>
           <div className="flex items-center space-x-2">
             <Checkbox

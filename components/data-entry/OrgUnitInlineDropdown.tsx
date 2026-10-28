@@ -4,7 +4,8 @@ import * as React from "react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ChevronDown, ChevronRight, Check, Folder, Search } from "lucide-react"
+import { Building2, ChevronDown, ChevronRight, Check, Folder, Search } from "lucide-react"
+import { PickerTrigger } from "./PickerTrigger"
 import { cn } from "@/lib/utils"
 
 export type OrgNode = { id: number; name: string; type?: string; children?: OrgNode[] }
@@ -78,20 +79,19 @@ export default function OrgUnitInlineDropdown({ value, onChange, tree }: Props) 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" className="px-3 h-10 rounded-none border-x">
-          <span className="text-sm text-muted-foreground mr-2">Directorate</span>
-          <span className="font-medium truncate max-w-[240px]">
-            {value ? value.name : "Choose your department"}
-          </span>
-          <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
+        <PickerTrigger
+          label="Organisation unit"
+          chosen={value ? value.name : null}
+          placeholder="Choose a unit"
+          icon={<Building2 className="h-4 w-4" />}
+        />
       </PopoverTrigger>
 
-      <PopoverContent align="start" className="p-0 w-[520px]" sideOffset={6}>
+      <PopoverContent align="start" className="p-0 w-[min(520px,calc(100vw-2rem))]" sideOffset={6}>
         <div className="p-3 border-b relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search org units"
+            placeholder="Search organisation units"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-9"
