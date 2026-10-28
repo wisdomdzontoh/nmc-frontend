@@ -181,9 +181,6 @@ const VisualizationPage: React.FC = () => {
   const { djangoUser } = useAuth();
   const userOrgUnitId = djangoUser?.org_unit ?? null;
 
-  const isSuperuser = Boolean((djangoUser as unknown as { is_superuser?: boolean })?.is_superuser);
-  const isStaff = Boolean((djangoUser as unknown as { is_staff?: boolean })?.is_staff);
-
   // ── Modal open/close state ────────────────────────────────────────────────
   const [dataModalOpen, setDataModalOpen] = useState(false);
   const [periodModalOpen, setPeriodModalOpen] = useState(false);
@@ -454,21 +451,6 @@ const VisualizationPage: React.FC = () => {
       ? "All org units"
       : `${(orgUnitIds as number[]).length} unit(s)`;
   };
-
-  // ── Access guard ──────────────────────────────────────────────────────────
-  if (!isSuperuser && !isStaff) {
-    return (
-      <div className="p-6 max-w-2xl mx-auto text-center">
-        <h1 className="text-2xl font-bold mb-2">Visualizations</h1>
-        <Alert>
-          <AlertDescription>
-            Visualizations are only available to staff and administrators. Contact your administrator if
-            you need access.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
 
   const areas: AreaId[] = ["columns", "rows", "filter"];
   const areaDims: Record<AreaId, DimId> = { columns: colDim, rows: rowDim, filter: filterDim };

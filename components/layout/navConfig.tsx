@@ -66,7 +66,6 @@ export const NAV_ITEMS: NavItem[] = [
     icon: BarChart3,
     group: "Top apps",
     description: "Pivot tables and data explorer",
-    staffOnly: true,
   },
   {
     label: "Indicators",
